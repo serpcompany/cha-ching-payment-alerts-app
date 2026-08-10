@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject private var store: SalesStore
+    @EnvironmentObject private var connectStore: ConnectStore
 
     var body: some View {
         NavigationStack {
@@ -15,13 +16,14 @@ struct HomeView: View {
                                  onPing: store.simulateSale)
                         statRow
                         WeeklyChartCard(data: store.weeklyTotals, weekTotal: store.last7DaysTotal)
-                        ConnectionsStrip(connections: store.connections)
+                        ConnectionsStrip(connections: connectStore.connections)
                         recentSection
                     }
                     .padding(.horizontal, 18)
                     .padding(.bottom, 28)
                 }
             }
+            .task { await connectStore.refresh() }
             .navigationTitle("Today")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -91,5 +93,7 @@ enum Formatters {
 }
 
 #Preview {
-    HomeView().environmentObject(SalesStore())
+    HomeView()
+        .environmentObject(SalesStore())
+        .environmentObject(ConnectStore())
 }

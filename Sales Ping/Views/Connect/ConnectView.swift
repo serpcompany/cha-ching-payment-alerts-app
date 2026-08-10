@@ -34,7 +34,7 @@ struct ConnectView: View {
             Text("Link your payment providers")
                 .font(.title3.bold())
                 .foregroundStyle(Theme.ink)
-            Text("Sales Ping listens for webhooks from each connected provider and pings your phone the moment money lands.")
+            Text("Authorize Sales Ping from each provider's own sign-in page. Start with Stripe and PayPal for the MVP.")
                 .font(.subheadline)
                 .foregroundStyle(Theme.ink.opacity(0.6))
         }

@@ -141,7 +141,7 @@ struct WeeklyChartCard: View {
 }
 
 struct ConnectionsStrip: View {
-    let connections: [ProcessorConnection]
+    let connections: [ConnectionState]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

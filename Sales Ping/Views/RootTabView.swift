@@ -13,12 +13,38 @@ struct RootTabView: View {
             .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
             ConnectView()
                 .tabItem { Label("Connect", systemImage: "link") }
-            PlaceholderView(
-                title: "Settings",
-                message: "Pick your ping sound, craft your notification text, manage your plan.",
-                symbol: "slider.horizontal.3"
-            )
-            .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+            SettingsView()
+                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+        }
+    }
+}
+
+private struct SettingsView: View {
+    @EnvironmentObject private var auth: AuthManager
+    @EnvironmentObject private var connectStore: ConnectStore
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Plan access") {
+                    entitlementRow("Stripe connection", enabled: connectStore.isEntitled(to: .stripe))
+                    entitlementRow("PayPal connection", enabled: connectStore.isEntitled(to: .paypal))
+                }
+                Section {
+                    Button("Sign out", role: .destructive) { auth.signOut() }
+                }
+            }
+            .navigationTitle("Settings")
+            .task { await connectStore.refresh() }
+        }
+    }
+
+    private func entitlementRow(_ title: String, enabled: Bool) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Image(systemName: enabled ? "checkmark.circle.fill" : "lock.fill")
+                .foregroundStyle(enabled ? Theme.accent : .secondary)
         }
     }
 }

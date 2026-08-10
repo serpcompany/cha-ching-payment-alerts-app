@@ -5,6 +5,8 @@ enum Processor: String, CaseIterable, Identifiable, Codable {
 
     var id: String { rawValue }
 
+    static let mvpProviders: [Processor] = [.stripe, .paypal]
+
     var title: String {
         switch self {
         case .stripe: return "Stripe"
@@ -44,8 +46,8 @@ enum Processor: String, CaseIterable, Identifiable, Codable {
     /// Where a user gets the credentials they need to paste into Sales Ping.
     var setupHint: String {
         switch self {
-        case .stripe: return "Paste a restricted API key from Stripe Dashboard → Developers → API keys, plus your webhook signing secret."
-        case .paypal: return "Create a REST app in PayPal Developer Dashboard and paste the Client Secret."
+        case .stripe: return "Sign in to Stripe and authorize Sales Ping through Stripe Connect. Your credentials never pass through the app."
+        case .paypal: return "Sign in to PayPal and choose the account you want Sales Ping to link."
         case .lemonsqueezy: return "Paste an API key from Lemon Squeezy Settings → API, plus your webhook signing secret."
         case .gumroad: return "Paste your access token from Gumroad Settings → Advanced."
         case .dodoPayments: return "Paste your secret API key from the Dodo Payments dashboard."
@@ -80,11 +82,4 @@ struct Sale: Identifiable, Hashable {
         f.maximumFractionDigits = amount.truncatingRemainder(dividingBy: 1) == 0 ? 0 : 2
         return f.string(from: NSNumber(value: amount)) ?? "$\(amount)"
     }
-}
-
-struct ProcessorConnection: Identifiable {
-    var id: String { processor.rawValue }
-    var processor: Processor
-    var isConnected: Bool
-    var accountName: String?
 }

@@ -3,19 +3,12 @@ import SwiftUI
 @MainActor
 final class SalesStore: ObservableObject {
     @Published var sales: [Sale] = []
-    @Published var connections: [ProcessorConnection] = [
-        ProcessorConnection(processor: .stripe, isConnected: true, accountName: "Indie Labs LLC"),
-        ProcessorConnection(processor: .paypal, isConnected: true, accountName: "hello@indielabs.co"),
-        ProcessorConnection(processor: .gumroad, isConnected: false, accountName: nil)
-    ]
     @Published var pingsEnabled: Bool = true
     @Published var soundName: String = "Cha-Ching"
 
     init() {
-        sales = SalesStore.sampleSales()
+        sales = []
     }
-
-    var connectedCount: Int { connections.filter(\.isConnected).count }
 
     var todaysSales: [Sale] {
         let cal = Calendar.current

@@ -7,10 +7,6 @@ struct ConnectSheet: View {
     @EnvironmentObject private var connectStore: ConnectStore
     @Environment(\.dismiss) private var dismiss
 
-    @State private var accountLabel = ""
-    @State private var apiKey = ""
-    @State private var webhookSecret = ""
-
     var body: some View {
         NavigationStack {
             Form {
@@ -24,25 +20,38 @@ struct ConnectSheet: View {
                             .foregroundStyle(Theme.ink.opacity(0.7))
                     }
                 }
-                Section("Account label (optional)") {
-                    TextField("e.g. My SaaS — Live", text: $accountLabel)
-                        .textInputAutocapitalization(.words)
-                }
-                Section("API key") {
-                    SecureField("Paste your key here", text: $apiKey)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                }
-                if processor.needsWebhookSecret {
-                    Section("Webhook signing secret") {
-                        SecureField("Paste your webhook secret", text: $webhookSecret)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
+
+                if !isConnected {
+                    Section {
+                        Button {
+                            Task { await connect() }
+                        } label: {
+                            HStack {
+                                Spacer()
+                                if connectStore.isBusy {
+                                    ProgressView()
+                                } else {
+                                    Text("Connect with \(processor.title)")
+                                        .fontWeight(.semibold)
+                                }
+                                Spacer()
+                            }
+                        }
+                        .disabled(connectStore.isBusy || !connectStore.isEntitled(to: processor))
+                    }
+                    if !connectStore.isEntitled(to: processor) {
+                        Section {
+                            Text("Your current plan doesn't include this connection.")
+                                .font(.footnote)
+                                .foregroundStyle(.orange)
+                        }
                     }
                 }
+
                 if let error = connectStore.errorMessage {
                     Text(error).font(.footnote).foregroundStyle(.red)
                 }
+
                 if isConnected {
                     Section {
                         Button("Disconnect \(processor.title)", role: .destructive) {
@@ -51,10 +60,12 @@ struct ConnectSheet: View {
                                 dismiss()
                             }
                         }
+                        .disabled(connectStore.isBusy)
                     }
                 }
+
                 Section {
-                    Text("Keys are sent straight to Sales Ping's secure backend and are never stored on this device or visible again in the app.")
+                    Text("Authorization happens on \(processor.title). Access tokens are encrypted by Sales Ping's backend and are never stored on this device.")
                         .font(.caption2)
                         .foregroundStyle(Theme.ink.opacity(0.5))
                 }
@@ -65,21 +76,12 @@ struct ConnectSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { Task { await save() } }
-                        .disabled(apiKey.trimmingCharacters(in: .whitespaces).isEmpty || connectStore.isBusy)
-                }
             }
         }
     }
 
-    private func save() async {
-        let success = await connectStore.connect(
-            provider: processor,
-            apiKey: apiKey,
-            webhookSecret: webhookSecret.isEmpty ? nil : webhookSecret,
-            accountLabel: accountLabel.isEmpty ? nil : accountLabel
-        )
+    private func connect() async {
+        let success = await connectStore.connect(provider: processor)
         if success { dismiss() }
     }
 }

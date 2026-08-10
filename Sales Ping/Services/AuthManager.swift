@@ -1,7 +1,6 @@
 import Foundation
 import AuthenticationServices
 import CryptoKit
-import Supabase
 
 @MainActor
 final class AuthManager: ObservableObject {
@@ -17,9 +16,9 @@ final class AuthManager: ObservableObject {
 
     private func bootstrap() async {
         defer { isLoading = false }
-        if let session = try? await SupabaseManager.client.auth.session {
-            isSignedIn = session.user.id.uuidString.isEmpty == false
-        }
+        guard APIClient.shared.hasAuthToken else { return }
+        isSignedIn = (try? await APIClient.shared.validateSession()) == true
+        if !isSignedIn { APIClient.shared.clearAuthToken() }
     }
 
     /// Generates a fresh nonce for the Apple request and returns its SHA-256 hash.
@@ -50,8 +49,11 @@ final class AuthManager: ObservableObject {
         }
 
         do {
-            try await SupabaseManager.client.auth.signInWithIdToken(
-                credentials: .init(provider: .apple, idToken: idToken, nonce: nonce)
+            try await APIClient.shared.signInWithApple(
+                idToken: idToken,
+                nonce: nonce,
+                firstName: credential.fullName?.givenName,
+                lastName: credential.fullName?.familyName
             )
             isSignedIn = true
             errorMessage = nil
@@ -62,7 +64,7 @@ final class AuthManager: ObservableObject {
 
     func signOut() {
         Task {
-            try? await SupabaseManager.client.auth.signOut()
+            await APIClient.shared.signOut()
             isSignedIn = false
         }
     }

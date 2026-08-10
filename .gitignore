@@ -27,13 +27,9 @@ yarn-error.log
 yarn.lock
 package-lock.json
 
-# Expo
-.expo/
-.expo-shared/
-dist/
-web-build/
-
 # Misc
 *.log
 .env
 .env.local
+.dev.vars
+.wrangler/

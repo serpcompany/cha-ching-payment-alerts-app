@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "sales-ping-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-08",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "ENVIRONMENT": "production",
+    "PUBLIC_BASE_URL": "https://sales-ping-api.serpcompany.workers.dev",
+    "APPLE_APP_BUNDLE_ID": "com.serpcompany.salesping",
+    "APPLE_SERVICE_ID": "com.serpcompany.salesping.signin",
+    "PAYPAL_ENVIRONMENT": "sandbox"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "sales-ping-prod",
+      "database_id": "0a4f0c3e-2248-4a72-936e-e28aa6e21a72",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
