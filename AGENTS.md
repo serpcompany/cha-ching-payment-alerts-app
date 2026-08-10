@@ -32,4 +32,5 @@ This repository uses a single-context domain layout. See `docs/agents/domain.md`
 - Run `pnpm check` and a Wrangler dry run from `backend/` after Worker changes.
 - Regenerate the Xcode project with `xcodegen generate` after changing `project.yml`.
 - Run an unsigned Simulator build after Swift or project changes.
+- Keep the backend and unsigned iOS jobs in `.github/workflows/ci.yml` green before merging.
 - Update feature docs, ADRs, and the tracking GitHub Issue when behavior or decisions change.

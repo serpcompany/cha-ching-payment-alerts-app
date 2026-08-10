@@ -1,5 +1,7 @@
 # Cha-Ching
 
+[![CI](https://github.com/serpcompany/cha-ching/actions/workflows/ci.yml/badge.svg)](https://github.com/serpcompany/cha-ching/actions/workflows/ci.yml)
+
 Native iOS client plus a Cloudflare Worker API for account identity, feature entitlements, payment-provider connections, verified Stripe sales, and APNs alerts.
 
 Brand rules live in [`docs/brand.md`](docs/brand.md), App Store copy in [`docs/app-store/metadata.md`](docs/app-store/metadata.md), and launch progress in [GitHub Issue #1](https://github.com/serpcompany/cha-ching/issues/1).
