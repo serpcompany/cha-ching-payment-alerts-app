@@ -6,6 +6,8 @@ options:
 settings:
   base:
     PRODUCT_NAME: Cha-Ching
+    DEVELOPMENT_TEAM: 847HR8U8D9
+    CODE_SIGN_STYLE: Automatic
     SWIFT_VERSION: 6.0
     MARKETING_VERSION: 1.0
     CURRENT_PROJECT_VERSION: 1
@@ -58,6 +60,7 @@ targets:
         UILaunchStoryboardName: LaunchScreen
         UIRequiredDeviceCapabilities: [ arm64 ]
         API_BASE_URL: $(API_BASE_URL)
+        ITSAppUsesNonExemptEncryption: false
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
             CFBundleURLName: com.serpcompany.chaching.oauth

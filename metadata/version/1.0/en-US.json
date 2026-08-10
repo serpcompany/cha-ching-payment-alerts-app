@@ -1,0 +1,7 @@
+{
+  "description": "Cha-Ching gives indie founders and small software businesses one focused place to connect the payment accounts they already use.\n\nSign in with Apple, authorize Stripe and PayPal through provider-hosted pages, and manage each connection without pasting credentials into the app.\n\nMVP features:\n• Secure Sign in with Apple\n• Connect one Stripe account\n• Connect one PayPal account\n• View current connection status\n• Disconnect provider access whenever you choose\n\nProvider access tokens are encrypted before storage and are never persisted on your iPhone. Cha-Ching is not accounting, banking, payout, or financial-advice software.\n\nVerified sale ingestion and payment notifications will only be advertised as live after those features complete production verification.",
+  "keywords": "stripe,paypal,revenue,sales,merchant,founder,business,income,earnings,transactions",
+  "marketingUrl": "https://cha-ching-api.serpcompany.workers.dev/",
+  "promotionalText": "Securely connect Stripe and PayPal, then keep each provider connection visible and under your control.",
+  "supportUrl": "https://cha-ching-api.serpcompany.workers.dev/"
+}
