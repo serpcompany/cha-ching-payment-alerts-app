@@ -19,12 +19,12 @@ async function appleClientSecret(env: Env): Promise<string> {
 
 export function createAuth(env: Env) {
   return betterAuth({
-    appName: "Sales Ping",
+    appName: "Cha-Ching",
     baseURL: env.PUBLIC_BASE_URL,
     basePath: "/api/auth",
     secret: env.BETTER_AUTH_SECRET,
     database: env.DB,
-    trustedOrigins: ["https://appleid.apple.com", "salesping://", "salesping://*"],
+    trustedOrigins: ["https://appleid.apple.com", "chaching://", "chaching://*"],
     socialProviders: {
       apple: async () => ({
         clientId: env.APPLE_SERVICE_ID,
@@ -86,7 +86,7 @@ export function createAuth(env: Env) {
     },
     plugins: [bearer()],
     advanced: {
-      cookiePrefix: "sales-ping",
+      cookiePrefix: "cha-ching",
       useSecureCookies: env.ENVIRONMENT !== "development",
     },
     rateLimit: {

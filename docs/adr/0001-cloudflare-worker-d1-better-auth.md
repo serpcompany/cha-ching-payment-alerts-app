@@ -5,7 +5,7 @@
 
 ## Context
 
-Sales Ping needs globally reachable native-app authentication, relational ownership data, feature entitlements, and provider OAuth callbacks. The previous Supabase integration split these concerns across a hosted client SDK and edge functions and encouraged direct client table access.
+Cha-Ching needs globally reachable native-app authentication, relational ownership data, feature entitlements, and provider OAuth callbacks. The previous Supabase integration split these concerns across a hosted client SDK and edge functions and encouraged direct client table access.
 
 ## Decision
 

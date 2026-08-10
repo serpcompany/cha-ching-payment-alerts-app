@@ -2,7 +2,7 @@
 
 ## User outcome
 
-A user can establish and restore a Sales Ping account using Apple's native authorization UI without creating a password.
+A user can establish and restore a Cha-Ching account using Apple's native authorization UI without creating a password.
 
 ## Behavior
 

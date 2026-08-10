@@ -62,7 +62,7 @@ export async function beginConnection(
 }
 
 function appRedirect(provider: Provider, status: "connected" | "error", message?: string) {
-  const url = new URL("salesping://oauth-callback");
+  const url = new URL("chaching://oauth-callback");
   url.searchParams.set("provider", provider);
   url.searchParams.set("status", status);
   if (message) url.searchParams.set("message", message);

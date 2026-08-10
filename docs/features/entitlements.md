@@ -2,7 +2,7 @@
 
 ## User outcome
 
-Sales Ping can grant or withhold provider features per user without requiring an app release.
+Cha-Ching can grant or withhold provider features per user without requiring an app release.
 
 ## MVP model
 

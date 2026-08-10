@@ -1,11 +1,11 @@
-name: Sales Ping
+name: Cha-Ching
 options:
   bundleIdPrefix: com.serpcompany
   developmentLanguage: en
 
 settings:
   base:
-    PRODUCT_NAME: Sales Ping
+    PRODUCT_NAME: Cha-Ching
     SWIFT_VERSION: 6.0
     MARKETING_VERSION: 1.0
     CURRENT_PROJECT_VERSION: 1
@@ -18,29 +18,29 @@ settings:
     Debug:
       API_BASE_URL: http://127.0.0.1:8787
     Release:
-      API_BASE_URL: https://sales-ping-api.serpcompany.workers.dev
+      API_BASE_URL: https://cha-ching-api.serpcompany.workers.dev
       SWIFT_OPTIMIZATION_LEVEL: '-O'
       SWIFT_COMPILATION_MODE: wholemodule
       ENABLE_NS_ASSERTIONS: NO
 
 targets:
-  Sales Ping:
+  Cha-Ching:
     type: application
     platform: iOS
     deploymentTarget: '17.0'
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.serpcompany.salesping
-        CODE_SIGN_ENTITLEMENTS: Sales Ping/SalesPing.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.serpcompany.chaching
+        CODE_SIGN_ENTITLEMENTS: Cha-Ching/ChaChing.entitlements
     entitlements:
-      path: Sales Ping/SalesPing.entitlements
+      path: Cha-Ching/ChaChing.entitlements
       properties:
         com.apple.developer.applesignin:
           - Default
     sources:
-      - path: Sales Ping
+      - path: Cha-Ching
     info:
-      path: Sales Ping/Info.plist
+      path: Cha-Ching/Info.plist
       properties:
         CFBundleDevelopmentRegion: $(DEVELOPMENT_LANGUAGE)
         CFBundleDisplayName: $(PRODUCT_NAME)
@@ -60,9 +60,9 @@ targets:
         API_BASE_URL: $(API_BASE_URL)
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
-            CFBundleURLName: com.serpcompany.salesping.oauth
+            CFBundleURLName: com.serpcompany.chaching.oauth
             CFBundleURLSchemes:
-              - salesping
+              - chaching
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         UISupportedInterfaceOrientations:
@@ -76,10 +76,10 @@ targets:
           - UIInterfaceOrientationLandscapeRight
 
 schemes:
-  Sales Ping:
+  Cha-Ching:
     build:
       targets:
-        Sales Ping: all
+        Cha-Ching: all
     run:
       config: Debug
     archive:

@@ -1,19 +1,19 @@
 const styles = `
   :root { color-scheme: light dark; font-family: ui-sans-serif, system-ui, sans-serif; }
-  body { margin: 0; background: #07111f; color: #eef5ff; }
+  body { margin: 0; background: #071522; color: #f2fff8; }
   main { max-width: 760px; margin: 0 auto; padding: 64px 24px 96px; }
   h1 { font-size: clamp(2.25rem, 7vw, 4.5rem); line-height: 1; margin: 0 0 24px; }
   h2 { margin-top: 40px; }
   p, li { color: #c7d5e8; line-height: 1.7; }
-  a { color: #76b7ff; }
-  .eyebrow { color: #65e6a7; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-  .card { border: 1px solid #29415f; border-radius: 18px; padding: 24px; background: #0d1b2d; }
+  a { color: #39e6a3; }
+  .eyebrow { color: #f5b942; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+  .card { border: 1px solid #244737; border-radius: 22px; padding: 24px; background: #0d1d2a; }
 `;
 
 function page(title: string, body: string): Response {
   return new Response(`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${title} — Sales Ping</title><style>${styles}</style></head><body><main>${body}</main></body></html>`, {
+<title>${title} — Cha-Ching</title><style>${styles}</style></head><body><main>${body}</main></body></html>`, {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "public, max-age=3600",
@@ -25,10 +25,10 @@ function page(title: string, body: string): Response {
 
 export function homePage(): Response {
   return page("Connect your revenue accounts", `
-    <p class="eyebrow">Sales Ping</p>
-    <h1>Your payment accounts, connected.</h1>
+    <p class="eyebrow">Cha-Ching</p>
+    <h1>Get paid. Hear the cha-ching.</h1>
     <div class="card">
-      <p>Sales Ping is an iOS account-connection MVP for securely linking Stripe and PayPal accounts. Provider tokens stay encrypted in Cloudflare D1 and are never stored on the device.</p>
+      <p>Cha-Ching is an iOS account-connection MVP for securely linking Stripe and PayPal accounts. Provider tokens stay encrypted in Cloudflare D1 and are never stored on the device.</p>
       <p>Sale ingestion and push notifications are planned features and are not part of the current connection MVP.</p>
     </div>
     <p><a href="/privacy">Privacy Policy</a> · <a href="/terms">User Agreement</a></p>
@@ -39,7 +39,7 @@ export function privacyPage(): Response {
   return page("Privacy Policy", `
     <p class="eyebrow">Effective August 11, 2026</p>
     <h1>Privacy Policy</h1>
-    <p>Sales Ping collects the minimum information needed to authenticate you and connect payment-provider accounts.</p>
+    <p>Cha-Ching collects the minimum information needed to authenticate you and connect payment-provider accounts.</p>
     <h2>Information we process</h2>
     <ul>
       <li>Your Apple account identifier, name, and email when provided by Sign in with Apple.</li>
@@ -49,10 +49,10 @@ export function privacyPage(): Response {
     <h2>How we use and protect information</h2>
     <p>We use this information only to authenticate you, enforce feature access, display connection status, and operate the service. Provider tokens are encrypted with AES-256-GCM before storage in Cloudflare D1. We do not sell personal information.</p>
     <h2>Sharing and retention</h2>
-    <p>We use Apple, Stripe, PayPal, and Cloudflare to provide the service. Disconnecting a provider removes its stored connection and encrypted tokens from Sales Ping. Authentication records remain while your Sales Ping account is active or as needed for security and legal obligations.</p>
+    <p>We use Apple, Stripe, PayPal, and Cloudflare to provide the service. Disconnecting a provider removes its stored connection and encrypted tokens from Cha-Ching. Authentication records remain while your Cha-Ching account is active or as needed for security and legal obligations.</p>
     <h2>Your choices</h2>
-    <p>You can revoke provider access from Sales Ping or the provider dashboard. To request access, correction, or deletion of your Sales Ping account data, email <a href="mailto:devin@serp.co">devin@serp.co</a>.</p>
-    <p><a href="/">Sales Ping</a> · <a href="/terms">User Agreement</a></p>
+    <p>You can revoke provider access from Cha-Ching or the provider dashboard. To request access, correction, or deletion of your Cha-Ching account data, email <a href="mailto:devin@serp.co">devin@serp.co</a>.</p>
+    <p><a href="/">Cha-Ching</a> · <a href="/terms">User Agreement</a></p>
   `);
 }
 
@@ -60,15 +60,15 @@ export function termsPage(): Response {
   return page("User Agreement", `
     <p class="eyebrow">Effective August 11, 2026</p>
     <h1>User Agreement</h1>
-    <p>By using Sales Ping, you agree to use the service only with accounts you own or are authorized to manage.</p>
+    <p>By using Cha-Ching, you agree to use the service only with accounts you own or are authorized to manage.</p>
     <h2>Connection MVP</h2>
     <p>The current service connects and identifies Stripe and PayPal accounts. It does not yet provide sale ingestion, accounting, payout, notification, or financial-advice functionality.</p>
     <h2>Provider terms</h2>
-    <p>Your use of Apple, Stripe, and PayPal remains subject to each provider's agreements. You authorize Sales Ping to receive the account information and permissions shown on each provider's consent page.</p>
+    <p>Your use of Apple, Stripe, and PayPal remains subject to each provider's agreements. You authorize Cha-Ching to receive the account information and permissions shown on each provider's consent page.</p>
     <h2>Availability and responsibility</h2>
-    <p>The MVP is provided as available and may change or be interrupted. You are responsible for reviewing provider activity and revoking access you no longer want. Nothing in Sales Ping changes your obligations to a payment provider or your customers.</p>
+    <p>The MVP is provided as available and may change or be interrupted. You are responsible for reviewing provider activity and revoking access you no longer want. Nothing in Cha-Ching changes your obligations to a payment provider or your customers.</p>
     <h2>Contact</h2>
     <p>Questions about these terms can be sent to <a href="mailto:devin@serp.co">devin@serp.co</a>.</p>
-    <p><a href="/">Sales Ping</a> · <a href="/privacy">Privacy Policy</a></p>
+    <p><a href="/">Cha-Ching</a> · <a href="/privacy">Privacy Policy</a></p>
   `);
 }

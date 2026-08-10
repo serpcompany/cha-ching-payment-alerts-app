@@ -2,10 +2,10 @@
 
 ## Boundaries
 
-- `Sales Ping/` is the iOS presentation and native-auth client. It never stores provider credentials.
+- `Cha-Ching/` is the iOS presentation and native-auth client. It never stores provider credentials.
 - `backend/src/index.ts` is the Worker HTTP boundary.
 - Better Auth owns `user`, `session`, `account`, `verification`, and `rate_limit` in D1.
-- Sales Ping owns `entitlements`, `provider_connections`, and `oauth_states`.
+- Cha-Ching owns `entitlements`, `provider_connections`, and `oauth_states`.
 - Stripe and PayPal OAuth modules are the only code allowed to exchange provider authorization codes.
 
 ## Request flow
@@ -15,7 +15,7 @@
 3. iOS requests a provider authorization URL with that bearer session.
 4. The Worker checks the D1 entitlement and persists only a hash of a ten-minute OAuth state.
 5. The provider returns to the Worker. The Worker consumes the one-time state, rechecks entitlement, exchanges the code, encrypts tokens, and upserts the connection.
-6. The Worker redirects to `salesping://oauth-callback`; iOS refreshes connection state from D1.
+6. The Worker redirects to `chaching://oauth-callback`; iOS refreshes connection state from D1.
 
 ## Security invariants
 

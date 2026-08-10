@@ -18,13 +18,13 @@ This is a single-context repository:
 ├── CONTEXT.md
 ├── docs/adr/
 ├── docs/features/
-├── Sales Ping/
+├── Cha-Ching/
 └── backend/
 ```
 
 ## Vocabulary
 
-Use the terms defined in `CONTEXT.md` in issues, specifications, tests, and implementation. Avoid synonyms that blur the distinction between a Sales Ping user, a connected provider account, and that user's customers.
+Use the terms defined in `CONTEXT.md` in issues, specifications, tests, and implementation. Avoid synonyms that blur the distinction between a Cha-Ching user, a connected provider account, and that user's customers.
 
 ## ADR conflicts
 

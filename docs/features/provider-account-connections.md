@@ -17,7 +17,7 @@ An entitled user can connect or disconnect their own Stripe and PayPal accounts 
 - Uses PayPal's current `/signin/authorize` endpoint and Identity API token/user-info endpoints.
 - Requests only identity/profile scopes needed to identify the account.
 - Sandbox is suitable for MVP verification; live mode requires PayPal approval.
-- Disconnect removes Sales Ping's locally stored encrypted authorization.
+- Disconnect removes Cha-Ching's locally stored encrypted authorization.
 
 Reference: [PayPal Log in integration](https://developer.paypal.com/log-in/build).
 
@@ -27,7 +27,7 @@ Reference: [PayPal Log in integration](https://developer.paypal.com/log-in/build
 - The entitlement is checked before issuing an authorization URL and after consuming the callback.
 - Access and refresh tokens are AES-256-GCM encrypted with a per-write random IV.
 - Provider tokens never cross the iOS API boundary.
-- A provider/account ID pair is unique across Sales Ping users.
+- A provider/account ID pair is unique across Cha-Ching users.
 
 ## Acceptance criteria
 

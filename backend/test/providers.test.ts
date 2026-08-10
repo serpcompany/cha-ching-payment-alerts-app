@@ -4,7 +4,7 @@ import type { Env } from "../src/env";
 import { authorizationURL } from "../src/providers";
 
 const env = {
-  PUBLIC_BASE_URL: "https://api.salesping.example",
+  PUBLIC_BASE_URL: "https://api.chaching.example",
   STRIPE_CONNECT_CLIENT_ID: "ca_test",
   PAYPAL_CLIENT_ID: "paypal_test",
   PAYPAL_ENVIRONMENT: "sandbox",
@@ -17,7 +17,7 @@ describe("provider authorization URLs", () => {
     expect(url.searchParams.get("client_id")).toBe("ca_test");
     expect(url.searchParams.get("state")).toBe("state-value");
     expect(url.searchParams.get("redirect_uri")).toBe(
-      "https://api.salesping.example/v1/oauth/stripe/callback",
+      "https://api.chaching.example/v1/oauth/stripe/callback",
     );
   });
 
@@ -28,7 +28,7 @@ describe("provider authorization URLs", () => {
     expect(url.searchParams.get("scope")).toContain("openid");
     expect(url.searchParams.get("state")).toBe("state-value");
     expect(url.searchParams.get("redirect_uri")).toBe(
-      "https://api.salesping.example/v1/oauth/paypal/callback",
+      "https://api.chaching.example/v1/oauth/paypal/callback",
     );
   });
 });

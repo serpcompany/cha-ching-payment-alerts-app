@@ -8,4 +8,4 @@
 | Feature entitlements | Implemented | `entitlements.md` |
 | Sale ingestion and pings | Planned, outside connection MVP | `sale-ingestion-and-pings.md` |
 
-“Implemented” describes repository behavior. “Live” requires the production checks in `docs/exec-plans/active/live-mvp-launch.md`.
+“Implemented” describes repository behavior. “Live” requires the production checks tracked in [GitHub Issue #1](https://github.com/serpcompany/cha-ching/issues/1).

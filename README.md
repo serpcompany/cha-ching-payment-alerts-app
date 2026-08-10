@@ -1,6 +1,8 @@
-# Sales Ping
+# Cha-Ching
 
 Native iOS client plus a Cloudflare Worker API for account identity, feature entitlements, and payment-provider connections.
+
+Brand rules live in [`docs/brand.md`](docs/brand.md), App Store copy in [`docs/app-store/metadata.md`](docs/app-store/metadata.md), and launch progress in [GitHub Issue #1](https://github.com/serpcompany/cha-ching/issues/1).
 
 ## MVP architecture
 
@@ -28,11 +30,11 @@ Requirements: Node 22+, pnpm 10+, Xcode 17+, XcodeGen, Wrangler, and a Cloudflar
 
 2. Add Apple, Stripe, and PayPal values to `.dev.vars`.
 
-   - Apple: App ID `com.serpcompany.salesping`, Services ID `com.serpcompany.salesping.signin`, Team ID, Key ID, and the downloaded `.p8` private key.
+   - Apple: App ID `com.serpcompany.chaching`, Services ID `com.serpcompany.chaching.signin`, Team ID, Key ID, and the downloaded `.p8` private key.
    - Stripe: enable Connect OAuth and register `<PUBLIC_BASE_URL>/v1/oauth/stripe/callback` as a redirect URI.
    - PayPal: enable Log in with PayPal and register `<PUBLIC_BASE_URL>/v1/oauth/paypal/callback` as the return URL. Sandbox requires no review; live access requires PayPal approval.
 
-3. The checked-in production binding uses `sales-ping-prod`. For local development, apply the same migrations to local Wrangler state:
+3. The checked-in production binding uses `cha-ching-prod`. For local development, apply the same migrations to local Wrangler state:
 
    ```bash
    pnpm db:migrate:local
@@ -46,7 +48,7 @@ Requirements: Node 22+, pnpm 10+, Xcode 17+, XcodeGen, Wrangler, and a Cloudflar
    ```bash
    cd ..
    xcodegen generate
-   open "Sales Ping.xcodeproj"
+   open "Cha-Ching.xcodeproj"
    ```
 
 Sign in with Apple requires Apple configuration and is best exercised on a signed build/device.
@@ -71,7 +73,7 @@ pnpm db:migrate:remote
 pnpm deploy
 ```
 
-Production infrastructure is deployed at `https://sales-ping-api.serpcompany.workers.dev` with D1 database `sales-ping-prod`. Public provider-review pages are available at `/privacy` and `/terms`. Change `PAYPAL_ENVIRONMENT` to `live` only after PayPal approves Log in with PayPal.
+Production infrastructure is deployed at `https://cha-ching-api.serpcompany.workers.dev` with D1 database `cha-ching-prod`. Public provider-review pages are available at `/privacy` and `/terms`. Change `PAYPAL_ENVIRONMENT` to `live` only after PayPal approves Log in with PayPal.
 
 ## Entitlements
 
@@ -92,6 +94,6 @@ pnpm exec wrangler deploy --dry-run
 
 cd ..
 xcodegen generate
-xcodebuild -project "Sales Ping.xcodeproj" -scheme "Sales Ping" \
+xcodebuild -project "Cha-Ching.xcodeproj" -scheme "Cha-Ching" \
   -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
 ```

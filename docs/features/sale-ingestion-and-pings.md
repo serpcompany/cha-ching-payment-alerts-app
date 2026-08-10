@@ -6,7 +6,7 @@ Planned. This feature is explicitly outside the provider-connection MVP.
 
 ## Intended outcome
 
-Sales Ping verifies Stripe and PayPal events, normalizes real payments into sales, deduplicates them, and sends an APNs notification to the owning user's registered devices.
+Cha-Ching verifies Stripe and PayPal events, normalizes real payments into sales, deduplicates them, and sends an APNs notification to the owning user's registered devices.
 
 ## Required before this can be called live
 
