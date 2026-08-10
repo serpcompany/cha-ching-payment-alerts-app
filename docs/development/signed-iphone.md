@@ -86,3 +86,6 @@ register `production` tokens instead.
 4. APNs reports the delivery as sent, the phone shows the Cha-ching alert, and
    the same sale appears in History.
 
+## TestFlight archive note
+
+The cached interactive Apple Account may be expired even while the installed Apple Distribution identity, App Store provisioning profile, and `asc` API-key authentication remain valid. Archive with the manual `Cha-Ching App Store Push` profile. If Xcode export fails only while checking that stale account, package the already signed archive as `Payload/Cha-Ching.app` with resource forks disabled, verify the IPA contains no `__MACOSX` or `.DS_Store` entries, and upload it with `asc builds upload`. Never re-sign the archived app or omit the final `codesign --verify --deep --strict` check.

@@ -5,7 +5,7 @@
 - `Cha-Ching/` is the iOS presentation and native-auth client. It never stores provider credentials.
 - `backend/src/index.ts` is the Worker HTTP boundary.
 - Better Auth owns `user`, `session`, `account`, `verification`, and `rate_limit` in D1.
-- Cha-Ching owns `entitlements`, `provider_connections`, `oauth_states`, `provider_events`, `sales`, `device_tokens`, and `notification_deliveries`.
+- Cha-Ching owns `entitlements`, `provider_connections`, `oauth_states`, `provider_events`, `custom_payment_sources`, `sales`, `device_tokens`, and `notification_deliveries`.
 - Stripe and PayPal OAuth modules are the only code allowed to exchange provider authorization codes.
 
 ## Request flow
@@ -21,11 +21,22 @@
 
 1. Stripe sends a connected-account event to `/v1/webhooks/stripe`.
 2. The Worker verifies the signature against the unmodified request body and rejects stale signatures.
-3. A successful charge is matched to a connected Stripe account, normalized without customer name or email, and inserted idempotently into D1.
-4. The Worker publishes the sale ID to `cha-ching-notifications` and records that it was queued.
-5. The queue consumer claims one delivery per active device, signs an APNs provider token, and sends to Apple's development or production endpoint based on the registered token.
-6. Completed deliveries are not repeated; transient failures retry and eventually move to `cha-ching-notifications-dlq`.
+3. A successful charge is matched to a connected Stripe account. Its event audit is marked `received`, then the normalized sale is inserted idempotently without customer name or email.
+4. The Worker takes a five-minute reclaimable notification claim, publishes the sale ID to `cha-ching-notifications`, records Queue acceptance, and marks the event `processed`. A failed sale insert, Queue send, or abandoned pre-send claim remains recoverable on Stripe's exact-event retry.
+5. The queue consumer claims one delivery per active device, reuses that delivery row's stable ID as the APNs id, signs an APNs provider token, and sends to Apple's development or production endpoint based on the registered token.
+6. Completed deliveries are not repeated; duplicate Queue messages resolve to the same sale/device row and APNs id. Transient failures retry and eventually move to `cha-ching-notifications-dlq`.
 7. iOS refreshes `/v1/sales` when it receives or opens a notification.
+
+A connected provider's `is_active` flag is checked before sale insertion. Pausing preserves authorization and history while new provider events receive a durable `ignored` disposition, so replaying one after resume cannot turn it into a sale.
+
+## Custom webhook flow
+
+1. An entitled, authenticated user names a payment source. The Worker generates a random private URL token, stores its hash for lookup, and stores an encrypted copy so the same URL can be shown again.
+2. While the source is in setup, `POST /v1/webhooks/custom/:token` encrypts one JSON sample. Samples never create sales or notifications.
+3. iOS checks the connection, displays every scalar field path and value in the bounded payload, and lets the user map Payment ID, Amount, Currency, and optional notification fields.
+4. The Worker validates the mapping against the sample and returns a normalized preview. Activation requires the exact previewed mapping and deletes the encrypted sample.
+5. An active source normalizes incoming JSON with the saved mapping, hashes the complete source-scoped Payment ID, inserts one D1 sale, and queues one notification. Retries with the same full mapped Payment ID are ignored.
+6. A paused source acknowledges and ignores new events while retaining its URL, mapping, and history.
 
 ## Security invariants
 
@@ -39,4 +50,7 @@
 - Stripe App install callbacks are signed, and the app manifest grants only `event_read` and `charge_read`.
 - A sandbox Stripe account cannot be stored by a production callback, even though sandbox and live identifiers share the `acct_` format.
 - Provider event IDs, payment IDs, and notification deliveries are unique so retries are idempotent.
+- Custom webhook tokens have 256 bits of entropy. D1 uses their SHA-256 hashes for public request lookup; encrypted token copies are returned only through owner-authenticated APIs.
+- Custom payloads are limited to 64 KiB. Setup samples are encrypted at rest, never logged, and removed on activation; active payloads are normalized without storing the original JSON.
+- A custom URL authenticates its sender but does not independently verify the truth of the reported sale.
 - APNs device tokens are user-scoped, revocable at sign-out, and invalidated after Apple rejects them.

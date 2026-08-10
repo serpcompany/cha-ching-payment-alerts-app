@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 
 import type { Env } from "./env";
+import { enqueueSaleNotification } from "./notification-queue";
 
 const encoder = new TextEncoder();
 const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
@@ -23,6 +24,8 @@ interface StripeEvent {
   livemode: boolean;
   data: { object: unknown };
 }
+
+type StripeEventDisposition = "received" | "ignored" | "processed";
 
 export interface NormalizedStripeSale {
   providerEventId: string;
@@ -135,11 +138,12 @@ async function recordEvent(
   env: Env,
   event: StripeEvent,
   userId: string | null,
-): Promise<void> {
+  disposition: StripeEventDisposition,
+): Promise<StripeEventDisposition> {
   await env.DB.prepare(
     `INSERT OR IGNORE INTO provider_events (
-      id, provider, provider_event_id, user_id, provider_account_id, event_type, livemode
-    ) VALUES (?1, 'stripe', ?2, ?3, ?4, ?5, ?6)`,
+      id, provider, provider_event_id, user_id, provider_account_id, event_type, livemode, disposition
+    ) VALUES (?1, 'stripe', ?2, ?3, ?4, ?5, ?6, ?7)`,
   )
     .bind(
       `stripe:${event.id}`,
@@ -148,21 +152,54 @@ async function recordEvent(
       event.account ?? null,
       event.type,
       event.livemode ? 1 : 0,
+      disposition,
     )
     .run();
+  if (disposition === "ignored") {
+    await env.DB.prepare(
+      `UPDATE provider_events SET disposition = 'ignored'
+       WHERE provider = 'stripe' AND provider_event_id = ?1 AND disposition = 'received'`,
+    ).bind(event.id).run();
+  }
+  const recorded = await env.DB.prepare(
+    "SELECT disposition FROM provider_events WHERE provider = 'stripe' AND provider_event_id = ?1",
+  ).bind(event.id).first<{ disposition: StripeEventDisposition }>();
+  if (!recorded) throw new Error("Stripe event audit could not be persisted");
+  return recorded.disposition;
+}
+
+async function markEventProcessed(env: Env, eventId: string): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE provider_events SET disposition = 'processed'
+     WHERE provider = 'stripe' AND provider_event_id = ?1 AND disposition = 'received'`,
+  ).bind(eventId).run();
 }
 
 async function ingestSale(env: Env, event: StripeEvent, sale: NormalizedStripeSale): Promise<void> {
   const connection = await env.DB.prepare(
-    `SELECT user_id FROM provider_connections
+    `SELECT user_id, is_active FROM provider_connections
      WHERE provider = 'stripe' AND provider_account_id = ?1 AND status = 'connected'`,
   )
     .bind(sale.providerAccountId)
-    .first<{ user_id: string }>();
+    .first<{ user_id: string; is_active: number }>();
 
-  await recordEvent(env, event, connection?.user_id ?? null);
   if (!connection) {
+    await recordEvent(env, event, null, "ignored");
     console.log(JSON.stringify({ message: "stripe.event.ignored", eventId: event.id, reason: "unknown_account" }));
+    return;
+  }
+  if (connection.is_active !== 1) {
+    await recordEvent(env, event, connection.user_id, "ignored");
+    console.log(JSON.stringify({ message: "stripe.event.ignored", eventId: event.id, reason: "connection_paused" }));
+    return;
+  }
+  const disposition = await recordEvent(env, event, connection.user_id, "received");
+  if (disposition !== "received") {
+    console.log(JSON.stringify({
+      message: "stripe.event.ignored",
+      eventId: event.id,
+      reason: disposition === "processed" ? "already_processed" : "previously_ignored",
+    }));
     return;
   }
 
@@ -188,30 +225,22 @@ async function ingestSale(env: Env, event: StripeEvent, sale: NormalizedStripeSa
     )
     .run();
 
-  const pending = await env.DB.prepare(
-    "SELECT notification_queued_at FROM sales WHERE id = ?1",
-  )
-    .bind(saleId)
-    .first<{ notification_queued_at: string | null }>();
-  if (pending && !pending.notification_queued_at) {
-    await env.NOTIFICATION_QUEUE.send({ saleId });
-    await env.DB.prepare(
-      "UPDATE sales SET notification_queued_at = CURRENT_TIMESTAMP WHERE id = ?1 AND notification_queued_at IS NULL",
-    )
-      .bind(saleId)
-      .run();
-  }
+  await enqueueSaleNotification(env, saleId);
+  await markEventProcessed(env, event.id);
 }
 
 async function handleDeauthorization(env: Env, event: StripeEvent): Promise<void> {
-  await recordEvent(env, event, null);
-  if (!event.account) return;
-  await env.DB.prepare(
-    `UPDATE provider_connections SET status = 'revoked', updated_at = CURRENT_TIMESTAMP
-     WHERE provider = 'stripe' AND provider_account_id = ?1`,
-  )
-    .bind(event.account)
-    .run();
+  const disposition = await recordEvent(env, event, null, "received");
+  if (disposition !== "received") return;
+  if (event.account) {
+    await env.DB.prepare(
+      `UPDATE provider_connections SET status = 'revoked', updated_at = CURRENT_TIMESTAMP
+       WHERE provider = 'stripe' AND provider_account_id = ?1`,
+    )
+      .bind(event.account)
+      .run();
+  }
+  await markEventProcessed(env, event.id);
 }
 
 export async function handleStripeWebhook(env: Env, request: Request): Promise<Response> {
@@ -245,7 +274,7 @@ export async function handleStripeWebhook(env: Env, request: Request): Promise<R
   } else {
     const sale = normalizeStripeSale(parsed);
     if (sale) await ingestSale(env, parsed, sale);
-    else await recordEvent(env, parsed, null);
+    else await recordEvent(env, parsed, null, "ignored");
   }
   return Response.json({ received: true });
 }

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/serpcompany/cha-ching/actions/workflows/ci.yml/badge.svg)](https://github.com/serpcompany/cha-ching/actions/workflows/ci.yml)
 
-Native iOS client plus a Cloudflare Worker API for account identity, feature entitlements, payment-provider connections, verified Stripe sales, and APNs alerts.
+Native iOS client plus a Cloudflare Worker API for account identity, feature entitlements, payment-provider connections, verified Stripe sales, sender-reported custom webhook sales, and APNs alerts.
 
 Brand rules live in [`docs/brand.md`](docs/brand.md), App Store copy in [`docs/app-store/metadata.md`](docs/app-store/metadata.md), and launch progress in [GitHub Issue #1](https://github.com/serpcompany/cha-ching/issues/1).
 
@@ -10,11 +10,12 @@ Brand rules live in [`docs/brand.md`](docs/brand.md), App Store copy in [`docs/a
 
 - Better Auth runs in a Cloudflare Worker and stores users/sessions in D1.
 - The iOS app signs in with Apple's native UI, exchanges the Apple ID token with Better Auth, and stores the resulting bearer session in Keychain.
-- D1 entitlements (`connect_stripe`, `connect_paypal`) are created with MVP defaults and checked before OAuth begins and again at callback completion.
+- D1 entitlements (`connect_stripe`, `connect_paypal`, `connect_custom`) are created with MVP defaults and enforced server-side.
 - Stripe uses a backend-only Stripe App with explicit `event_read` and `charge_read` permissions. PayPal uses Log in with PayPal (OpenID Connect).
 - PayPal access and refresh tokens are AES-256-GCM encrypted before D1 storage. Stripe stores only the installed account ID and no Stripe access token.
 - Signed Stripe connected-account events become idempotent D1 sales and are sent through a Cloudflare Queue for APNs delivery.
-- The iOS History tab reads verified sales from the Worker; sample revenue and local test pings are not part of production behavior.
+- Custom sources issue a stable private webhook URL, learn a user-selected mapping from one encrypted setup sample, and retain only normalized sender-reported sale fields after activation.
+- The iOS History tab reads Stripe-verified and custom sender-reported sales from the Worker; sample revenue and local test pings are not part of production behavior.
 
 PayPal account linking is implemented separately from sale ingestion. Version 1.0 supports Stripe payment alerts once the production Stripe platform and webhook secrets are configured; PayPal alerts are not implemented.
 
@@ -100,7 +101,7 @@ Production infrastructure is deployed at `https://cha-ching-api.serpcompany.work
 
 ## Entitlements
 
-Both connection features default to enabled. D1 remains the source of truth and every connection attempt is enforced server-side. An operator can change access directly until billing/admin tooling exists:
+All three connection features default to enabled. D1 remains the source of truth and every connection attempt is enforced server-side. An operator can change access directly until billing/admin tooling exists:
 
 ```sql
 UPDATE entitlements

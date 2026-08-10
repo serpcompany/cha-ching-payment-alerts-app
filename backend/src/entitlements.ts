@@ -2,7 +2,7 @@ import type { Provider } from "./env";
 
 export const featureForProvider = (provider: Provider) => `connect_${provider}` as const;
 
-const defaults = ["connect_stripe", "connect_paypal"] as const;
+const defaults = ["connect_custom", "connect_paypal", "connect_stripe"] as const;
 
 export interface EntitlementRow {
   feature_key: (typeof defaults)[number];
@@ -34,6 +34,16 @@ export async function requireProviderEntitlement(
   const entitlements = await getUserEntitlements(db, userId);
   if (!entitlements.some((item) => item.feature === featureForProvider(provider) && item.enabled)) {
     throw new Response(JSON.stringify({ error: `${provider} connections are not included in your plan` }), {
+      status: 403,
+      headers: { "content-type": "application/json" },
+    });
+  }
+}
+
+export async function requireCustomSourceEntitlement(db: D1Database, userId: string): Promise<void> {
+  const entitlements = await getUserEntitlements(db, userId);
+  if (!entitlements.some((item) => item.feature === "connect_custom" && item.enabled)) {
+    throw new Response(JSON.stringify({ error: "Custom payment sources are not included in your plan" }), {
       status: 403,
       headers: { "content-type": "application/json" },
     });

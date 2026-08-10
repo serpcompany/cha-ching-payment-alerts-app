@@ -1,8 +1,9 @@
 import SwiftUI
 
 struct ConnectSheet: View {
-    let processor: Processor
+    let provider: Provider
     let isConnected: Bool
+    let isActive: Bool
 
     @EnvironmentObject private var connectStore: ConnectStore
     @Environment(\.dismiss) private var dismiss
@@ -12,10 +13,10 @@ struct ConnectSheet: View {
             Form {
                 Section {
                     HStack(spacing: 12) {
-                        Image(systemName: processor.symbol)
-                            .foregroundStyle(processor.color)
+                        Image(systemName: provider.symbol)
+                            .foregroundStyle(provider.color)
                             .font(.title3)
-                        Text(processor.setupHint)
+                        Text(provider.setupHint)
                             .font(.footnote)
                             .foregroundStyle(Theme.ink.opacity(0.7))
                     }
@@ -31,7 +32,7 @@ struct ConnectSheet: View {
                                 if connectStore.isBusy {
                                     ProgressView()
                                 } else {
-                                    Text("Connect with \(processor.title)")
+                                    Text("Connect with \(provider.title)")
                                         .fontWeight(.semibold)
                                 }
                                 Spacer()
@@ -39,19 +40,19 @@ struct ConnectSheet: View {
                         }
                         .disabled(
                             connectStore.isBusy ||
-                            !connectStore.isEntitled(to: processor) ||
-                            !connectStore.isAvailable(processor)
+                            !connectStore.isEntitled(to: provider) ||
+                            !connectStore.isAvailable(provider)
                         )
                     }
-                    if !connectStore.isEntitled(to: processor) {
+                    if !connectStore.isEntitled(to: provider) {
                         Section {
                             Text("Your current plan doesn't include this connection.")
                                 .font(.footnote)
                                 .foregroundStyle(.orange)
                         }
-                    } else if !connectStore.isAvailable(processor) {
+                    } else if !connectStore.isAvailable(provider) {
                         Section {
-                            Text("We're finishing \(processor.title) setup. This connection will become available without an app update.")
+                            Text("We're finishing \(provider.title) setup. This connection will become available without an app update.")
                                 .font(.footnote)
                                 .foregroundStyle(.orange)
                         }
@@ -63,10 +64,24 @@ struct ConnectSheet: View {
                 }
 
                 if isConnected {
+                    Section("Payments") {
+                        Toggle("Receive payments", isOn: Binding(
+                            get: {
+                                connectStore.connections.first { $0.provider == provider }?.isActive
+                                    ?? isActive
+                            },
+                            set: { active in
+                                Task { await connectStore.setProviderActivity(provider: provider, active: active) }
+                            }
+                        ))
+                        Text("Turn this off to stop new history and notifications without disconnecting \(provider.title).")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                     Section {
-                        Button("Disconnect \(processor.title)", role: .destructive) {
+                        Button("Disconnect \(provider.title)", role: .destructive) {
                             Task {
-                                await connectStore.disconnect(provider: processor)
+                                await connectStore.disconnect(provider: provider)
                                 dismiss()
                             }
                         }
@@ -80,7 +95,7 @@ struct ConnectSheet: View {
                         .foregroundStyle(Theme.ink.opacity(0.5))
                 }
             }
-            .navigationTitle(processor.title)
+            .navigationTitle(provider.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -91,16 +106,16 @@ struct ConnectSheet: View {
     }
 
     private func connect() async {
-        let success = await connectStore.connect(provider: processor)
+        let success = await connectStore.connect(provider: provider)
         if success { dismiss() }
     }
 
     private var connectionPrivacyCopy: String {
-        switch processor {
+        switch provider {
         case .stripe:
             "Authorization happens on Stripe. Cha-Ching requests read-only event and charge access, stores only the connected account ID, and cannot create or change payments."
         default:
-            "Authorization happens on \(processor.title). Provider tokens are encrypted by Cha-Ching's backend and are never stored on this device."
+            "Authorization happens on \(provider.title). Provider tokens are encrypted by Cha-Ching's backend and are never stored on this device."
         }
     }
 }

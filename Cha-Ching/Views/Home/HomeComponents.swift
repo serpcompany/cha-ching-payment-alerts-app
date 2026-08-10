@@ -26,7 +26,7 @@ struct HeroCard: View {
                 .contentTransition(.numericText())
 
             HStack {
-                Text("\(count) verified sale\(count == 1 ? "" : "s")")
+                Text("\(count) sale\(count == 1 ? "" : "s")")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.white.opacity(0.85))
                 Spacer()
@@ -149,21 +149,21 @@ struct ConnectionsStrip: View {
             HStack(spacing: 10) {
                 ForEach(connections) { c in
                     VStack(spacing: 8) {
-                        Image(systemName: c.processor.symbol)
+                        Image(systemName: c.provider.symbol)
                             .font(.title3)
-                            .foregroundStyle(c.isConnected ? c.processor.color : Theme.ink.opacity(0.35))
-                        Text(c.processor.title)
+                            .foregroundStyle(c.isConnected ? c.provider.color : Theme.ink.opacity(0.35))
+                        Text(c.provider.title)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(Theme.ink.opacity(0.8))
-                        Text(c.isConnected ? "Live" : "Connect")
+                        Text(c.isConnected ? (c.isActive ? "Live" : "Paused") : "Connect")
                             .font(.caption2.weight(.bold))
-                            .foregroundStyle(c.isConnected ? Theme.accent : Theme.ink.opacity(0.4))
+                            .foregroundStyle(c.isActive ? Theme.accent : c.isConnected ? Theme.gold : Theme.ink.opacity(0.4))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(c.isConnected ? c.processor.color.opacity(0.10) : Theme.ink.opacity(0.05))
+                            .fill(c.isConnected ? c.provider.color.opacity(0.10) : Theme.ink.opacity(0.05))
                     )
                 }
             }

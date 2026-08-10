@@ -17,6 +17,7 @@ interface ConnectionRow {
   status: "connected" | "revoked" | "error";
   provider_account_id: string;
   account_label: string | null;
+  is_active: number;
   updated_at: string;
 }
 
@@ -27,7 +28,8 @@ function parseProvider(value: string): Provider | null {
 export async function listConnections(env: Env, auth: Auth, request: Request): Promise<Response> {
   const user = await requireUser(auth, request);
   const result = await env.DB.prepare(
-    "SELECT provider, status, provider_account_id, account_label, updated_at FROM provider_connections WHERE user_id = ?1 ORDER BY provider",
+    `SELECT provider, status, provider_account_id, account_label, is_active, updated_at
+     FROM provider_connections WHERE user_id = ?1 ORDER BY provider`,
   )
     .bind(user.id)
     .all<ConnectionRow>();
@@ -37,6 +39,7 @@ export async function listConnections(env: Env, auth: Auth, request: Request): P
       status: row.status,
       providerAccountId: row.provider_account_id,
       accountLabel: row.account_label,
+      isActive: row.is_active === 1,
       updatedAt: row.updated_at,
     })),
   });
@@ -129,6 +132,7 @@ export async function completeConnection(
       ) VALUES (?1, ?2, ?3, 'connected', ?4, ?5, ?6, ?7, ?8, ?9)
       ON CONFLICT(user_id, provider) DO UPDATE SET
         status = 'connected', provider_account_id = excluded.provider_account_id,
+        is_active = 1,
         account_label = excluded.account_label,
         access_token_ciphertext = excluded.access_token_ciphertext,
         refresh_token_ciphertext = excluded.refresh_token_ciphertext,
@@ -155,6 +159,34 @@ export async function completeConnection(
     });
     return appRedirect(provider, "error", providerConnectionFailureMessage(provider, error));
   }
+}
+
+export async function setConnectionActivity(
+  env: Env,
+  auth: Auth,
+  request: Request,
+  providerValue: string,
+  isActive: boolean,
+): Promise<Response> {
+  const provider = parseProvider(providerValue);
+  if (!provider) return Response.json({ error: "Unsupported provider" }, { status: 400 });
+  const user = await requireUser(auth, request);
+  const row = await env.DB.prepare(
+    `UPDATE provider_connections SET is_active = ?1, updated_at = CURRENT_TIMESTAMP
+     WHERE user_id = ?2 AND provider = ?3 AND status = 'connected'
+     RETURNING provider, status, provider_account_id, account_label, is_active, updated_at`,
+  ).bind(isActive ? 1 : 0, user.id, provider).first<ConnectionRow>();
+  if (!row) return Response.json({ error: "Connection not found" }, { status: 404 });
+  return Response.json({
+    connection: {
+      provider: row.provider,
+      status: row.status,
+      providerAccountId: row.provider_account_id,
+      accountLabel: row.account_label,
+      isActive: row.is_active === 1,
+      updatedAt: row.updated_at,
+    },
+  });
 }
 
 export async function disconnect(

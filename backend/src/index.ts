@@ -1,9 +1,11 @@
 import { createAuth, requireUser } from "./auth";
+import { handleCustomSourceRequest } from "./custom-webhooks";
 import {
   beginConnection,
   completeConnection,
   disconnect,
   listConnections,
+  setConnectionActivity,
 } from "./connections";
 import { registerDevice, unregisterDevice } from "./devices";
 import { getUserEntitlements } from "./entitlements";
@@ -42,6 +44,7 @@ async function route(request: Request, env: Env): Promise<Response> {
       authentication: missingCoreConfiguration(env).length === 0,
       stripeConnections: isStripeConfigured(env),
       stripeNotifications: isStripeConfigured(env) && Boolean(env.STRIPE_WEBHOOK_SECRET) && isPushConfigured(env),
+      customWebhookNotifications: isPushConfigured(env),
       paypalConnections: isPayPalConfigured(env),
     };
     return Response.json({
@@ -64,6 +67,14 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
   assertConfigured(env);
   const auth = createAuth(env);
+
+  if (
+    url.pathname === "/v1/custom-sources"
+    || url.pathname.startsWith("/v1/custom-sources/")
+    || url.pathname.startsWith("/v1/webhooks/custom/")
+  ) {
+    return handleCustomSourceRequest(env, auth, request);
+  }
 
   if (url.pathname.startsWith("/api/auth/")) return auth.handler(request);
   if (request.method === "GET" && url.pathname === "/v1/me") {
@@ -92,6 +103,16 @@ async function route(request: Request, env: Env): Promise<Response> {
   const deviceMatch = url.pathname.match(/^\/v1\/devices\/([^/]+)$/);
   if (request.method === "DELETE" && deviceMatch) {
     return unregisterDevice(env, auth, request, decodeURIComponent(deviceMatch[1]));
+  }
+  const connectionActivityMatch = url.pathname.match(/^\/v1\/connections\/([^/]+)\/(pause|resume)$/);
+  if (request.method === "POST" && connectionActivityMatch) {
+    return setConnectionActivity(
+      env,
+      auth,
+      request,
+      connectionActivityMatch[1],
+      connectionActivityMatch[2] === "resume",
+    );
   }
   const connectionMatch = url.pathname.match(/^\/v1\/connections\/([^/]+)$/);
   if (request.method === "DELETE" && connectionMatch) {

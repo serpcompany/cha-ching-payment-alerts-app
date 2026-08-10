@@ -47,6 +47,10 @@ actor APIClient {
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
 
+    init() {
+        decoder.dateDecodingStrategy = .iso8601
+    }
+
     nonisolated var hasAuthToken: Bool { KeychainToken.load() != nil }
 
     private var baseURL: URL {

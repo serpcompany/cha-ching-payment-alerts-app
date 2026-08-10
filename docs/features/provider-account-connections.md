@@ -34,6 +34,7 @@ Reference: [PayPal Log in integration](https://developer.paypal.com/log-in/build
 - Provider tokens never cross the iOS API boundary.
 - A provider/account ID pair is unique across Cha-Ching users.
 - `/v1/me` reports server-side provider availability separately from entitlement state, so the app disables connection actions until required credentials exist.
+- Each connected provider has a **Receive payments** switch. Pausing keeps the provider authorization, account label, and existing history but ignores new sale events. Disconnect remains a separate destructive action.
 
 ## Acceptance criteria
 
@@ -44,3 +45,4 @@ Reference: [PayPal Log in integration](https://developer.paypal.com/log-in/build
 - A configured provider is actionable; an unconfigured provider is visibly unavailable and cannot create OAuth state.
 - Stripe's permission screen lists only event and charge read access and contains no create, update, refund, or other write capability.
 - A signed production callback for a Stripe sandbox returns an error and cannot replace a live connection.
+- Pausing and resuming a connection changes only payment intake; it does not replace or disconnect the provider account.

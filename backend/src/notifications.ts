@@ -1,17 +1,24 @@
 import { importPKCS8, SignJWT } from "jose";
 
 import type { Env } from "./env";
+import type { SaleSource } from "./env";
 
 export interface NotificationMessage {
   saleId: string;
 }
 
-interface SaleNotificationRow {
-  id: string;
-  user_id: string;
+interface NotificationSale {
   amount_minor: number;
   currency: string;
-  provider: "stripe" | "paypal";
+  provider: SaleSource;
+  product_label: string;
+  plan_label: string | null;
+  sale_type_label: string | null;
+}
+
+interface SaleNotificationRow extends NotificationSale {
+  id: string;
+  user_id: string;
 }
 
 interface DeviceRow {
@@ -21,6 +28,7 @@ interface DeviceRow {
 }
 
 interface DeliveryStatusRow {
+  id: string;
   status: "pending" | "sending" | "retry" | "sent" | "failed";
 }
 
@@ -44,6 +52,15 @@ export function formatMinorAmount(amountMinor: number, currency: string): string
   const normalized = currency.toUpperCase();
   const amount = amountMinor / 10 ** currencyExponent(normalized);
   return new Intl.NumberFormat("en-US", { style: "currency", currency: normalized }).format(amount);
+}
+
+export function notificationBody(sale: NotificationSale): string {
+  const amount = formatMinorAmount(sale.amount_minor, sale.currency);
+  if (sale.provider !== "custom") {
+    return `You received ${amount} through ${sale.provider === "stripe" ? "Stripe" : "PayPal"}.`;
+  }
+  const details = [sale.plan_label, sale.sale_type_label].filter(Boolean).join(" · ");
+  return `You received ${amount} for ${sale.product_label}.${details ? ` ${details}` : ""}`;
 }
 
 async function apnsProviderToken(env: Env): Promise<string> {
@@ -90,7 +107,7 @@ async function sendToDevice(
       aps: {
         alert: {
           title: "Cha-ching!",
-          body: `You received ${formatMinorAmount(sale.amount_minor, sale.currency)} through ${sale.provider === "stripe" ? "Stripe" : "PayPal"}.`,
+          body: notificationBody(sale),
         },
         sound: "default",
         badge: 1,
@@ -108,7 +125,9 @@ async function sendToDevice(
 
 async function deliverSale(env: Env, message: NotificationMessage): Promise<boolean> {
   const sale = await env.DB.prepare(
-    "SELECT id, user_id, amount_minor, currency, provider FROM sales WHERE id = ?1 AND status = 'succeeded'",
+    `SELECT id, user_id, amount_minor, currency, provider, product_label,
+            plan_label, sale_type_label
+     FROM sales WHERE id = ?1 AND status = 'succeeded'`,
   )
     .bind(message.saleId)
     .first<SaleNotificationRow>();
@@ -126,13 +145,19 @@ async function deliverSale(env: Env, message: NotificationMessage): Promise<bool
   const providerToken = await apnsProviderToken(env);
   let shouldRetry = false;
   for (const device of devices.results) {
-    const deliveryId = crypto.randomUUID();
+    const proposedDeliveryId = crypto.randomUUID();
     await env.DB.prepare(
       `INSERT OR IGNORE INTO notification_deliveries (id, sale_id, device_token_id)
        VALUES (?1, ?2, ?3)`,
     )
-      .bind(deliveryId, sale.id, device.id)
+      .bind(proposedDeliveryId, sale.id, device.id)
       .run();
+    const delivery = await env.DB.prepare(
+      "SELECT id, status FROM notification_deliveries WHERE sale_id = ?1 AND device_token_id = ?2",
+    )
+      .bind(sale.id, device.id)
+      .first<DeliveryStatusRow>();
+    if (!delivery) throw new Error("Notification delivery could not be persisted");
     const claimed = await env.DB.prepare(
       `UPDATE notification_deliveries
        SET status = 'sending', attempt_count = attempt_count + 1,
@@ -147,7 +172,7 @@ async function deliverSale(env: Env, message: NotificationMessage): Promise<bool
       .run();
     if (Number(claimed.meta.changes ?? 0) !== 1) {
       const existing = await env.DB.prepare(
-        "SELECT status FROM notification_deliveries WHERE sale_id = ?1 AND device_token_id = ?2",
+        "SELECT id, status FROM notification_deliveries WHERE sale_id = ?1 AND device_token_id = ?2",
       )
         .bind(sale.id, device.id)
         .first<DeliveryStatusRow>();
@@ -155,14 +180,14 @@ async function deliverSale(env: Env, message: NotificationMessage): Promise<bool
       continue;
     }
 
-    const outcome = await sendToDevice(env, providerToken, sale, device, deliveryId);
+    const outcome = await sendToDevice(env, providerToken, sale, device, delivery.id);
     if (outcome === "sent") {
       await env.DB.prepare(
         `UPDATE notification_deliveries SET status = 'sent', apns_id = ?3,
          sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
          WHERE sale_id = ?1 AND device_token_id = ?2`,
       )
-        .bind(sale.id, device.id, deliveryId)
+        .bind(sale.id, device.id, delivery.id)
         .run();
     } else if (outcome === "invalid") {
       await env.DB.batch([

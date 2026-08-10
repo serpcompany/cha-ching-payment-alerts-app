@@ -1,4 +1,5 @@
 export type Provider = "stripe" | "paypal";
+export type SaleSource = Provider | "custom";
 
 interface SecretBindings {
   BETTER_AUTH_SECRET: string;

@@ -5,12 +5,14 @@ struct ConnectionRow: Decodable {
     let provider: String
     let status: String
     let accountLabel: String?
+    let isActive: Bool
 }
 
 struct ConnectionState: Identifiable {
-    var id: String { processor.rawValue }
-    let processor: Processor
+    var id: String { provider.rawValue }
+    let provider: Provider
     var isConnected: Bool
+    var isActive: Bool
     var accountLabel: String?
 }
 
@@ -32,19 +34,36 @@ private struct AuthorizeResponse: Decodable {
     let authorizationUrl: URL
 }
 
+private struct CustomSourcesResponse: Decodable {
+    let sources: [CustomPaymentSource]
+}
+
+private struct CustomSourceResponse: Decodable {
+    let source: CustomPaymentSource
+}
+
+private struct CreateCustomSourceRequest: Encodable {
+    let name: String
+}
+
+private struct CustomPreviewResponse: Decodable {
+    let preview: CustomPaymentPreview
+}
+
 @MainActor
 final class ConnectStore: ObservableObject {
     @Published var connections: [ConnectionState]
     @Published private(set) var entitlements: [String: Bool] = [:]
     @Published private(set) var providerAvailability: [String: Bool] = [:]
+    @Published private(set) var customSources: [CustomPaymentSource] = []
     @Published var isBusy = false
     @Published var errorMessage: String?
 
     private let webAuthentication = ProviderWebAuthenticationSession()
 
     init() {
-        connections = Processor.mvpProviders.map {
-            ConnectionState(processor: $0, isConnected: false, accountLabel: nil)
+        connections = Provider.mvpProviders.map {
+            ConnectionState(provider: $0, isConnected: false, isActive: false, accountLabel: nil)
         }
     }
 
@@ -52,35 +71,93 @@ final class ConnectStore: ObservableObject {
         do {
             async let connectionsRequest: ConnectionsResponse = APIClient.shared.get("/v1/connections")
             async let meRequest: MeResponse = APIClient.shared.get("/v1/me")
-            let (response, me) = try await (connectionsRequest, meRequest)
+            async let customRequest: CustomSourcesResponse = APIClient.shared.get("/v1/custom-sources")
+            let (response, me, custom) = try await (connectionsRequest, meRequest, customRequest)
             let byProvider = Dictionary(uniqueKeysWithValues: response.connections.map { ($0.provider, $0) })
-            connections = Processor.mvpProviders.map { processor in
-                if let row = byProvider[processor.rawValue] {
+            connections = Provider.mvpProviders.map { provider in
+                if let row = byProvider[provider.rawValue] {
                     return ConnectionState(
-                        processor: processor,
+                        provider: provider,
                         isConnected: row.status == "connected",
+                        isActive: row.isActive,
                         accountLabel: row.accountLabel
                     )
                 }
-                return ConnectionState(processor: processor, isConnected: false, accountLabel: nil)
+                return ConnectionState(provider: provider, isConnected: false, isActive: false, accountLabel: nil)
             }
             entitlements = Dictionary(uniqueKeysWithValues: me.entitlements.map { ($0.feature, $0.enabled) })
             providerAvailability = me.providerConnections
+            customSources = custom.sources
             errorMessage = nil
         } catch {
             errorMessage = "Couldn't load your connections."
         }
     }
 
-    func isEntitled(to provider: Processor) -> Bool {
+    func createCustomSource(name: String) async throws -> CustomPaymentSource {
+        let response: CustomSourceResponse = try await APIClient.shared.post(
+            "/v1/custom-sources",
+            body: CreateCustomSourceRequest(name: name)
+        )
+        customSources.append(response.source)
+        return response.source
+    }
+
+    func customSourceDetail(id: String) async throws -> CustomSourceDetail {
+        try await APIClient.shared.get("/v1/custom-sources/\(id)")
+    }
+
+    func previewCustomSource(id: String, mapping: WebhookFieldMapping) async throws -> CustomPaymentPreview {
+        let response: CustomPreviewResponse = try await APIClient.shared.post(
+            "/v1/custom-sources/\(id)/mapping",
+            body: mapping
+        )
+        return response.preview
+    }
+
+    func activateCustomSource(id: String, mapping: WebhookFieldMapping) async throws -> CustomPaymentSource {
+        let response: CustomSourceResponse = try await APIClient.shared.post(
+            "/v1/custom-sources/\(id)/activate",
+            body: mapping
+        )
+        replaceCustomSource(response.source)
+        return response.source
+    }
+
+    func setCustomSource(id: String, active: Bool) async throws -> CustomPaymentSource {
+        let action = active ? "resume" : "pause"
+        let response: CustomSourceResponse = try await APIClient.shared.post(
+            "/v1/custom-sources/\(id)/\(action)"
+        )
+        replaceCustomSource(response.source)
+        return response.source
+    }
+
+    func regenerateCustomSourceURL(id: String) async throws -> CustomPaymentSource {
+        let response: CustomSourceResponse = try await APIClient.shared.post(
+            "/v1/custom-sources/\(id)/regenerate"
+        )
+        replaceCustomSource(response.source)
+        return response.source
+    }
+
+    private func replaceCustomSource(_ source: CustomPaymentSource) {
+        if let index = customSources.firstIndex(where: { $0.id == source.id }) {
+            customSources[index] = source
+        } else {
+            customSources.append(source)
+        }
+    }
+
+    func isEntitled(to provider: Provider) -> Bool {
         entitlements["connect_\(provider.rawValue)"] ?? false
     }
 
-    func isAvailable(_ provider: Processor) -> Bool {
+    func isAvailable(_ provider: Provider) -> Bool {
         providerAvailability[provider.rawValue] ?? false
     }
 
-    func connect(provider: Processor) async -> Bool {
+    func connect(provider: Provider) async -> Bool {
         isBusy = true
         errorMessage = nil
         defer { isBusy = false }
@@ -117,7 +194,22 @@ final class ConnectStore: ObservableObject {
         }
     }
 
-    func disconnect(provider: Processor) async {
+    func setProviderActivity(provider: Provider, active: Bool) async {
+        isBusy = true
+        errorMessage = nil
+        defer { isBusy = false }
+        do {
+            let action = active ? "resume" : "pause"
+            let _: ConnectionActivityResponse = try await APIClient.shared.post(
+                "/v1/connections/\(provider.rawValue)/\(action)"
+            )
+            await refresh()
+        } catch {
+            errorMessage = "Couldn't update \(provider.title) payments."
+        }
+    }
+
+    func disconnect(provider: Provider) async {
         isBusy = true
         errorMessage = nil
         defer { isBusy = false }
@@ -128,4 +220,12 @@ final class ConnectStore: ObservableObject {
             errorMessage = "Couldn't disconnect \(provider.title)."
         }
     }
+
+    var hasCustomSourceEntitlement: Bool {
+        entitlements["connect_custom"] ?? false
+    }
+}
+
+private struct ConnectionActivityResponse: Decodable {
+    let connection: ConnectionRow
 }

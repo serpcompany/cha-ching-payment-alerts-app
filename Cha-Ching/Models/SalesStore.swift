@@ -7,7 +7,7 @@ private struct SalesResponse: Decodable {
 
 private struct SaleResponse: Decodable {
     let id: String
-    let provider: Processor
+    let provider: SaleSource
     let amountMinor: Int
     let currency: String
     let productLabel: String
@@ -57,7 +57,7 @@ final class SalesStore: ObservableObject {
                     product: row.productLabel,
                     amountMinor: row.amountMinor,
                     currency: row.currency,
-                    processor: row.provider,
+                    source: row.provider,
                     date: date,
                     isSubscription: row.isSubscription,
                     countryCode: row.countryCode
@@ -67,8 +67,8 @@ final class SalesStore: ObservableObject {
         } catch is CancellationError {
             return
         } catch {
-            Self.logger.error("Verified sales refresh failed: \(error.localizedDescription, privacy: .public)")
-            errorMessage = "Couldn't load verified sales."
+            Self.logger.error("Sales refresh failed: \(error.localizedDescription, privacy: .public)")
+            errorMessage = "Couldn't load sales."
         }
     }
 

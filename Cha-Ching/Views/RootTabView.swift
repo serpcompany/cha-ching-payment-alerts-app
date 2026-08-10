@@ -22,10 +22,10 @@ private struct SalesHistoryView: View {
         NavigationStack {
             Group {
                 if store.isLoading && store.sales.isEmpty {
-                    ProgressView("Loading verified sales…")
+                    ProgressView("Loading sales…")
                 } else if store.sales.isEmpty {
                     ContentUnavailableView(
-                        "No verified sales yet",
+                        "No sales yet",
                         systemImage: "creditcard",
                         description: Text("Connect Stripe and complete a payment to see it here.")
                     )
@@ -80,6 +80,7 @@ private struct SettingsView: View {
                 Section("Plan access") {
                     entitlementRow("Stripe connection", enabled: connectStore.isEntitled(to: .stripe))
                     entitlementRow("PayPal connection", enabled: connectStore.isEntitled(to: .paypal))
+                    entitlementRow("Custom payment sources", enabled: connectStore.hasCustomSourceEntitlement)
                 }
                 Section {
                     Button("Sign out", role: .destructive) { auth.signOut() }

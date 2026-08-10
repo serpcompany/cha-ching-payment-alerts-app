@@ -5,18 +5,18 @@ struct SaleRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: sale.processor.symbol)
+            Image(systemName: sale.source.symbol)
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(sale.processor.color)
+                .foregroundStyle(sale.source.color)
                 .frame(width: 40, height: 40)
-                .background(sale.processor.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(sale.source.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(sale.product)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.ink)
                     .lineLimit(1)
-                Text("\(sale.country) \(sale.customer)")
+                Text("\(sale.country) \(sale.source.attribution)")
                     .font(.caption)
                     .foregroundStyle(Theme.ink.opacity(0.55))
                     .lineLimit(1)
@@ -58,9 +58,9 @@ struct SaleDetailView: View {
                     .background(Theme.heroGradient, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
 
                     VStack(spacing: 0) {
-                        detailRow("Processor", sale.processor.title)
+                        detailRow("Payment source", sale.source.title)
                         divider
-                        detailRow("Customer", sale.customer)
+                        detailRow("Status", sale.source.attribution)
                         divider
                         detailRow("Country", sale.country)
                         divider
