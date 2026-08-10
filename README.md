@@ -1,6 +1,6 @@
 # Cha-Ching
 
-Native iOS client plus a Cloudflare Worker API for account identity, feature entitlements, and payment-provider connections.
+Native iOS client plus a Cloudflare Worker API for account identity, feature entitlements, payment-provider connections, verified Stripe sales, and APNs alerts.
 
 Brand rules live in [`docs/brand.md`](docs/brand.md), App Store copy in [`docs/app-store/metadata.md`](docs/app-store/metadata.md), and launch progress in [GitHub Issue #1](https://github.com/serpcompany/cha-ching/issues/1).
 
@@ -11,8 +11,10 @@ Brand rules live in [`docs/brand.md`](docs/brand.md), App Store copy in [`docs/a
 - D1 entitlements (`connect_stripe`, `connect_paypal`) are created with MVP defaults and checked before OAuth begins and again at callback completion.
 - Stripe uses Connect OAuth for Standard accounts. PayPal uses Log in with PayPal (OpenID Connect).
 - Provider access and refresh tokens are AES-256-GCM encrypted before D1 storage. The encryption key stays in Worker secrets.
+- Signed Stripe connected-account events become idempotent D1 sales and are sent through a Cloudflare Queue for APNs delivery.
+- The iOS History tab reads verified sales from the Worker; sample revenue and local test pings are not part of production behavior.
 
-This milestone connects and identifies Stripe/PayPal accounts. Sale ingestion, provider webhooks, APNs delivery, and real revenue history are deliberately outside this MVP; production currently starts with an empty sale feed.
+PayPal account linking is implemented separately from sale ingestion. Version 1.0 supports Stripe payment alerts once the production Stripe platform and webhook secrets are configured; PayPal alerts are not implemented.
 
 ## Local setup
 
@@ -28,10 +30,11 @@ Requirements: Node 22+, pnpm 10+, Xcode 17+, XcodeGen, Wrangler, and a Cloudflar
    openssl rand -base64 32 # PROVIDER_TOKEN_ENCRYPTION_KEY
    ```
 
-2. Add Apple, Stripe, and PayPal values to `.dev.vars`.
+2. Add Apple, APNs, Stripe, and PayPal values to `.dev.vars`.
 
    - Apple: App ID `com.serpcompany.chaching`, Services ID `com.serpcompany.chaching.signin`, Team ID, Key ID, and the downloaded `.p8` private key.
-   - Stripe: enable Connect OAuth and register `<PUBLIC_BASE_URL>/v1/oauth/stripe/callback` as a redirect URI.
+   - APNs: use an Apple key with push access and the app topic `com.serpcompany.chaching`.
+   - Stripe: enable Connect OAuth, register `<PUBLIC_BASE_URL>/v1/oauth/stripe/callback`, and create a connected-account webhook at `<PUBLIC_BASE_URL>/v1/webhooks/stripe` for `charge.succeeded` and `account.application.deauthorized`.
    - PayPal: enable Log in with PayPal and register `<PUBLIC_BASE_URL>/v1/oauth/paypal/callback` as the return URL. Sandbox requires no review; live access requires PayPal approval.
 
 3. The checked-in production binding uses `cha-ching-prod`. For local development, apply the same migrations to local Wrangler state:
@@ -64,16 +67,21 @@ pnpm exec wrangler secret put BETTER_AUTH_SECRET
 pnpm exec wrangler secret put APPLE_TEAM_ID
 pnpm exec wrangler secret put APPLE_KEY_ID
 pnpm exec wrangler secret put APPLE_PRIVATE_KEY
+pnpm exec wrangler secret put APNS_KEY_ID
+pnpm exec wrangler secret put APNS_PRIVATE_KEY
 pnpm exec wrangler secret put PROVIDER_TOKEN_ENCRYPTION_KEY
 pnpm exec wrangler secret put STRIPE_CONNECT_CLIENT_ID
 pnpm exec wrangler secret put STRIPE_SECRET_KEY
+pnpm exec wrangler secret put STRIPE_WEBHOOK_SECRET
 pnpm exec wrangler secret put PAYPAL_CLIENT_ID
 pnpm exec wrangler secret put PAYPAL_CLIENT_SECRET
+pnpm exec wrangler queues create cha-ching-notifications
+pnpm exec wrangler queues create cha-ching-notifications-dlq
 pnpm db:migrate:remote
-pnpm deploy
+pnpm run deploy
 ```
 
-Production infrastructure is deployed at `https://cha-ching-api.serpcompany.workers.dev` with D1 database `cha-ching-prod`. Public provider-review pages are available at `/privacy` and `/terms`. Change `PAYPAL_ENVIRONMENT` to `live` only after PayPal approves Log in with PayPal.
+Production infrastructure is deployed at `https://cha-ching-api.serpcompany.workers.dev` with D1 database `cha-ching-prod`, queue `cha-ching-notifications`, and dead-letter queue `cha-ching-notifications-dlq`. Public provider-review pages are available at `/privacy` and `/terms`. `/health` reports each externally configured capability without exposing secrets. Change `PAYPAL_ENVIRONMENT` to `live` only after PayPal approves Log in with PayPal.
 
 ## Entitlements
 
@@ -90,6 +98,7 @@ WHERE user_id = '<better-auth-user-id>' AND feature_key = 'connect_paypal';
 ```bash
 cd backend
 pnpm check
+pnpm exec wrangler types --check
 pnpm exec wrangler deploy --dry-run
 
 cd ..
@@ -97,3 +106,5 @@ xcodegen generate
 xcodebuild -project "Cha-Ching.xcodeproj" -scheme "Cha-Ching" \
   -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
 ```
+
+The signed Stripe event → D1 sale → Queue path should also be exercised in local Wrangler before changing webhook behavior. Production notification acceptance requires a signed TestFlight device because Simulator APNs behavior does not prove the distribution token path.

@@ -17,6 +17,10 @@ This file is the repository map. Durable product and engineering knowledge belon
 
 Issues are tracked in GitHub Issues. See `docs/agents/issue-tracker.md`.
 
+### Triage labels
+
+The canonical Matt Pocock skill labels are used without aliases. See `docs/agents/triage-labels.md`.
+
 ### Domain docs
 
 This repository uses a single-context domain layout. See `docs/agents/domain.md`.

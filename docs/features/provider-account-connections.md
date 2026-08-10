@@ -28,6 +28,7 @@ Reference: [PayPal Log in integration](https://developer.paypal.com/log-in/build
 - Access and refresh tokens are AES-256-GCM encrypted with a per-write random IV.
 - Provider tokens never cross the iOS API boundary.
 - A provider/account ID pair is unique across Cha-Ching users.
+- `/v1/me` reports server-side provider availability separately from entitlement state, so the app disables connection actions until required credentials exist.
 
 ## Acceptance criteria
 
@@ -35,3 +36,4 @@ Reference: [PayPal Log in integration](https://developer.paypal.com/log-in/build
 - Cancelled, expired, replayed, malformed, or wrong-provider callbacks do not create a connection.
 - A disabled entitlement returns 403 and cannot be bypassed with a callback.
 - Disconnect is idempotent and removes the visible connection.
+- A configured provider is actionable; an unconfigured provider is visibly unavailable and cannot create OAuth state.

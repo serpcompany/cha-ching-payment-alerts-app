@@ -5,7 +5,7 @@ struct HeroCard: View {
     let total: Double
     let count: Int
     let change: Double
-    var onPing: () -> Void
+    let notificationsEnabled: Bool
 
     @State private var pulse = false
 
@@ -26,19 +26,17 @@ struct HeroCard: View {
                 .contentTransition(.numericText())
 
             HStack {
-                Text("\(count) sale\(count == 1 ? "" : "s") · pings on")
+                Text("\(count) verified sale\(count == 1 ? "" : "s")")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.white.opacity(0.85))
                 Spacer()
-                Button(action: onPing) {
-                    Label("Test ping", systemImage: "speaker.wave.2.fill")
-                        .font(.footnote.weight(.semibold))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(.white.opacity(0.22), in: Capsule())
-                        .foregroundStyle(.white)
-                }
-                .buttonStyle(.plain)
+                Label(notificationsEnabled ? "Pings on" : "Pings off",
+                      systemImage: notificationsEnabled ? "bell.fill" : "bell.slash.fill")
+                    .font(.footnote.weight(.semibold))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(.white.opacity(0.22), in: Capsule())
+                    .foregroundStyle(.white)
             }
         }
         .padding(20)

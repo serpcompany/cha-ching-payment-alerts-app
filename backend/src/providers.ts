@@ -1,5 +1,12 @@
 import type { Env, Provider } from "./env";
 
+export interface ProviderAuthorizationEnv {
+  PUBLIC_BASE_URL: string;
+  STRIPE_CONNECT_CLIENT_ID: string;
+  PAYPAL_CLIENT_ID: string;
+  PAYPAL_ENVIRONMENT: "sandbox" | "live";
+}
+
 export interface ProviderTokens {
   providerAccountId: string;
   accountLabel: string | null;
@@ -9,11 +16,11 @@ export interface ProviderTokens {
   scope: string | null;
 }
 
-export function callbackURL(env: Env, provider: Provider): string {
+export function callbackURL(env: Pick<ProviderAuthorizationEnv, "PUBLIC_BASE_URL">, provider: Provider): string {
   return `${env.PUBLIC_BASE_URL}/v1/oauth/${provider}/callback`;
 }
 
-export function authorizationURL(env: Env, provider: Provider, state: string): string {
+export function authorizationURL(env: ProviderAuthorizationEnv, provider: Provider, state: string): string {
   const redirectUri = callbackURL(env, provider);
   if (provider === "stripe") {
     if (!env.STRIPE_CONNECT_CLIENT_ID) throw new Error("Stripe Connect is not configured");

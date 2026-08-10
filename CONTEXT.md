@@ -2,9 +2,9 @@
 
 ## Product
 
-Cha-Ching is an iPhone app for indie founders and small software businesses. A user links the payment accounts they already own and, in later milestones, receives a recognizable notification when a new sale is verified.
+Cha-Ching is an iPhone app for indie founders and small software businesses. A user links the payment accounts they already own and receives a recognizable notification when a supported provider verifies a new sale.
 
-The first live MVP proves secure identity, plan access, and provider-account linking. It does not claim to ingest revenue yet.
+The live MVP proves secure identity, plan access, provider-account linking, Stripe sale ingestion, real sales history, and APNs delivery. PayPal sale ingestion is not part of the first alert path.
 
 ## Domain vocabulary
 
@@ -13,8 +13,8 @@ The first live MVP proves secure identity, plan access, and provider-account lin
 - **Provider account**: the user's account at a provider. It is linked through provider-hosted authorization, never by pasting credentials into the app.
 - **Connection**: Cha-Ching's revocable authorization to identify and later read events for one provider account.
 - **Entitlement**: server-owned permission enabling a feature for a user. UI presentation never grants access.
-- **Sale**: a normalized, provider-verified payment event. No production sale exists until ingestion is implemented.
-- **Ping**: a user-visible notification produced from a verified sale. The current test ping is local demonstration behavior, not a real sale.
+- **Sale**: a normalized, provider-verified payment event persisted without customer name or email.
+- **Ping**: a user-visible APNs notification produced from a verified sale.
 
 ## Product invariants
 
@@ -23,8 +23,10 @@ The first live MVP proves secure identity, plan access, and provider-account lin
 - One external provider account belongs to at most one Cha-Ching user.
 - A connection requires an enabled entitlement both when authorization begins and when it completes.
 - Sample data must not appear as production revenue.
-- Shipping account connection does not imply that webhooks, sale ingestion, or notifications are live.
+- A provider may be entitled but unavailable when its production credentials are not configured.
+- A provider connection does not imply that provider's sale-webhook path is supported.
+- Webhook retries must not create duplicate sales or duplicate completed notification deliveries.
 
 ## MVP success
 
-A signed-in user can view their entitlements, connect or disconnect one Stripe account and one PayPal account, relaunch the app without losing their Cha-Ching session, and see connection state backed by production D1.
+A signed-in user can view entitlements and live provider availability, connect or disconnect one Stripe account and one PayPal account when configured, relaunch without losing their session, and see D1-backed connection state. A connected Stripe user receives one persisted sale and one notification attempt for each verified successful charge.

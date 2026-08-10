@@ -1,18 +1,72 @@
-import SwiftUI
+import Foundation
+
+private struct SalesResponse: Decodable {
+    let sales: [SaleResponse]
+}
+
+private struct SaleResponse: Decodable {
+    let id: String
+    let provider: Processor
+    let amountMinor: Int
+    let currency: String
+    let productLabel: String
+    let countryCode: String?
+    let isSubscription: Bool
+    let occurredAt: String
+}
 
 @MainActor
 final class SalesStore: ObservableObject {
-    @Published var sales: [Sale] = []
-    @Published var pingsEnabled: Bool = true
-    @Published var soundName: String = "Cha-Ching"
+    @Published private(set) var sales: [Sale] = []
+    @Published private(set) var isLoading = false
+    @Published private(set) var errorMessage: String?
+
+    private var notificationObserver: NSObjectProtocol?
 
     init() {
-        sales = []
+        notificationObserver = NotificationCenter.default.addObserver(
+            forName: .chaChingSaleReceived,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in await self?.refresh() }
+        }
+    }
+
+    func refresh() async {
+        guard APIClient.shared.hasAuthToken else {
+            sales = []
+            return
+        }
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            let response: SalesResponse = try await APIClient.shared.get("/v1/sales")
+            let formatter = ISO8601DateFormatter()
+            sales = response.sales.compactMap { row in
+                guard let date = formatter.date(from: row.occurredAt) else { return nil }
+                return Sale(
+                    id: row.id,
+                    product: row.productLabel,
+                    amountMinor: row.amountMinor,
+                    currency: row.currency,
+                    processor: row.provider,
+                    date: date,
+                    isSubscription: row.isSubscription,
+                    countryCode: row.countryCode
+                )
+            }
+            errorMessage = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            errorMessage = "Couldn't load verified sales."
+        }
     }
 
     var todaysSales: [Sale] {
-        let cal = Calendar.current
-        return sales.filter { cal.isDateInToday($0.date) }
+        let calendar = Calendar.current
+        return sales.filter { calendar.isDateInToday($0.date) }
     }
 
     var todayTotal: Double { todaysSales.reduce(0) { $0 + $1.amount } }
@@ -24,8 +78,8 @@ final class SalesStore: ObservableObject {
     }
 
     var yesterdayTotal: Double {
-        let cal = Calendar.current
-        return sales.filter { cal.isDateInYesterday($0.date) }.reduce(0) { $0 + $1.amount }
+        let calendar = Calendar.current
+        return sales.filter { calendar.isDateInYesterday($0.date) }.reduce(0) { $0 + $1.amount }
     }
 
     var dayOverDayChange: Double {
@@ -33,12 +87,11 @@ final class SalesStore: ObservableObject {
         return (todayTotal - yesterdayTotal) / yesterdayTotal
     }
 
-    /// Daily totals for the last 7 days, oldest first.
     var weeklyTotals: [DayTotal] {
-        let cal = Calendar.current
+        let calendar = Calendar.current
         return (0..<7).reversed().compactMap { offset in
-            guard let day = cal.date(byAdding: .day, value: -offset, to: Date()) else { return nil }
-            let total = sales.filter { cal.isDate($0.date, inSameDayAs: day) }
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: Date()) else { return nil }
+            let total = sales.filter { calendar.isDate($0.date, inSameDayAs: day) }
                 .reduce(0) { $0 + $1.amount }
             return DayTotal(date: day, total: total)
         }
@@ -49,45 +102,6 @@ final class SalesStore: ObservableObject {
             .mapValues { $0.reduce(0) { $0 + $1.amount } }
         guard let best = grouped.max(by: { $0.value < $1.value }) else { return nil }
         return (best.key, best.value)
-    }
-
-    func simulateSale() {
-        let samples = [
-            ("Pro Plan — Monthly", "ada@pixelforge.io", 19.0, Processor.stripe, true, "🇺🇸"),
-            ("Icon Pack Vol. 3", "lu@studio.dk", 29.0, Processor.gumroad, false, "🇩🇰"),
-            ("Lifetime License", "marc@brew.fr", 149.0, Processor.paypal, false, "🇫🇷")
-        ]
-        guard let pick = samples.randomElement() else { return }
-        let sale = Sale(product: pick.0, customer: pick.1, amount: pick.2,
-                        processor: pick.3, date: Date(), isSubscription: pick.4, country: pick.5)
-        withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
-            sales.insert(sale, at: 0)
-        }
-    }
-
-    static func sampleSales() -> [Sale] {
-        let now = Date()
-        func ago(_ minutes: Int) -> Date { now.addingTimeInterval(TimeInterval(-minutes * 60)) }
-        let raw: [(String, String, Double, Processor, Int, Bool, String)] = [
-            ("Pro Plan — Monthly", "ada@pixelforge.io", 19, .stripe, 14, true, "🇺🇸"),
-            ("Icon Pack Vol. 3", "lu@studio.dk", 29, .gumroad, 96, false, "🇩🇰"),
-            ("Pro Plan — Yearly", "sam@northbound.co", 180, .stripe, 210, true, "🇨🇦"),
-            ("Lifetime License", "marc@brew.fr", 149, .paypal, 320, false, "🇫🇷"),
-            ("Pro Plan — Monthly", "kenji@makis.jp", 19, .stripe, 480, true, "🇯🇵"),
-            ("SwiftUI Starter Kit", "nina@buildly.de", 49, .gumroad, 1500, false, "🇩🇪"),
-            ("Pro Plan — Monthly", "omar@sandbox.ae", 19, .stripe, 1680, true, "🇦🇪"),
-            ("Team Seat ×3", "ops@lumenapps.com", 57, .stripe, 2900, true, "🇬🇧"),
-            ("Icon Pack Vol. 2", "tess@paperplane.nz", 24, .gumroad, 3400, false, "🇳🇿"),
-            ("Lifetime License", "julia@corta.br", 149, .paypal, 4300, false, "🇧🇷"),
-            ("Pro Plan — Yearly", "eli@ridgeline.io", 180, .stripe, 5600, true, "🇺🇸"),
-            ("SwiftUI Starter Kit", "yuki@haru.jp", 49, .gumroad, 7200, false, "🇯🇵"),
-            ("Pro Plan — Monthly", "raj@tinyloop.in", 19, .stripe, 8100, true, "🇮🇳"),
-            ("Consulting Hour", "hello@finn.se", 120, .paypal, 8800, false, "🇸🇪")
-        ]
-        return raw.map {
-            Sale(product: $0.0, customer: $0.1, amount: $0.2, processor: $0.3,
-                 date: ago($0.4), isSubscription: $0.5, country: $0.6)
-        }
     }
 }
 

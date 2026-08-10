@@ -5,12 +5,8 @@ struct RootTabView: View {
         TabView {
             HomeView()
                 .tabItem { Label("Today", systemImage: "bolt.horizontal.fill") }
-            PlaceholderView(
-                title: "Sales History",
-                message: "Every sale, searchable and filterable by processor, product and date.",
-                symbol: "list.bullet.rectangle.portrait"
-            )
-            .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
+            SalesHistoryView()
+                .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
             ConnectView()
                 .tabItem { Label("Connect", systemImage: "link") }
             SettingsView()
@@ -19,13 +15,61 @@ struct RootTabView: View {
     }
 }
 
+private struct SalesHistoryView: View {
+    @EnvironmentObject private var store: SalesStore
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if store.isLoading && store.sales.isEmpty {
+                    ProgressView("Loading verified sales…")
+                } else if store.sales.isEmpty {
+                    ContentUnavailableView(
+                        "No verified sales yet",
+                        systemImage: "creditcard",
+                        description: Text("Connect Stripe and complete a payment to see it here.")
+                    )
+                } else {
+                    List(store.sales) { sale in
+                        NavigationLink(value: sale) { SaleRow(sale: sale) }
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
+                    .listStyle(.plain)
+                    .refreshable { await store.refresh() }
+                }
+            }
+            .navigationTitle("Sales History")
+            .navigationDestination(for: Sale.self) { SaleDetailView(sale: $0) }
+            .task { await store.refresh() }
+        }
+    }
+}
+
 private struct SettingsView: View {
     @EnvironmentObject private var auth: AuthManager
     @EnvironmentObject private var connectStore: ConnectStore
+    @EnvironmentObject private var notifications: NotificationManager
 
     var body: some View {
         NavigationStack {
             Form {
+                Section("Notifications") {
+                    HStack {
+                        Text("Payment pings")
+                        Spacer()
+                        Text(notifications.isEnabled ? "On" : "Off")
+                            .foregroundStyle(notifications.isEnabled ? Theme.accent : .secondary)
+                    }
+                    if !notifications.isEnabled {
+                        Button("Enable notifications") {
+                            Task { await notifications.requestPermissionAndRegister() }
+                        }
+                    }
+                    if let error = notifications.registrationError {
+                        Text(error).font(.footnote).foregroundStyle(.red)
+                    }
+                }
                 Section("Plan access") {
                     entitlementRow("Stripe connection", enabled: connectStore.isEntitled(to: .stripe))
                     entitlementRow("PayPal connection", enabled: connectStore.isEntitled(to: .paypal))
@@ -35,7 +79,10 @@ private struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-            .task { await connectStore.refresh() }
+            .task {
+                await connectStore.refresh()
+                await notifications.refreshAuthorizationStatus()
+            }
         }
     }
 
@@ -49,46 +96,10 @@ private struct SettingsView: View {
     }
 }
 
-struct PlaceholderView: View {
-    let title: String
-    let message: String
-    let symbol: String
-
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                Theme.canvas.ignoresSafeArea()
-                VStack(spacing: 18) {
-                    ZStack {
-                        Circle()
-                            .fill(Theme.accent.opacity(0.14))
-                            .frame(width: 116, height: 116)
-                        Image(systemName: symbol)
-                            .font(.system(size: 46, weight: .semibold))
-                            .foregroundStyle(Theme.accent)
-                    }
-                    Text(title)
-                        .font(.title2.bold())
-                        .foregroundStyle(Theme.ink)
-                    Text(message)
-                        .font(.subheadline)
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(Theme.ink.opacity(0.6))
-                        .padding(.horizontal, 44)
-                    Text("Coming next")
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 7)
-                        .background(Theme.gold.opacity(0.18), in: Capsule())
-                        .foregroundStyle(Theme.gold)
-                }
-            }
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-}
-
 #Preview {
-    RootTabView().environmentObject(SalesStore())
+    RootTabView()
+        .environmentObject(SalesStore())
+        .environmentObject(AuthManager())
+        .environmentObject(ConnectStore())
+        .environmentObject(NotificationManager.shared)
 }

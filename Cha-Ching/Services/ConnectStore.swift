@@ -25,6 +25,7 @@ private struct Entitlement: Decodable {
 
 private struct MeResponse: Decodable {
     let entitlements: [Entitlement]
+    let providerConnections: [String: Bool]
 }
 
 private struct AuthorizeResponse: Decodable {
@@ -35,6 +36,7 @@ private struct AuthorizeResponse: Decodable {
 final class ConnectStore: ObservableObject {
     @Published var connections: [ConnectionState]
     @Published private(set) var entitlements: [String: Bool] = [:]
+    @Published private(set) var providerAvailability: [String: Bool] = [:]
     @Published var isBusy = false
     @Published var errorMessage: String?
 
@@ -63,6 +65,7 @@ final class ConnectStore: ObservableObject {
                 return ConnectionState(processor: processor, isConnected: false, accountLabel: nil)
             }
             entitlements = Dictionary(uniqueKeysWithValues: me.entitlements.map { ($0.feature, $0.enabled) })
+            providerAvailability = me.providerConnections
             errorMessage = nil
         } catch {
             errorMessage = "Couldn't load your connections."
@@ -73,6 +76,10 @@ final class ConnectStore: ObservableObject {
         entitlements["connect_\(provider.rawValue)"] ?? false
     }
 
+    func isAvailable(_ provider: Processor) -> Bool {
+        providerAvailability[provider.rawValue] ?? false
+    }
+
     func connect(provider: Processor) async -> Bool {
         isBusy = true
         errorMessage = nil
@@ -80,6 +87,10 @@ final class ConnectStore: ObservableObject {
         do {
             guard isEntitled(to: provider) else {
                 errorMessage = "Your plan doesn't include \(provider.title) connections."
+                return false
+            }
+            guard isAvailable(provider) else {
+                errorMessage = "\(provider.title) connections aren't available yet."
                 return false
             }
             let response: AuthorizeResponse = try await APIClient.shared.post(
@@ -93,6 +104,7 @@ final class ConnectStore: ObservableObject {
                 throw APIError.server(message ?? "The connection wasn't completed.")
             }
             await refresh()
+            await NotificationManager.shared.requestPermissionAndRegister()
             return true
         } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
             return false

@@ -5,16 +5,29 @@ import {
   disconnect,
   listConnections,
 } from "./connections";
+import { registerDevice, unregisterDevice } from "./devices";
 import { getUserEntitlements } from "./entitlements";
 import type { Env } from "./env";
-import { assertConfigured } from "./env";
+import {
+  assertConfigured,
+  isPayPalConfigured,
+  isPushConfigured,
+  isStripeConfigured,
+  missingCoreConfiguration,
+  providerCapabilities,
+} from "./env";
 import { homePage, privacyPage, termsPage } from "./legal";
+import { processNotificationBatch } from "./notifications";
+import type { NotificationMessage } from "./notifications";
+import { listSales } from "./sales";
+import { handleStripeWebhook } from "./stripe-webhooks";
 
 function jsonError(error: unknown): Response {
   if (error instanceof Response) return error;
-  console.error("request.failed", {
-    message: error instanceof Error ? error.message : "Unknown error",
-  });
+  console.error(JSON.stringify({
+    message: "request.failed",
+    error: error instanceof Error ? error.message : "Unknown error",
+  }));
   return Response.json({ error: "Internal server error" }, { status: 500 });
 }
 
@@ -24,7 +37,23 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (request.method === "GET" && url.pathname === "/privacy") return privacyPage();
   if (request.method === "GET" && url.pathname === "/terms") return termsPage();
   if (request.method === "GET" && url.pathname === "/health") {
-    return Response.json({ status: "ok", environment: env.ENVIRONMENT });
+    const readiness = {
+      authentication: missingCoreConfiguration(env).length === 0,
+      stripeConnections: isStripeConfigured(env),
+      stripeNotifications: isStripeConfigured(env) && Boolean(env.STRIPE_WEBHOOK_SECRET) && isPushConfigured(env),
+      paypalConnections: isPayPalConfigured(env),
+    };
+    return Response.json({
+      status: Object.values(readiness).every(Boolean) ? "ok" : "degraded",
+      environment: env.ENVIRONMENT,
+      readiness,
+    });
+  }
+  if (request.method === "POST" && url.pathname === "/v1/webhooks/stripe") {
+    return handleStripeWebhook(env, request);
+  }
+  if (missingCoreConfiguration(env).length > 0) {
+    return Response.json({ error: "Authentication service is not configured" }, { status: 503 });
   }
   assertConfigured(env);
   const auth = createAuth(env);
@@ -33,10 +62,16 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (request.method === "GET" && url.pathname === "/v1/me") {
     const user = await requireUser(auth, request);
     const entitlements = await getUserEntitlements(env.DB, user.id);
-    return Response.json({ user, entitlements });
+    return Response.json({ user, entitlements, providerConnections: providerCapabilities(env) });
   }
   if (request.method === "GET" && url.pathname === "/v1/connections") {
     return listConnections(env, auth, request);
+  }
+  if (request.method === "GET" && url.pathname === "/v1/sales") {
+    return listSales(env, auth, request);
+  }
+  if (request.method === "POST" && url.pathname === "/v1/devices") {
+    return registerDevice(env, auth, request);
   }
 
   const authorizeMatch = url.pathname.match(/^\/v1\/connections\/([^/]+)\/authorize$/);
@@ -46,6 +81,10 @@ async function route(request: Request, env: Env): Promise<Response> {
   const callbackMatch = url.pathname.match(/^\/v1\/oauth\/([^/]+)\/callback$/);
   if (request.method === "GET" && callbackMatch) {
     return completeConnection(env, request, callbackMatch[1]);
+  }
+  const deviceMatch = url.pathname.match(/^\/v1\/devices\/([^/]+)$/);
+  if (request.method === "DELETE" && deviceMatch) {
+    return unregisterDevice(env, auth, request, decodeURIComponent(deviceMatch[1]));
   }
   const connectionMatch = url.pathname.match(/^\/v1\/connections\/([^/]+)$/);
   if (request.method === "DELETE" && connectionMatch) {
@@ -63,4 +102,7 @@ export default {
       return jsonError(error);
     }
   },
-} satisfies ExportedHandler<Env>;
+  async queue(batch: MessageBatch<NotificationMessage>, env: Env): Promise<void> {
+    await processNotificationBatch(env, batch);
+  },
+} satisfies ExportedHandler<Env, NotificationMessage>;

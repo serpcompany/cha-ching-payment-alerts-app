@@ -3,6 +3,7 @@ import { requireUser } from "./auth";
 import { encryptSecret, randomToken, sha256 } from "./crypto";
 import { requireProviderEntitlement } from "./entitlements";
 import type { Env, Provider } from "./env";
+import { isPayPalConfigured, isStripeConfigured } from "./env";
 import {
   authorizationURL,
   deauthorizeStripe,
@@ -49,6 +50,10 @@ export async function beginConnection(
   if (!provider) return Response.json({ error: "Unsupported provider" }, { status: 400 });
   const user = await requireUser(auth, request);
   await requireProviderEntitlement(env.DB, user.id, provider);
+  const configured = provider === "stripe" ? isStripeConfigured(env) : isPayPalConfigured(env);
+  if (!configured) {
+    return Response.json({ error: `${provider === "stripe" ? "Stripe" : "PayPal"} connections are unavailable` }, { status: 503 });
+  }
 
   const state = randomToken();
   const stateHash = await sha256(state);

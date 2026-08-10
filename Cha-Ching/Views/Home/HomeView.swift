@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var store: SalesStore
     @EnvironmentObject private var connectStore: ConnectStore
+    @EnvironmentObject private var notifications: NotificationManager
 
     var body: some View {
         NavigationStack {
@@ -13,7 +14,14 @@ struct HomeView: View {
                         HeroCard(total: store.todayTotal,
                                  count: store.todaysSales.count,
                                  change: store.dayOverDayChange,
-                                 onPing: store.simulateSale)
+                                 notificationsEnabled: notifications.isEnabled)
+                        if let error = store.errorMessage {
+                            Text(error)
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .cardStyle(padding: 12)
+                        }
                         statRow
                         WeeklyChartCard(data: store.weeklyTotals, weekTotal: store.last7DaysTotal)
                         ConnectionsStrip(connections: connectStore.connections)
@@ -22,12 +30,21 @@ struct HomeView: View {
                     .padding(.horizontal, 18)
                     .padding(.bottom, 28)
                 }
+                .refreshable {
+                    async let sales: Void = store.refresh()
+                    async let connections: Void = connectStore.refresh()
+                    _ = await (sales, connections)
+                }
             }
-            .task { await connectStore.refresh() }
+            .task {
+                async let sales: Void = store.refresh()
+                async let connections: Void = connectStore.refresh()
+                _ = await (sales, connections)
+            }
             .navigationTitle("Today")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Image(systemName: store.pingsEnabled ? "bell.badge.fill" : "bell.slash.fill")
+                    Image(systemName: notifications.isEnabled ? "bell.badge.fill" : "bell.slash.fill")
                         .foregroundStyle(Theme.accent)
                 }
             }
@@ -96,4 +113,5 @@ enum Formatters {
     HomeView()
         .environmentObject(SalesStore())
         .environmentObject(ConnectStore())
+        .environmentObject(NotificationManager.shared)
 }

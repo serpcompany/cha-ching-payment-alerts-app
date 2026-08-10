@@ -19,6 +19,7 @@ final class AuthManager: ObservableObject {
         guard APIClient.shared.hasAuthToken else { return }
         isSignedIn = (try? await APIClient.shared.validateSession()) == true
         if !isSignedIn { APIClient.shared.clearAuthToken() }
+        if isSignedIn { NotificationManager.shared.registerIfAuthorized() }
     }
 
     /// Generates a fresh nonce for the Apple request and returns its SHA-256 hash.
@@ -55,8 +56,13 @@ final class AuthManager: ObservableObject {
                 firstName: credential.fullName?.givenName,
                 lastName: credential.fullName?.familyName
             )
+            guard try await APIClient.shared.validateSession() else {
+                APIClient.shared.clearAuthToken()
+                throw APIError.unauthorized
+            }
             isSignedIn = true
             errorMessage = nil
+            NotificationManager.shared.registerIfAuthorized()
         } catch {
             errorMessage = "Couldn't sign in: \(error.localizedDescription)"
         }
@@ -64,6 +70,7 @@ final class AuthManager: ObservableObject {
 
     func signOut() {
         Task {
+            await NotificationManager.shared.unregisterCurrentDevice()
             await APIClient.shared.signOut()
             isSignedIn = false
         }

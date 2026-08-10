@@ -10,7 +10,7 @@ settings:
     CODE_SIGN_STYLE: Automatic
     SWIFT_VERSION: 6.0
     MARKETING_VERSION: 1.0
-    CURRENT_PROJECT_VERSION: 1
+    CURRENT_PROJECT_VERSION: 2
     SUPPORTED_PLATFORMS: iphoneos iphonesimulator
     TARGETED_DEVICE_FAMILY: '1'
     SUPPORTS_MACCATALYST: NO
@@ -19,8 +19,10 @@ settings:
   configs:
     Debug:
       API_BASE_URL: http://127.0.0.1:8787
+      APS_ENVIRONMENT: development
     Release:
       API_BASE_URL: https://cha-ching-api.serpcompany.workers.dev
+      APS_ENVIRONMENT: production
       SWIFT_OPTIMIZATION_LEVEL: '-O'
       SWIFT_COMPILATION_MODE: wholemodule
       ENABLE_NS_ASSERTIONS: NO
@@ -37,6 +39,7 @@ targets:
     entitlements:
       path: Cha-Ching/ChaChing.entitlements
       properties:
+        aps-environment: $(APS_ENVIRONMENT)
         com.apple.developer.applesignin:
           - Default
     sources:
@@ -60,7 +63,6 @@ targets:
         UILaunchStoryboardName: LaunchScreen
         UIRequiredDeviceCapabilities: [ arm64 ]
         API_BASE_URL: $(API_BASE_URL)
-        ITSAppUsesNonExemptEncryption: false
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
             CFBundleURLName: com.serpcompany.chaching.oauth

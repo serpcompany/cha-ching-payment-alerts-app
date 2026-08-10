@@ -65,15 +65,35 @@ enum Processor: String, CaseIterable, Identifiable, Codable {
 }
 
 struct Sale: Identifiable, Hashable {
-    let id = UUID()
-    var product: String
-    var customer: String
-    var amount: Double
-    var currency: String = "USD"
-    var processor: Processor
-    var date: Date
-    var isSubscription: Bool = false
-    var country: String
+    let id: String
+    let product: String
+    let amountMinor: Int
+    let currency: String
+    let processor: Processor
+    let date: Date
+    let isSubscription: Bool
+    let countryCode: String?
+
+    var amount: Double {
+        Double(amountMinor) / pow(10, Double(currencyExponent))
+    }
+
+    var customer: String { "Verified by \(processor.title)" }
+
+    var country: String {
+        guard let countryCode else { return "🌎" }
+        return countryCode.uppercased().unicodeScalars.compactMap {
+            UnicodeScalar(127397 + $0.value).map(String.init)
+        }.joined()
+    }
+
+    private var currencyExponent: Int {
+        let zeroDecimal = ["BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW", "MGA", "PYG", "RWF", "UGX", "VND", "VUV", "XAF", "XOF", "XPF"]
+        let threeDecimal = ["BHD", "JOD", "KWD", "OMR", "TND"]
+        if zeroDecimal.contains(currency.uppercased()) { return 0 }
+        if threeDecimal.contains(currency.uppercased()) { return 3 }
+        return 2
+    }
 
     var formattedAmount: String {
         let f = NumberFormatter()

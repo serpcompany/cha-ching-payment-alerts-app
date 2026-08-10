@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import type { Env } from "../src/env";
 import { authorizationURL } from "../src/providers";
+import type { ProviderAuthorizationEnv } from "../src/providers";
 
 const env = {
   PUBLIC_BASE_URL: "https://api.chaching.example",
   STRIPE_CONNECT_CLIENT_ID: "ca_test",
   PAYPAL_CLIENT_ID: "paypal_test",
   PAYPAL_ENVIRONMENT: "sandbox",
-} as Env;
+} satisfies ProviderAuthorizationEnv;
 
 describe("provider authorization URLs", () => {
   it("builds a state-bound Stripe Connect URL", () => {

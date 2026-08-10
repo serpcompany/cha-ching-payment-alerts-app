@@ -12,7 +12,10 @@ struct ConnectView: View {
                     VStack(spacing: 16) {
                         header
                         ForEach(connectStore.connections) { state in
-                            ProviderCard(state: state) { selectedProvider = state.processor }
+                            ProviderCard(
+                                state: state,
+                                isAvailable: connectStore.isAvailable(state.processor)
+                            ) { selectedProvider = state.processor }
                         }
                         moreComingCard
                     }
@@ -62,6 +65,7 @@ struct ConnectView: View {
 
 private struct ProviderCard: View {
     let state: ConnectionState
+    let isAvailable: Bool
     let action: () -> Void
 
     var body: some View {
@@ -79,7 +83,7 @@ private struct ProviderCard: View {
                     Text(state.processor.title)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.ink)
-                    Text(state.isConnected ? (state.accountLabel ?? "Connected") : "Not connected")
+                    Text(statusText)
                         .font(.caption)
                         .foregroundStyle(state.isConnected ? Theme.accent : Theme.ink.opacity(0.5))
                 }
@@ -92,11 +96,23 @@ private struct ProviderCard: View {
         .buttonStyle(.plain)
     }
 
+    private var statusText: String {
+        if state.isConnected { return state.accountLabel ?? "Connected" }
+        return isAvailable ? "Not connected" : "Setup in progress"
+    }
+
     private var statusBadge: some View {
         Group {
             if state.isConnected {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(Theme.accent)
+            } else if !isAvailable {
+                Text("Soon")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Theme.gold.opacity(0.14), in: Capsule())
+                    .foregroundStyle(Theme.gold)
             } else {
                 Text("Connect")
                     .font(.caption.weight(.semibold))

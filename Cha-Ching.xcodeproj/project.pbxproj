@@ -13,6 +13,7 @@
 		210EF9A32A4E48EC67C203F8 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75CD9FC697BAB28269D3B464 /* APIClient.swift */; };
 		219D7A3BB6D0D9D4AA468F75 /* ChaChingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97EE9023C77A95B6CC382CC6 /* ChaChingApp.swift */; };
 		341ADFBA1811D51201522F8C /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DE4FF55125FA287FFF07BA9 /* SignInView.swift */; };
+		37517B775DDEFA20EE147AF2 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A78F14FB2FD3E9606C1258A1 /* NotificationManager.swift */; };
 		405010C6F04A7FEE07B40F66 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8764F36998B956216842955 /* AuthManager.swift */; };
 		44BD0E0C3503D2F05CDB52F8 /* Sale.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ECEEA344D12969329CC034A /* Sale.swift */; };
 		6887DC54A2B68216D2EFAE95 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA321C7A5BA4FBE69295C95C /* RootTabView.swift */; };
@@ -37,6 +38,7 @@
 		97EE9023C77A95B6CC382CC6 /* ChaChingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChaChingApp.swift; sourceTree = "<group>"; };
 		9EEE0C714FD8BC27B6895BAE /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		A58B251927E5F6F4FFFE6915 /* HomeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeComponents.swift; sourceTree = "<group>"; };
+		A78F14FB2FD3E9606C1258A1 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		AA321C7A5BA4FBE69295C95C /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		B4B800513E0052C6450AFC2B /* Cha-Ching.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Cha-Ching.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C0FD894F5B73CA31CF884DA9 /* ChaChing.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ChaChing.entitlements; sourceTree = "<group>"; };
@@ -143,6 +145,7 @@
 				75CD9FC697BAB28269D3B464 /* APIClient.swift */,
 				C8764F36998B956216842955 /* AuthManager.swift */,
 				F0867D67A73EEC4496B1399C /* ConnectStore.swift */,
+				A78F14FB2FD3E9606C1258A1 /* NotificationManager.swift */,
 				C6F6855FD89FDB53F76A4457 /* ProviderWebAuthenticationSession.swift */,
 			);
 			path = Services;
@@ -236,6 +239,7 @@
 				80CEDB095F8C9808067CBFAC /* ConnectView.swift in Sources */,
 				2081778642AD4EE2DB0FB871 /* HomeComponents.swift in Sources */,
 				8DC3CF4F0C9989CBD83F8A36 /* HomeView.swift in Sources */,
+				37517B775DDEFA20EE147AF2 /* NotificationManager.swift in Sources */,
 				BE62FAE52D0FD8AA9A9CB0EF /* ProviderWebAuthenticationSession.swift in Sources */,
 				6887DC54A2B68216D2EFAE95 /* RootTabView.swift in Sources */,
 				44BD0E0C3503D2F05CDB52F8 /* Sale.swift in Sources */,
@@ -283,6 +287,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				API_BASE_URL = "https://cha-ching-api.serpcompany.workers.dev";
+				APS_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -315,7 +320,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 847HR8U8D9;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -347,6 +352,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				API_BASE_URL = "http://127.0.0.1:8787";
+				APS_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -379,7 +385,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 847HR8U8D9;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

@@ -37,11 +37,21 @@ struct ConnectSheet: View {
                                 Spacer()
                             }
                         }
-                        .disabled(connectStore.isBusy || !connectStore.isEntitled(to: processor))
+                        .disabled(
+                            connectStore.isBusy ||
+                            !connectStore.isEntitled(to: processor) ||
+                            !connectStore.isAvailable(processor)
+                        )
                     }
                     if !connectStore.isEntitled(to: processor) {
                         Section {
                             Text("Your current plan doesn't include this connection.")
+                                .font(.footnote)
+                                .foregroundStyle(.orange)
+                        }
+                    } else if !connectStore.isAvailable(processor) {
+                        Section {
+                            Text("We're finishing \(processor.title) setup. This connection will become available without an app update.")
                                 .font(.footnote)
                                 .foregroundStyle(.orange)
                         }

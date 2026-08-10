@@ -28,8 +28,8 @@ export function homePage(): Response {
     <p class="eyebrow">Cha-Ching</p>
     <h1>Get paid. Hear the cha-ching.</h1>
     <div class="card">
-      <p>Cha-Ching is an iOS account-connection MVP for securely linking Stripe and PayPal accounts. Provider tokens stay encrypted in Cloudflare D1 and are never stored on the device.</p>
-      <p>Sale ingestion and push notifications are planned features and are not part of the current connection MVP.</p>
+      <p>Cha-Ching securely links supported Stripe and PayPal accounts. Provider tokens stay encrypted in Cloudflare D1 and are never stored on the device.</p>
+      <p>For a connected Stripe account, Cha-Ching can record verified successful charges and send payment notifications to registered iPhones. PayPal payment notifications are not currently supported.</p>
     </div>
     <p><a href="/privacy">Privacy Policy</a> · <a href="/terms">User Agreement</a></p>
   `);
@@ -44,12 +44,14 @@ export function privacyPage(): Response {
     <ul>
       <li>Your Apple account identifier, name, and email when provided by Sign in with Apple.</li>
       <li>Your Stripe or PayPal account identifier, account label, authorization scopes, and OAuth tokens after you consent.</li>
+      <li>For supported Stripe alerts: payment and event identifiers, amount, currency, event time, optional billing country, and delivery status. We do not retain the customer's name, email, payment description, or complete webhook payload.</li>
+      <li>An APNs device token and app-generated device identifier when you enable notifications.</li>
       <li>Security and operational data such as session details, request rate limits, and error logs.</li>
     </ul>
     <h2>How we use and protect information</h2>
-    <p>We use this information only to authenticate you, enforce feature access, display connection status, and operate the service. Provider tokens are encrypted with AES-256-GCM before storage in Cloudflare D1. We do not sell personal information.</p>
+    <p>We use this information only to authenticate you, enforce feature access, display connection and verified-sale history, deliver notifications, and operate the service. Provider tokens are encrypted with AES-256-GCM before storage in Cloudflare D1. We do not sell personal information.</p>
     <h2>Sharing and retention</h2>
-    <p>We use Apple, Stripe, PayPal, and Cloudflare to provide the service. Disconnecting a provider removes its stored connection and encrypted tokens from Cha-Ching. Authentication records remain while your Cha-Ching account is active or as needed for security and legal obligations.</p>
+    <p>We use Apple, Stripe, PayPal, Cloudflare, and Apple Push Notification service to provide the service. Disconnecting a provider removes its stored connection and encrypted tokens but does not erase existing verified-sale history. Account, sale, and device data remain while your Cha-Ching account is active or until a verified deletion request is processed; minimal unmatched event records may remain for webhook security and deduplication.</p>
     <h2>Your choices</h2>
     <p>You can revoke provider access from Cha-Ching or the provider dashboard. To request access, correction, or deletion of your Cha-Ching account data, email <a href="mailto:devin@serp.co">devin@serp.co</a>.</p>
     <p><a href="/">Cha-Ching</a> · <a href="/terms">User Agreement</a></p>
@@ -61,8 +63,8 @@ export function termsPage(): Response {
     <p class="eyebrow">Effective August 11, 2026</p>
     <h1>User Agreement</h1>
     <p>By using Cha-Ching, you agree to use the service only with accounts you own or are authorized to manage.</p>
-    <h2>Connection MVP</h2>
-    <p>The current service connects and identifies Stripe and PayPal accounts. It does not yet provide sale ingestion, accounting, payout, notification, or financial-advice functionality.</p>
+    <h2>Service scope</h2>
+    <p>The service connects and identifies supported Stripe and PayPal accounts. For supported Stripe configurations it can display verified successful charges and attempt payment notifications. It is not an accounting, payout, reconciliation, tax, or financial-advice service, and PayPal payment notifications are not currently supported.</p>
     <h2>Provider terms</h2>
     <p>Your use of Apple, Stripe, and PayPal remains subject to each provider's agreements. You authorize Cha-Ching to receive the account information and permissions shown on each provider's consent page.</p>
     <h2>Availability and responsibility</h2>
