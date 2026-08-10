@@ -1,6 +1,6 @@
 import Foundation
 import UIKit
-import UserNotifications
+@preconcurrency import UserNotifications
 
 extension Notification.Name {
     static let chaChingSaleReceived = Notification.Name("com.serpcompany.chaching.sale-received")
