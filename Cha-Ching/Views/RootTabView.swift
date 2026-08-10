@@ -58,13 +58,20 @@ private struct SettingsView: View {
                     HStack {
                         Text("Payment pings")
                         Spacer()
-                        Text(notifications.isEnabled ? "On" : "Off")
-                            .foregroundStyle(notifications.isEnabled ? Theme.accent : .secondary)
+                        Text(notifications.statusText)
+                            .foregroundStyle(notifications.canDeliverNotifications ? Theme.accent : .secondary)
                     }
-                    if !notifications.isEnabled {
+                    if !notifications.isAuthorized {
                         Button("Enable notifications") {
                             Task { await notifications.requestPermissionAndRegister() }
                         }
+                    } else if !notifications.canDeliverNotifications {
+                        Button("Retry registration") {
+                            notifications.registerIfAuthorized()
+                        }
+                    }
+                    if let help = notifications.registrationHelpText {
+                        Text(help).font(.footnote).foregroundStyle(.secondary)
                     }
                     if let error = notifications.registrationError {
                         Text(error).font(.footnote).foregroundStyle(.red)

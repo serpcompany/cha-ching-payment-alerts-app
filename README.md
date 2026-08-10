@@ -11,8 +11,8 @@ Brand rules live in [`docs/brand.md`](docs/brand.md), App Store copy in [`docs/a
 - Better Auth runs in a Cloudflare Worker and stores users/sessions in D1.
 - The iOS app signs in with Apple's native UI, exchanges the Apple ID token with Better Auth, and stores the resulting bearer session in Keychain.
 - D1 entitlements (`connect_stripe`, `connect_paypal`) are created with MVP defaults and checked before OAuth begins and again at callback completion.
-- Stripe uses Connect OAuth for Standard accounts. PayPal uses Log in with PayPal (OpenID Connect).
-- Provider access and refresh tokens are AES-256-GCM encrypted before D1 storage. The encryption key stays in Worker secrets.
+- Stripe uses a backend-only Stripe App with explicit `event_read` and `charge_read` permissions. PayPal uses Log in with PayPal (OpenID Connect).
+- PayPal access and refresh tokens are AES-256-GCM encrypted before D1 storage. Stripe stores only the installed account ID and no Stripe access token.
 - Signed Stripe connected-account events become idempotent D1 sales and are sent through a Cloudflare Queue for APNs delivery.
 - The iOS History tab reads verified sales from the Worker; sample revenue and local test pings are not part of production behavior.
 
@@ -32,23 +32,33 @@ Requirements: Node 22+, pnpm 10+, Xcode 17+, XcodeGen, Wrangler, and a Cloudflar
    openssl rand -base64 32 # PROVIDER_TOKEN_ENCRYPTION_KEY
    ```
 
-2. Add Apple, APNs, Stripe, and PayPal values to `.dev.vars`.
+2. For everyday Debug Simulator work, those two local secrets are enough. Start
+   the Worker and choose **Use local Simulator account** in the app. Apple
+   credentials are deliberately not used by this path; see
+   [`docs/development/simulator-auth.md`](docs/development/simulator-auth.md).
+   Use [`docs/development/signed-iphone.md`](docs/development/signed-iphone.md)
+   for real Sign in with Apple and APNs acceptance.
+
+3. Add Apple, APNs, Stripe, and PayPal sandbox values to `.dev.vars` only when
+   exercising those integrations locally.
 
    - Apple: App ID `com.serpcompany.chaching`, Services ID `com.serpcompany.chaching.signin`, Team ID, Key ID, and the downloaded `.p8` private key.
    - APNs: use an Apple key with push access and the app topic `com.serpcompany.chaching`.
-   - Stripe: enable Connect OAuth, register `<PUBLIC_BASE_URL>/v1/oauth/stripe/callback`, and create a connected-account webhook at `<PUBLIC_BASE_URL>/v1/webhooks/stripe` for `charge.succeeded` and `account.application.deauthorized`.
+   - Stripe: upload the checked-in `stripe-app.json`, allow `<PUBLIC_BASE_URL>/v1/oauth/stripe/callback`, request only `event_read` and `charge_read`, configure `STRIPE_SECRET_KEY` for the production live-account probe, and create an installed-account webhook at `<PUBLIC_BASE_URL>/v1/webhooks/stripe` for `charge.succeeded` and `account.application.deauthorized`.
    - PayPal: enable Log in with PayPal and register `<PUBLIC_BASE_URL>/v1/oauth/paypal/callback` as the return URL. Sandbox requires no review; live access requires PayPal approval.
 
-3. The checked-in production binding uses `cha-ching-prod`. For local development, apply the same migrations to local Wrangler state:
+4. The checked-in production binding uses `cha-ching-prod`. For local development, apply the same migrations to local Wrangler state:
 
    ```bash
    pnpm db:migrate:local
    pnpm dev
    ```
 
-4. Set `PUBLIC_BASE_URL` in `backend/wrangler.jsonc` and `API_BASE_URL` in `project.yml` to the same reachable API origin. The checked-in Debug value works for an iOS Simulator using a local Worker. A real device needs an HTTPS URL or tunnel.
+5. `pnpm dev` sets the local Worker origin to `http://127.0.0.1:8787`, which
+   matches the checked-in Debug `API_BASE_URL`. A real device needs an HTTPS URL
+   or tunnel and must use real Sign in with Apple.
 
-5. Regenerate and build the app:
+6. Regenerate and build the app:
 
    ```bash
    cd ..
@@ -56,7 +66,9 @@ Requirements: Node 22+, pnpm 10+, Xcode 17+, XcodeGen, Wrangler, and a Cloudflar
    open "Cha-Ching.xcodeproj"
    ```
 
-Sign in with Apple requires Apple configuration and is best exercised on a signed build/device.
+Real Sign in with Apple requires Apple configuration and is best exercised on a
+signed build/device. Apple IDs and passwords must never be placed in environment
+files.
 
 ## Deploy
 
@@ -72,9 +84,10 @@ pnpm exec wrangler secret put APPLE_PRIVATE_KEY
 pnpm exec wrangler secret put APNS_KEY_ID
 pnpm exec wrangler secret put APNS_PRIVATE_KEY
 pnpm exec wrangler secret put PROVIDER_TOKEN_ENCRYPTION_KEY
-pnpm exec wrangler secret put STRIPE_CONNECT_CLIENT_ID
-pnpm exec wrangler secret put STRIPE_SECRET_KEY
+pnpm exec wrangler secret put STRIPE_APP_INSTALL_URL
+pnpm exec wrangler secret put STRIPE_APP_SIGNING_SECRET
 pnpm exec wrangler secret put STRIPE_WEBHOOK_SECRET
+pnpm exec wrangler secret put STRIPE_SECRET_KEY
 pnpm exec wrangler secret put PAYPAL_CLIENT_ID
 pnpm exec wrangler secret put PAYPAL_CLIENT_SECRET
 pnpm exec wrangler queues create cha-ching-notifications
@@ -109,4 +122,4 @@ xcodebuild -project "Cha-Ching.xcodeproj" -scheme "Cha-Ching" \
   -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
 ```
 
-The signed Stripe event → D1 sale → Queue path should also be exercised in local Wrangler before changing webhook behavior. Production notification acceptance requires a signed TestFlight device because Simulator APNs behavior does not prove the distribution token path.
+The actual `$27.00` live Stripe Charge event from the installed SERP! payment account passed the production webhook → D1 sale → Queue → APNs path, and the tester confirmed the notification appeared on the signed iPhone. Replaying that exact event still produces one sale and one delivery. A regression test prevents production callbacks from storing a Stripe sandbox as the connected account.

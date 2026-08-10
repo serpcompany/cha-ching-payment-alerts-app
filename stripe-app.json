@@ -1,0 +1,23 @@
+{
+  "$schema": "https://stripe.com/stripe-app.schema.json",
+  "id": "com.serpcompany.chaching",
+  "name": "Cha-Ching",
+  "version": "0.1.0",
+  "icon": "./stripe-app/cha-ching-icon.png",
+  "permissions": [
+    {
+      "permission": "event_read",
+      "purpose": "Receive Stripe events so Cha-Ching can detect verified successful payments."
+    },
+    {
+      "permission": "charge_read",
+      "purpose": "Read successful charge amounts and currencies included in payment events for sale notifications."
+    }
+  ],
+  "allowed_redirect_uris": [
+    "https://cha-ching-api.serpcompany.workers.dev/v1/oauth/stripe/callback"
+  ],
+  "distribution_type": "public",
+  "stripe_api_access_type": "platform",
+  "sandbox_install_compatible": true
+}

@@ -75,7 +75,7 @@ struct ConnectSheet: View {
                 }
 
                 Section {
-                    Text("Authorization happens on \(processor.title). Access tokens are encrypted by Cha-Ching's backend and are never stored on this device.")
+                    Text(connectionPrivacyCopy)
                         .font(.caption2)
                         .foregroundStyle(Theme.ink.opacity(0.5))
                 }
@@ -93,5 +93,14 @@ struct ConnectSheet: View {
     private func connect() async {
         let success = await connectStore.connect(provider: processor)
         if success { dismiss() }
+    }
+
+    private var connectionPrivacyCopy: String {
+        switch processor {
+        case .stripe:
+            "Authorization happens on Stripe. Cha-Ching requests read-only event and charge access, stores only the connected account ID, and cannot create or change payments."
+        default:
+            "Authorization happens on \(processor.title). Provider tokens are encrypted by Cha-Ching's backend and are never stored on this device."
+        }
     }
 }

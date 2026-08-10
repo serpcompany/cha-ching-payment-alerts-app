@@ -17,6 +17,16 @@
     "APNS_BUNDLE_ID": "com.serpcompany.chaching",
     "PAYPAL_ENVIRONMENT": "sandbox"
   },
+  "secrets": {
+    "required": [
+      "BETTER_AUTH_SECRET",
+      "PROVIDER_TOKEN_ENCRYPTION_KEY",
+      "STRIPE_SECRET_KEY",
+      "STRIPE_APP_INSTALL_URL",
+      "STRIPE_APP_SIGNING_SECRET",
+      "STRIPE_WEBHOOK_SECRET"
+    ]
+  },
   "d1_databases": [
     {
       "binding": "DB",

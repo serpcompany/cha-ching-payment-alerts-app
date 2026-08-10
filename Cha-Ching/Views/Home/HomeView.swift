@@ -14,7 +14,7 @@ struct HomeView: View {
                         HeroCard(total: store.todayTotal,
                                  count: store.todaysSales.count,
                                  change: store.dayOverDayChange,
-                                 notificationsEnabled: notifications.isEnabled)
+                                 notificationsEnabled: notifications.canDeliverNotifications)
                         if let error = store.errorMessage {
                             Text(error)
                                 .font(.footnote)
@@ -44,7 +44,7 @@ struct HomeView: View {
             .navigationTitle("Today")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Image(systemName: notifications.isEnabled ? "bell.badge.fill" : "bell.slash.fill")
+                    Image(systemName: notifications.canDeliverNotifications ? "bell.badge.fill" : "bell.slash.fill")
                         .foregroundStyle(Theme.accent)
                 }
             }

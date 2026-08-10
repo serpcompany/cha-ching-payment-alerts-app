@@ -21,9 +21,30 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     static let shared = NotificationManager()
 
     @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
+    @Published private(set) var hasRegisteredDevice = false
     @Published private(set) var registrationError: String?
 
-    var isEnabled: Bool { authorizationStatus == .authorized || authorizationStatus == .provisional }
+    var isAuthorized: Bool {
+        authorizationStatus == .authorized || authorizationStatus == .provisional
+    }
+
+    var canDeliverNotifications: Bool { isAuthorized && hasRegisteredDevice }
+
+    var statusText: String {
+        if registrationError != nil { return "Needs attention" }
+        if canDeliverNotifications { return "On" }
+        if isAuthorized { return "Waiting for device" }
+        return "Off"
+    }
+
+    var registrationHelpText: String? {
+        guard isAuthorized, !hasRegisteredDevice, registrationError == nil else { return nil }
+        #if targetEnvironment(simulator)
+        return "Notification permission is on, but remote payment pings require a signed build on your iPhone."
+        #else
+        return "Notification permission is on. Tap Retry registration to finish connecting this iPhone."
+        #endif
+    }
 
     private let center = UNUserNotificationCenter.current()
     private let deviceId: String
@@ -62,7 +83,7 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         guard APIClient.shared.hasAuthToken else { return }
         Task {
             await refreshAuthorizationStatus()
-            guard isEnabled else { return }
+            guard isAuthorized else { return }
             UIApplication.shared.registerForRemoteNotifications()
             if deviceToken != nil { await uploadToken() }
         }
@@ -74,6 +95,7 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     }
 
     func didFailToRegister(error: Error) {
+        hasRegisteredDevice = false
         registrationError = "This device couldn't register for notifications: \(error.localizedDescription)"
     }
 
@@ -81,6 +103,7 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         guard APIClient.shared.hasAuthToken else { return }
         do {
             try await APIClient.shared.delete("/v1/devices/\(deviceId)")
+            hasRegisteredDevice = false
         } catch {
             registrationError = "This device couldn't be removed from notifications."
         }
@@ -103,8 +126,10 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
                 )
             )
             guard response.registered else { throw APIError.invalidResponse }
+            hasRegisteredDevice = true
             registrationError = nil
         } catch {
+            hasRegisteredDevice = false
             registrationError = "This device couldn't register for notifications."
         }
     }

@@ -43,10 +43,10 @@ enum Processor: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    /// Where a user gets the credentials they need to paste into Cha-Ching.
+    /// How a user grants Cha-Ching access at the provider.
     var setupHint: String {
         switch self {
-        case .stripe: return "Sign in to Stripe and authorize Cha-Ching through Stripe Connect. Your credentials never pass through the app."
+        case .stripe: return "Install Cha-Ching from Stripe's permission screen. It can read successful payment events, but it cannot create or change payments."
         case .paypal: return "Sign in to PayPal and choose the account you want Cha-Ching to link."
         case .lemonsqueezy: return "Paste an API key from Lemon Squeezy Settings → API, plus your webhook signing secret."
         case .gumroad: return "Paste your access token from Gumroad Settings → Advanced."

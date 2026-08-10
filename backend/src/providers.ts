@@ -1,8 +1,9 @@
 import type { Env, Provider } from "./env";
+import { verifyStripeSignature } from "./stripe-webhooks";
 
 export interface ProviderAuthorizationEnv {
   PUBLIC_BASE_URL: string;
-  STRIPE_CONNECT_CLIENT_ID: string;
+  STRIPE_APP_INSTALL_URL: string;
   PAYPAL_CLIENT_ID: string;
   PAYPAL_ENVIRONMENT: "sandbox" | "live";
 }
@@ -10,10 +11,15 @@ export interface ProviderAuthorizationEnv {
 export interface ProviderTokens {
   providerAccountId: string;
   accountLabel: string | null;
-  accessToken: string;
+  accessToken: string | null;
   refreshToken: string | null;
   expiresAt: string | null;
   scope: string | null;
+}
+
+export function providerConnectionFailureMessage(provider: Provider, error: unknown): string {
+  void error;
+  return `Couldn't connect ${provider}`;
 }
 
 export function callbackURL(env: Pick<ProviderAuthorizationEnv, "PUBLIC_BASE_URL">, provider: Provider): string {
@@ -23,11 +29,8 @@ export function callbackURL(env: Pick<ProviderAuthorizationEnv, "PUBLIC_BASE_URL
 export function authorizationURL(env: ProviderAuthorizationEnv, provider: Provider, state: string): string {
   const redirectUri = callbackURL(env, provider);
   if (provider === "stripe") {
-    if (!env.STRIPE_CONNECT_CLIENT_ID) throw new Error("Stripe Connect is not configured");
-    const url = new URL("https://connect.stripe.com/oauth/authorize");
-    url.searchParams.set("response_type", "code");
-    url.searchParams.set("client_id", env.STRIPE_CONNECT_CLIENT_ID);
-    url.searchParams.set("scope", "read_write");
+    if (!env.STRIPE_APP_INSTALL_URL) throw new Error("Stripe App is not configured");
+    const url = new URL(env.STRIPE_APP_INSTALL_URL);
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("state", state);
     return url.toString();
@@ -48,47 +51,52 @@ export function authorizationURL(env: ProviderAuthorizationEnv, provider: Provid
   return url.toString();
 }
 
-async function exchangeStripe(env: Env, code: string): Promise<ProviderTokens> {
-  const body = new URLSearchParams({
-    grant_type: "authorization_code",
-    code,
-    client_secret: env.STRIPE_SECRET_KEY,
+export async function verifyStripeAppInstall(
+  env: Pick<Env, "STRIPE_APP_SIGNING_SECRET">,
+  install: { state: string; stripeUserId: string; accountId: string; signature: string },
+  nowSeconds = Math.floor(Date.now() / 1_000),
+): Promise<ProviderTokens> {
+  const payload = JSON.stringify({
+    state: install.state,
+    user_id: install.stripeUserId,
+    account_id: install.accountId,
   });
-  const response = await fetch("https://connect.stripe.com/oauth/token", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body,
-  });
-  const payload = (await response.json()) as {
-    access_token?: string;
-    refresh_token?: string;
-    stripe_user_id?: string;
-    scope?: string;
-    error_description?: string;
-  };
-  if (!response.ok || !payload.access_token || !payload.stripe_user_id) {
-    throw new Error(payload.error_description ?? "Stripe rejected the authorization code");
+  if (!/^acct_[A-Za-z0-9]+$/.test(install.accountId) || !install.stripeUserId || !install.signature) {
+    throw new Error("Stripe returned an invalid app installation callback");
   }
-
-  const accountResponse = await fetch("https://api.stripe.com/v1/account", {
-    headers: { authorization: `Bearer ${payload.access_token}` },
-  });
-  const account = accountResponse.ok
-    ? ((await accountResponse.json()) as {
-        business_profile?: { name?: string };
-        business_name?: string;
-        email?: string;
-      })
-    : null;
+  const verified = await verifyStripeSignature(
+    payload,
+    install.signature,
+    env.STRIPE_APP_SIGNING_SECRET,
+    nowSeconds,
+  );
+  if (!verified) throw new Error("Stripe returned an invalid app installation signature");
   return {
-    providerAccountId: payload.stripe_user_id,
-    accountLabel:
-      account?.business_profile?.name ?? account?.business_name ?? account?.email ?? payload.stripe_user_id,
-    accessToken: payload.access_token,
-    refreshToken: payload.refresh_token ?? null,
+    providerAccountId: install.accountId,
+    accountLabel: install.accountId,
+    accessToken: null,
+    refreshToken: null,
     expiresAt: null,
-    scope: payload.scope ?? null,
+    scope: "event_read charge_read",
   };
+}
+
+export async function verifyStripeAccountMode(
+  env: Pick<Env, "ENVIRONMENT" | "STRIPE_SECRET_KEY">,
+  accountId: string,
+): Promise<void> {
+  if (env.ENVIRONMENT !== "production") return;
+  if (!env.STRIPE_SECRET_KEY) throw new Error("Stripe live account verification is unavailable");
+
+  const response = await fetch("https://api.stripe.com/v1/charges?limit=1", {
+    headers: {
+      authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+      "stripe-account": accountId,
+    },
+  });
+  if (!response.ok) {
+    throw new Error("Stripe account is not available in live mode");
+  }
 }
 
 function paypalAPIBase(env: Env): string {
@@ -144,23 +152,6 @@ async function exchangePayPal(env: Env, code: string): Promise<ProviderTokens> {
 }
 
 export function exchangeAuthorizationCode(env: Env, provider: Provider, code: string) {
-  return provider === "stripe" ? exchangeStripe(env, code) : exchangePayPal(env, code);
-}
-
-export async function deauthorizeStripe(
-  env: Env,
-  stripeAccountId: string,
-): Promise<void> {
-  const response = await fetch("https://connect.stripe.com/oauth/deauthorize", {
-    method: "POST",
-    headers: {
-      authorization: `Basic ${btoa(`${env.STRIPE_SECRET_KEY}:`)}`,
-      "content-type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      client_id: env.STRIPE_CONNECT_CLIENT_ID,
-      stripe_user_id: stripeAccountId,
-    }),
-  });
-  if (!response.ok) throw new Error("Stripe could not revoke the connection");
+  if (provider === "stripe") throw new Error("Stripe uses the Stripe App installation callback");
+  return exchangePayPal(env, code);
 }

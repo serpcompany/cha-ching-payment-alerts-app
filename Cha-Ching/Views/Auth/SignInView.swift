@@ -32,6 +32,19 @@ struct SignInView: View {
                         .frame(height: 54)
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         .padding(.horizontal, 28)
+#if DEBUG && targetEnvironment(simulator)
+                    Button("Use local Simulator account") {
+                        auth.signInForSimulatorDevelopment()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Theme.gold)
+                    .foregroundStyle(Theme.ink)
+                    .frame(height: 48)
+                    .padding(.horizontal, 28)
+                    Text("Debug only · local Worker and D1")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.7))
+#endif
                     Text("Your account keeps provider connections and sale history in sync securely.")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.75))

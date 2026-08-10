@@ -81,6 +81,25 @@ actor APIClient {
         try KeychainToken.save(token)
     }
 
+#if DEBUG && targetEnvironment(simulator)
+    /// Creates a Better Auth anonymous session against the local development
+    /// Worker. This endpoint is not registered by staging or production.
+    func signInForSimulatorDevelopment() async throws {
+        var request = try makeRequest(
+            path: "/api/auth/sign-in/anonymous",
+            method: "POST",
+            authorized: false
+        )
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data("{}".utf8)
+        let (_, response) = try await perform(request)
+        guard let token = response.value(forHTTPHeaderField: "set-auth-token"), !token.isEmpty else {
+            throw APIError.invalidResponse
+        }
+        try KeychainToken.save(token)
+    }
+#endif
+
     func validateSession() async throws -> Bool {
         let request = try makeRequest(path: "/api/auth/get-session", method: "GET")
         let (data, response) = try await URLSession.shared.data(for: request)

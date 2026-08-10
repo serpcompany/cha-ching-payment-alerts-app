@@ -14,7 +14,7 @@
 2. Better Auth returns a bearer session; iOS stores it in Keychain.
 3. iOS requests a provider authorization URL with that bearer session.
 4. The Worker checks the D1 entitlement and persists only a hash of a ten-minute OAuth state.
-5. The provider returns to the Worker. The Worker consumes the one-time state, rechecks entitlement, exchanges the code, encrypts tokens, and upserts the connection.
+5. The provider returns to the Worker. The Worker consumes the one-time state and rechecks entitlement. Stripe App installs are verified with the app signing secret; production installs must also pass a live-mode, read-only Charge probe before the account ID is stored. Providers that issue OAuth tokens are exchanged and encrypted.
 6. The Worker redirects to `chaching://oauth-callback`; iOS refreshes connection state from D1.
 
 ## Stripe sale-notification flow
@@ -36,5 +36,7 @@
 - Provider connection rows are user-scoped, and one external account cannot be linked to multiple users.
 - Apple email is recovered only from an already-linked local Better Auth account when Apple omits it on later sign-ins.
 - Stripe webhook signatures are checked before JSON parsing or D1 writes.
+- Stripe App install callbacks are signed, and the app manifest grants only `event_read` and `charge_read`.
+- A sandbox Stripe account cannot be stored by a production callback, even though sandbox and live identifiers share the `acct_` format.
 - Provider event IDs, payment IDs, and notification deliveries are unique so retries are idempotent.
 - APNs device tokens are user-scoped, revocable at sign-out, and invalidated after Apple rejects them.

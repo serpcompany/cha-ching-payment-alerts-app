@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 private struct SalesResponse: Decodable {
     let sales: [SaleResponse]
@@ -17,6 +18,11 @@ private struct SaleResponse: Decodable {
 
 @MainActor
 final class SalesStore: ObservableObject {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.serpcompany.chaching",
+        category: "sales"
+    )
+
     @Published private(set) var sales: [Sale] = []
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
@@ -43,6 +49,7 @@ final class SalesStore: ObservableObject {
         do {
             let response: SalesResponse = try await APIClient.shared.get("/v1/sales")
             let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             sales = response.sales.compactMap { row in
                 guard let date = formatter.date(from: row.occurredAt) else { return nil }
                 return Sale(
@@ -60,6 +67,7 @@ final class SalesStore: ObservableObject {
         } catch is CancellationError {
             return
         } catch {
+            Self.logger.error("Verified sales refresh failed: \(error.localizedDescription, privacy: .public)")
             errorMessage = "Couldn't load verified sales."
         }
     }

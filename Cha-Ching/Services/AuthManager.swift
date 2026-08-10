@@ -68,6 +68,26 @@ final class AuthManager: ObservableObject {
         }
     }
 
+#if DEBUG && targetEnvironment(simulator)
+    func signInForSimulatorDevelopment() {
+        Task {
+            isLoading = true
+            defer { isLoading = false }
+            do {
+                try await APIClient.shared.signInForSimulatorDevelopment()
+                guard try await APIClient.shared.validateSession() else {
+                    APIClient.shared.clearAuthToken()
+                    throw APIError.unauthorized
+                }
+                isSignedIn = true
+                errorMessage = nil
+            } catch {
+                errorMessage = "Couldn't create the local Simulator session: \(error.localizedDescription)"
+            }
+        }
+    }
+#endif
+
     func signOut() {
         Task {
             await NotificationManager.shared.unregisterCurrentDevice()

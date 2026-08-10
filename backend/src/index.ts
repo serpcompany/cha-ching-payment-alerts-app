@@ -12,6 +12,7 @@ import {
   assertConfigured,
   isPayPalConfigured,
   isPushConfigured,
+  isSimulatorAuthRequestAllowed,
   isStripeConfigured,
   missingCoreConfiguration,
   providerCapabilities,
@@ -51,6 +52,12 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
   if (request.method === "POST" && url.pathname === "/v1/webhooks/stripe") {
     return handleStripeWebhook(env, request);
+  }
+  if (
+    url.pathname === "/api/auth/sign-in/anonymous"
+    && !isSimulatorAuthRequestAllowed(env, request.url)
+  ) {
+    return Response.json({ error: "Not found" }, { status: 404 });
   }
   if (missingCoreConfiguration(env).length > 0) {
     return Response.json({ error: "Authentication service is not configured" }, { status: 503 });

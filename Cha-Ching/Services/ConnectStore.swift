@@ -100,7 +100,10 @@ final class ConnectStore: ObservableObject {
             let values = URLComponents(url: callback, resolvingAgainstBaseURL: false)?.queryItems ?? []
             let status = values.first(where: { $0.name == "status" })?.value
             guard status == "connected" else {
-                let message = values.first(where: { $0.name == "message" })?.value
+                // URLComponents percent-decodes query items but preserves the
+                // form-encoded `+` that URLSearchParams uses for spaces.
+                let message = values.first(where: { $0.name == "message" })?.value?
+                    .replacingOccurrences(of: "+", with: " ")
                 throw APIError.server(message ?? "The connection wasn't completed.")
             }
             await refresh()

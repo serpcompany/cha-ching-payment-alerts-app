@@ -6,8 +6,10 @@ import type { Env, Provider } from "./env";
 import { isPayPalConfigured, isStripeConfigured } from "./env";
 import {
   authorizationURL,
-  deauthorizeStripe,
   exchangeAuthorizationCode,
+  providerConnectionFailureMessage,
+  verifyStripeAccountMode,
+  verifyStripeAppInstall,
 } from "./providers";
 
 interface ConnectionRow {
@@ -85,7 +87,10 @@ export async function completeConnection(
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   if (url.searchParams.has("error")) return appRedirect(provider, "error", "Authorization cancelled");
-  if (!code || !state) return appRedirect(provider, "error", "Invalid authorization response");
+  if (!state) return appRedirect(provider, "error", "Invalid authorization response");
+  if (provider === "paypal" && !code) {
+    return appRedirect(provider, "error", "Invalid authorization response");
+  }
 
   const stateHash = await sha256(state);
   const consumed = await env.DB.prepare(
@@ -97,9 +102,22 @@ export async function completeConnection(
 
   try {
     await requireProviderEntitlement(env.DB, consumed.user_id, provider);
-    const tokens = await exchangeAuthorizationCode(env, provider, code);
+    const tokens = provider === "stripe"
+      ? await verifyStripeAppInstall(env, {
+          state,
+          stripeUserId: url.searchParams.get("user_id") ?? "",
+          accountId: url.searchParams.get("account_id") ?? "",
+          signature: url.searchParams.get("install_signature") ?? "",
+        })
+      : await exchangeAuthorizationCode(env, provider, code!);
+    if (provider === "stripe") {
+      await verifyStripeAccountMode(env, tokens.providerAccountId);
+    }
+    if (!tokens.providerAccountId) throw new Error("Provider did not return an account ID");
     const [accessToken, refreshToken] = await Promise.all([
-      encryptSecret(tokens.accessToken, env.PROVIDER_TOKEN_ENCRYPTION_KEY),
+      tokens.accessToken
+        ? encryptSecret(tokens.accessToken, env.PROVIDER_TOKEN_ENCRYPTION_KEY)
+        : Promise.resolve(null),
       tokens.refreshToken
         ? encryptSecret(tokens.refreshToken, env.PROVIDER_TOKEN_ENCRYPTION_KEY)
         : Promise.resolve(null),
@@ -135,7 +153,7 @@ export async function completeConnection(
       provider,
       message: error instanceof Error ? error.message : "Unknown error",
     });
-    return appRedirect(provider, "error", `Couldn't connect ${provider}`);
+    return appRedirect(provider, "error", providerConnectionFailureMessage(provider, error));
   }
 }
 
@@ -149,12 +167,11 @@ export async function disconnect(
   if (!provider) return Response.json({ error: "Unsupported provider" }, { status: 400 });
   const user = await requireUser(auth, request);
   const connection = await env.DB.prepare(
-    "SELECT provider_account_id FROM provider_connections WHERE user_id = ?1 AND provider = ?2",
+    "SELECT 1 AS found FROM provider_connections WHERE user_id = ?1 AND provider = ?2",
   )
     .bind(user.id, provider)
-    .first<{ provider_account_id: string }>();
+    .first<{ found: number }>();
   if (!connection) return new Response(null, { status: 204 });
-  if (provider === "stripe") await deauthorizeStripe(env, connection.provider_account_id);
   await env.DB.prepare("DELETE FROM provider_connections WHERE user_id = ?1 AND provider = ?2")
     .bind(user.id, provider)
     .run();
