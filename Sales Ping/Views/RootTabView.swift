@@ -11,12 +11,8 @@ struct RootTabView: View {
                 symbol: "list.bullet.rectangle.portrait"
             )
             .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
-            PlaceholderView(
-                title: "Connections",
-                message: "Link Stripe, PayPal and Gumroad — more processors coming soon.",
-                symbol: "link.circle.fill"
-            )
-            .tabItem { Label("Connect", systemImage: "link") }
+            ConnectView()
+                .tabItem { Label("Connect", systemImage: "link") }
             PlaceholderView(
                 title: "Settings",
                 message: "Pick your ping sound, craft your notification text, manage your plan.",

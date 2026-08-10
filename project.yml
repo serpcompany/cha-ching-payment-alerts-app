@@ -28,6 +28,12 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.superapp.salesping
+        CODE_SIGN_ENTITLEMENTS: Sales Ping/SalesPing.entitlements
+    entitlements:
+      path: Sales Ping/SalesPing.entitlements
+      properties:
+        com.apple.developer.applesignin:
+          - Default
     sources:
       - path: Sales Ping
     info:
@@ -47,7 +53,7 @@ targets:
         LSRequiresIPhoneOS: true
         UIApplicationSupportsIndirectInputEvents: true
         UILaunchStoryboardName: LaunchScreen
-        UIRequiredDeviceCapabilities: [arm64]
+        UIRequiredDeviceCapabilities: [ arm64 ]
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
@@ -57,6 +63,9 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+    dependencies:
+      - package: supabase-swift
+        product: Supabase
 
 schemes:
   Sales Ping:
@@ -67,3 +76,7 @@ schemes:
       config: Debug
     archive:
       config: Release
+packages:
+  supabase-swift:
+    url: https://github.com/supabase/supabase-swift
+    from: 2.0.0
