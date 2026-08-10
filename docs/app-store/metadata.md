@@ -2,9 +2,9 @@
 
 App Store Connect app ID: `6800029282`. Version `1.0` exists in `PREPARE_FOR_SUBMISSION`; it must not be submitted until the production authentication/provider flows and Apple readiness checks pass.
 
-TestFlight build `4` (`4722b680-6592-4e88-acc0-2e3965c52398`) is valid and in beta testing with the internal group `Cha-Ching Internal` (`483e4a13-43c0-4658-9c1b-8238e7b9a773`). It includes production APNs, universal custom webhook sources, field mapping and notification preview, and Stripe/custom-source pause controls. Builds `1` through `3` are superseded.
+TestFlight build `5` (`5c34eebf-3352-4b1a-8c42-bcc97a043b95`) is valid and in beta testing with the internal group `Cha-Ching Internal` (`483e4a13-43c0-4658-9c1b-8238e7b9a773`). It includes production APNs, universal custom webhook sources, a copyable AI-agent/developer handoff, field mapping and notification preview, and Stripe/custom-source pause controls. Builds `1` through `4` are superseded.
 
-The external group `Cha-Ching Beta` (`e95c8fca-3141-4ccb-917f-e7910bc37e0d`) contains `farleythecoder@gmail.com`, and build 4 is attached. The English What to Test notes and privacy URL are configured. Apple reports the build as `READY_FOR_BETA_SUBMISSION`; required beta-review contact details, including the phone number, still need to be supplied before external review can be submitted. Apple does not send the usable external invitation until that review is approved.
+The external group `Cha-Ching Beta` (`e95c8fca-3141-4ccb-917f-e7910bc37e0d`) contains `farleythecoder@gmail.com`, and build 5 is attached. The English What to Test notes and privacy URL are configured. Apple reports the build as `READY_FOR_BETA_SUBMISSION`; required beta-review contact details, including the phone number, still need to be supplied before external review can be submitted. Apple does not send the usable external invitation until that review is approved.
 
 ## Primary English (US)
 
@@ -41,6 +41,6 @@ The App Store Connect record and version metadata are staged. Apple validation c
 
 Do not submit version `1.0` for App Store review until Sign in with Apple and both provider connection paths pass the remaining production acceptance checks in GitHub Issue #1. Stripe's real webhook and signed-device notification checks now pass. Listing copy must not imply that PayPal alerts are supported in version 1.0.
 
-Build `4` was signed manually with active provisioning profile `Cha-Ching App Store Push` (`QT23D7VC6C`) because Xcode's cached interactive Apple Account session is expired. The profile contains production APNs and Sign in with Apple entitlements. The signed archive was packaged without macOS resource-fork metadata and uploaded with the App Store Connect API key; Apple processed it as `VALID` with non-exempt encryption set to false.
+Build `5` was signed manually with active provisioning profile `Cha-Ching App Store Push` (`QT23D7VC6C`) because Xcode's cached interactive Apple Account session is expired. The profile contains production APNs and Sign in with Apple entitlements. The signed archive was packaged without macOS resource-fork metadata and uploaded with the App Store Connect API key; Apple processed it as `VALID` with non-exempt encryption set to false.
 
 Apple limits both the localized app name and subtitle to 30 characters. Reference: [App Store Connect app information](https://developer.apple.com/help/app-store-connect/reference/app-information/app-information/).

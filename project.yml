@@ -10,7 +10,7 @@ settings:
     CODE_SIGN_STYLE: Automatic
     SWIFT_VERSION: 6.0
     MARKETING_VERSION: 1.0
-    CURRENT_PROJECT_VERSION: 4
+    CURRENT_PROJECT_VERSION: 5
     SUPPORTED_PLATFORMS: iphoneos iphonesimulator
     TARGETED_DEVICE_FAMILY: '1'
     SUPPORTS_MACCATALYST: NO
@@ -80,6 +80,20 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
 
+  Cha-ChingTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: '17.0'
+    sources:
+      - path: Cha-ChingTests
+    dependencies:
+      - target: Cha-Ching
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_MODULE_NAME: Cha_ChingTests
+        PRODUCT_NAME: Cha-ChingTests
+
 schemes:
   Cha-Ching:
     build:
@@ -89,3 +103,7 @@ schemes:
       config: Debug
     archive:
       config: Release
+    test:
+      config: Debug
+      targets:
+        - Cha-ChingTests

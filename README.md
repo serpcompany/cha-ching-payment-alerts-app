@@ -14,7 +14,7 @@ Brand rules live in [`docs/brand.md`](docs/brand.md), App Store copy in [`docs/a
 - Stripe uses a backend-only Stripe App with explicit `event_read` and `charge_read` permissions. PayPal uses Log in with PayPal (OpenID Connect).
 - PayPal access and refresh tokens are AES-256-GCM encrypted before D1 storage. Stripe stores only the installed account ID and no Stripe access token.
 - Signed Stripe connected-account events become idempotent D1 sales and are sent through a Cloudflare Queue for APNs delivery.
-- Custom sources issue a stable private webhook URL, learn a user-selected mapping from one encrypted setup sample, and retain only normalized sender-reported sale fields after activation.
+- Custom sources issue a stable private webhook URL, provide a copyable AI-agent/developer setup prompt, learn a user-selected mapping from one encrypted setup sample, and retain only normalized sender-reported sale fields after activation.
 - The iOS History tab reads Stripe-verified and custom sender-reported sales from the Worker; sample revenue and local test pings are not part of production behavior.
 
 PayPal account linking is implemented separately from sale ingestion. Version 1.0 supports Stripe payment alerts once the production Stripe platform and webhook secrets are configured; PayPal alerts are not implemented.

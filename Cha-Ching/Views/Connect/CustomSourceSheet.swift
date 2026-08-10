@@ -19,7 +19,7 @@ struct CustomSourceSheet: View {
     @State private var previewedMapping: WebhookFieldMapping?
     @State private var isBusy = false
     @State private var errorMessage: String?
-    @State private var copied = false
+    @State private var copiedItem: CopiedItem?
     @State private var confirmRegenerate = false
 
     var body: some View {
@@ -77,11 +77,12 @@ struct CustomSourceSheet: View {
             Text(source.webhookUrl.absoluteString)
                 .font(.caption.monospaced())
                 .textSelection(.enabled)
-            Button(copied ? "Copied" : "Copy webhook URL", systemImage: copied ? "checkmark" : "doc.on.doc") {
-                UIPasteboard.general.string = source.webhookUrl.absoluteString
-                copied = true
-            }
+            copyURLButton(source)
+            copyDeveloperPromptButton(source)
             Text("Choose your store's successful-payment event. This URL stays the same through normal Cha-Ching updates.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Text("The developer prompt includes this private URL. Send it only to a trusted developer or AI agent working in the payment sender.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -151,11 +152,39 @@ struct CustomSourceSheet: View {
             Text(source.webhookUrl.absoluteString)
                 .font(.caption.monospaced())
                 .textSelection(.enabled)
-            Button("Copy webhook URL", systemImage: "doc.on.doc") {
-                UIPasteboard.general.string = source.webhookUrl.absoluteString
-            }
+            copyURLButton(source)
+            copyDeveloperPromptButton(source)
+            Text("The developer prompt contains this private URL. Share it only with someone you trust to configure the payment sender.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             Button("Regenerate URL", role: .destructive) { confirmRegenerate = true }
         }
+    }
+
+    private func copyURLButton(_ source: CustomPaymentSource) -> some View {
+        Button(
+            copiedItem == .webhookURL ? "Webhook URL copied" : "Copy webhook URL",
+            systemImage: copiedItem == .webhookURL ? "checkmark" : "doc.on.doc"
+        ) {
+            UIPasteboard.general.string = source.webhookUrl.absoluteString
+            copiedItem = .webhookURL
+        }
+        .accessibilityHint("Copies the private webhook URL to the clipboard.")
+    }
+
+    private func copyDeveloperPromptButton(_ source: CustomPaymentSource) -> some View {
+        Button(
+            copiedItem == .developerPrompt ? "Developer prompt copied" : "Copy prompt for AI agent / developer",
+            systemImage: copiedItem == .developerPrompt ? "checkmark" : "text.badge.plus"
+        ) {
+            UIPasteboard.general.string = CustomWebhookDeveloperPrompt.make(
+                sourceName: source.name,
+                webhookURL: source.webhookUrl
+            )
+            copiedItem = .developerPrompt
+        }
+        .fontWeight(.semibold)
+        .accessibilityHint("Copies setup instructions and the private webhook URL to the clipboard.")
     }
 
     private var mappingIsComplete: Bool {
@@ -249,6 +278,11 @@ struct CustomSourceSheet: View {
         guard let id = source?.id else { return }
         await run { source = try await store.regenerateCustomSourceURL(id: id) }
     }
+}
+
+private enum CopiedItem {
+    case webhookURL
+    case developerPrompt
 }
 
 private struct WebhookFieldPicker: View {

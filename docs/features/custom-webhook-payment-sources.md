@@ -7,7 +7,7 @@ A signed-in user can connect any store or payment system that can send JSON to a
 ## Setup experience
 
 1. Tap **Connect another payment source** and give it a recognizable name.
-2. Copy the private webhook URL into the sending system and choose its successful-payment event.
+2. Copy either the private webhook URL or the ready-made **AI agent / developer** prompt. The prompt includes the URL, security rules, request contract, setup steps, test expectations, retry check, and completion checklist.
 3. Send one test event, then tap **Check connection** in Cha-Ching.
 4. Match the discovered fields to Payment ID, Amount, Currency, and optional Time, Product, Plan, and Sale type.
 5. Preview the notification and activate the source.
@@ -19,6 +19,8 @@ The sender owns the payload shape. Cha-Ching discovers every scalar value in a v
 The webhook URL is random and stored with the payment source in D1. App builds, Worker deployments, and ordinary code changes do not change it. **Regenerate URL** is the only operation that replaces it, and the UI warns that the previous URL will stop working immediately.
 
 The URL is itself the secret, following the familiar incoming-webhook setup model. It must be treated like a password and pasted only into the sending system's private webhook configuration.
+
+Because the developer prompt contains that private URL, it is also a secret. Share it only with the trusted developer or AI agent working on the sender's private backend. It must not be pasted into public chats, browser code, mobile code, source control, logs, or screenshots.
 
 ## Active and paused behavior
 
@@ -42,6 +44,7 @@ The URL is itself the secret, following the familiar incoming-webhook setup mode
 
 - An authenticated owner can create and list named sources; another user cannot view, change, pause, resume, or regenerate them.
 - A private URL remains identical until its owner explicitly regenerates it.
+- The app can copy a self-contained developer handoff containing the source name, exact private URL, security boundary, JSON contract, sample payload, setup sequence, expected responses, duplicate-retry check, and completion checklist.
 - Setup samples expose selectable scalar paths and values without affecting history or notifications.
 - A valid mapping produces a preview before activation.
 - Changing any mapping or amount-format choice invalidates the preview; activation requires the exact mapping that was previewed.
@@ -51,4 +54,4 @@ The URL is itself the secret, following the familiar incoming-webhook setup mode
 
 ## Production status
 
-Migrations `0005` through `0008` and Worker version `dfb64838-e4f8-44bd-a24f-b928d0c8b2d8` were deployed on 2026-08-11 JST. Existing production users, connections, Stripe events, sales, and notification deliveries were preserved. TestFlight build `4` (`4722b680-6592-4e88-acc0-2e3965c52398`) is valid and in internal beta testing with this UI. Final acceptance requires creating a source on a signed iPhone, receiving a real sender sample, activating its mapping, and observing one live history item and notification.
+Migrations `0005` through `0008` and Worker version `dfb64838-e4f8-44bd-a24f-b928d0c8b2d8` were deployed on 2026-08-11 JST. Existing production users, connections, Stripe events, sales, and notification deliveries were preserved. TestFlight build `5` (`5c34eebf-3352-4b1a-8c42-bcc97a043b95`) is valid and in internal beta testing with this UI and the copyable developer handoff. Final acceptance requires creating a source on a signed iPhone, receiving a real sender sample, activating its mapping, and observing one live history item and notification.
