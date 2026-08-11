@@ -36,6 +36,7 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 - The app icon and in-app brand mark use a bold dollar symbol, not a checkmark.
 - The compiled primary icon is named `ChaChingDollarIcon`; release QA verifies both the archived app icon and Apple's processed build icon before a TestFlight handoff.
 - Remote payment notifications and sample-based test notifications use the bundled cash-register sound by default.
+- Payment pushes do not set a synthetic unread badge. Opening or returning to Cha-Ching, including by pressing a notification, clears any badge left by an older build.
 - If the user's device is muted, Focus blocks the alert, notification permission is off, or iOS suppresses sound, Cha-Ching cannot override that system behavior.
 - While Cha-Ching is open, the app requests Apple's real banner, list, sound, and badge presentation. It does not automatically substitute an in-app sheet.
 - Apple controls the abbreviated foreground and lock-screen layout and documents it as title, subtitle, and two to four body lines. Pressing the notification opens Cha-Ching's full, scrollable detail sheet containing every selected structured line, whether Cha-Ching was open, backgrounded, or not running.

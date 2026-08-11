@@ -4,6 +4,7 @@ struct CustomPaymentSource: Identifiable, Decodable, Hashable {
     let id: String
     let name: String
     let status: Status
+    let connectionState: ConnectionState
     let webhookUrl: URL
     let createdAt: String
     let updatedAt: String
@@ -14,6 +15,22 @@ struct CustomPaymentSource: Identifiable, Decodable, Hashable {
         var title: String {
             switch self {
             case .setup: "Finish setup"
+            case .active: "Active"
+            case .paused: "Paused"
+            }
+        }
+    }
+
+    enum ConnectionState: String, Decodable {
+        case waiting
+        case eventReceived = "event_received"
+        case active
+        case paused
+
+        var title: String {
+            switch self {
+            case .waiting: "Waiting for first event"
+            case .eventReceived: "Event received"
             case .active: "Active"
             case .paused: "Paused"
             }
@@ -239,12 +256,53 @@ struct WebhookSample: Decodable {
     let fields: [WebhookField]?
     let suggestions: WebhookMappingSuggestions?
     let error: String?
+
+    var receivedDate: Date? {
+        guard let receivedAt else { return nil }
+        let iso8601 = receivedAt.replacingOccurrences(of: " ", with: "T") + "Z"
+        return try? Date(iso8601, strategy: .iso8601)
+    }
 }
 
 struct CustomSourceDetail: Decodable {
     let source: CustomPaymentSource
     let sample: WebhookSample?
     let mapping: WebhookFieldMapping?
+
+    var connectionPresentation: CustomSourceConnectionPresentation {
+        switch source.connectionState {
+        case .active:
+            return CustomSourceConnectionPresentation(
+                title: "Active",
+                detail: "New events create Dashboard payments and notifications.",
+                receivedAt: nil
+            )
+        case .paused:
+            return CustomSourceConnectionPresentation(
+                title: "Paused",
+                detail: "New events are ignored until you resume this source.",
+                receivedAt: nil
+            )
+        case .eventReceived:
+            return CustomSourceConnectionPresentation(
+                title: "Event received",
+                detail: "Ready to configure the fields received from your store.",
+                receivedAt: sample?.receivedDate
+            )
+        case .waiting:
+            return CustomSourceConnectionPresentation(
+                title: "Waiting for first event",
+                detail: "Send one representative payment event from your store. Cha-Ching will use it only for setup.",
+                receivedAt: nil
+            )
+        }
+    }
+}
+
+struct CustomSourceConnectionPresentation: Equatable {
+    let title: String
+    let detail: String
+    let receivedAt: Date?
 }
 
 struct CustomPaymentPreview: Decodable {

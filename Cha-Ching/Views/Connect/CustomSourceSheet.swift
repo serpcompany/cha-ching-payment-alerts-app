@@ -9,6 +9,7 @@ struct CustomSourceSheet: View {
     @State private var name = ""
     @State private var source: CustomPaymentSource?
     @State private var fields: [WebhookField] = []
+    @State private var eventReceivedAt: Date?
     @State private var mapping = WebhookFieldMapping(
         paymentIdPath: "",
         amountPath: "",
@@ -93,19 +94,31 @@ struct CustomSourceSheet: View {
 
         Section("2. Confirm the connection") {
             Label {
-                Text(fields.isEmpty
-                     ? "Send one test payment, then check the connection."
-                     : "Webhook received — Cha-Ching found \(fields.count) details.")
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(source.connectionState.title)
+                        .fontWeight(.semibold)
+                    if source.connectionState == .eventReceived, let eventReceivedAt {
+                        Text("Received \(eventReceivedAt.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             } icon: {
-                Image(systemName: fields.isEmpty ? "arrow.down.circle" : "checkmark.circle.fill")
-                    .foregroundStyle(fields.isEmpty ? .secondary : Theme.accent)
+                Image(systemName: source.connectionState == .eventReceived ? "checkmark.circle.fill" : "arrow.down.circle")
+                    .foregroundStyle(source.connectionState == .eventReceived ? Theme.accent : .secondary)
             }
 
-            actionButton(fields.isEmpty ? "Check connection" : "Check again", systemImage: "arrow.clockwise") {
+            Text(source.connectionState == .eventReceived
+                 ? "Cha-Ching found \(fields.count) fields and is ready for notification setup."
+                 : "Ask your developer to send the first real payment event to the webhook URL above.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            actionButton(source.connectionState == .eventReceived ? "Check for a new event" : "Check for event", systemImage: "arrow.clockwise") {
                 await checkConnection()
             }
 
-            Text("A real event received during setup is used only as a sample. It is not counted as revenue and does not notify anyone.")
+            Text("The first event configures this source. It does not create a Dashboard payment or send a notification.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -232,6 +245,7 @@ struct CustomSourceSheet: View {
     private func apply(_ detail: CustomSourceDetail) {
         source = detail.source
         fields = detail.sample?.fields ?? []
+        eventReceivedAt = detail.connectionPresentation.receivedAt
 
         if let saved = detail.mapping {
             mapping = saved

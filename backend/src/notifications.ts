@@ -143,7 +143,6 @@ export async function sendTestNotification(
         aps: {
           alert: { title: "Cha-ching!", body },
           sound: PAYMENT_NOTIFICATION_SOUND,
-          badge: 1,
         },
         testNotification: true,
       }),
@@ -202,7 +201,6 @@ async function sendToDevice(
           body: notificationBody(sale),
         },
         sound: PAYMENT_NOTIFICATION_SOUND,
-        badge: 1,
       },
       saleId: sale.id,
     }),

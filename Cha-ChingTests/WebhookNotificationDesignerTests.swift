@@ -3,6 +3,72 @@ import Testing
 @testable import Cha_Ching
 
 struct WebhookNotificationDesignerTests {
+    @Test func setupWithoutAnObservedEventPresentsAnHonestWaitingState() throws {
+        let source = CustomPaymentSource(
+            id: "source-serp-store",
+            name: "serp.store",
+            status: .setup,
+            connectionState: .waiting,
+            webhookUrl: try #require(URL(string: "https://api.example.test/webhook/private")),
+            createdAt: "2026-08-11 06:00:00",
+            updatedAt: "2026-08-11 06:00:00"
+        )
+        let detail = CustomSourceDetail(source: source, sample: nil, mapping: nil)
+
+        #expect(detail.connectionPresentation.title == "Waiting for first event")
+        #expect(detail.connectionPresentation.detail == "Send one representative payment event from your store. Cha-Ching will use it only for setup.")
+    }
+
+    @Test func observedStoreEventPresentsItsRealReceiptTimeAndReadyState() throws {
+        let source = CustomPaymentSource(
+            id: "source-serp-store",
+            name: "serp.store",
+            status: .setup,
+            connectionState: .eventReceived,
+            webhookUrl: try #require(URL(string: "https://api.example.test/webhook/private")),
+            createdAt: "2026-08-11 06:00:00",
+            updatedAt: "2026-08-11 07:06:28"
+        )
+        let sample = WebhookSample(
+            receivedAt: "2026-08-11 07:06:28",
+            fields: [WebhookField(path: "/payment/id", value: .string("real-order-123"), valueType: "string")],
+            suggestions: nil,
+            error: nil
+        )
+        let detail = CustomSourceDetail(source: source, sample: sample, mapping: nil)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let expectedDate = try #require(calendar.date(from: DateComponents(
+            year: 2026,
+            month: 8,
+            day: 11,
+            hour: 7,
+            minute: 6,
+            second: 28
+        )))
+
+        #expect(detail.connectionPresentation.title == "Event received")
+        #expect(detail.connectionPresentation.detail == "Ready to configure the fields received from your store.")
+        #expect(detail.connectionPresentation.receivedAt == expectedDate)
+    }
+
+    @Test func activatedSourcePresentsLivePaymentIntakeInsteadOfSetupData() throws {
+        let source = CustomPaymentSource(
+            id: "source-serp-store",
+            name: "serp.store",
+            status: .active,
+            connectionState: .active,
+            webhookUrl: try #require(URL(string: "https://api.example.test/webhook/private")),
+            createdAt: "2026-08-11 06:00:00",
+            updatedAt: "2026-08-11 08:00:00"
+        )
+        let detail = CustomSourceDetail(source: source, sample: nil, mapping: nil)
+
+        #expect(detail.connectionPresentation.title == "Active")
+        #expect(detail.connectionPresentation.detail == "New events create Dashboard payments and notifications.")
+        #expect(detail.connectionPresentation.receivedAt == nil)
+    }
+
     @Test func amountUnitFollowsTheObservedAmountFieldName() {
         #expect(WebhookFieldMapping.inferredAmountUnit(for: "/payment/amount_minor") == "minor")
         #expect(WebhookFieldMapping.inferredAmountUnit(for: "/order/total_cents") == "minor")
