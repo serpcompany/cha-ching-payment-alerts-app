@@ -2,5 +2,8 @@
   "name": "cha-ching-stripe-app",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@10.15.0"
+  "packageManager": "pnpm@10.15.0",
+  "scripts": {
+    "prototype:launch": "python3 -m http.server 43187 --directory Cha-Ching/Prototypes/LaunchAppStoreStoryboard"
+  }
 }

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PROTOTYPE — Cha-Ching App Store Storyboard</title>
+    <style>
+      :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; background: #071522; color: #f4f9f6; }
+      main { display: grid; place-items: center; min-height: 100vh; padding: 32px 24px 112px; }
+      figure { margin: 0; width: min(430px, 100%); }
+      img { display: block; width: 100%; border-radius: 28px; box-shadow: 0 30px 90px #0009; }
+      figcaption { margin-top: 16px; color: #f4f9f6b3; font-size: 14px; line-height: 1.45; }
+      .warning { position: fixed; top: 14px; left: 50%; translate: -50%; z-index: 2; padding: 8px 12px; border-radius: 999px; background: #f5b942; color: #071522; font-size: 12px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; }
+      nav { position: fixed; left: 50%; bottom: 24px; translate: -50%; display: flex; align-items: center; gap: 16px; padding: 10px 12px; border: 1px solid #ffffff26; border-radius: 999px; background: #0d1d2af2; box-shadow: 0 14px 50px #000a; backdrop-filter: blur(18px); }
+      button { width: 42px; height: 42px; border: 0; border-radius: 50%; background: #39e6a3; color: #071522; font-size: 22px; font-weight: 900; cursor: pointer; }
+      #label { min-width: 190px; text-align: center; font-size: 14px; font-weight: 750; }
+    </style>
+  </head>
+  <body>
+    <!-- Three App Store screenshot concepts, switchable via ?variant=, on a throwaway static prototype route. -->
+    <div class="warning">CONCEPT ONLY — REPLACE UI WITH REAL CAPTURES</div>
+    <main>
+      <figure>
+        <img id="concept" alt="Cha-Ching App Store screenshot concept">
+        <figcaption id="caption"></figcaption>
+      </figure>
+    </main>
+    <nav aria-label="Prototype variants">
+      <button id="previous" aria-label="Previous concept">←</button>
+      <div id="label"></div>
+      <button id="next" aria-label="Next concept">→</button>
+    </nav>
+    <script>
+      const variants = [
+        { key: "A", name: "Payment moment", image: "01-payment-moment-concept.png", caption: "Lead with the emotional payoff: a real payment notification. Final artwork must use a genuine lock-screen capture." },
+        { key: "B", name: "Connect sources", image: "02-connect-sources-concept.png", caption: "Explain the product boundary: read-only Stripe plus a custom webhook. Final artwork must use the shipping Connect screen." },
+        { key: "C", name: "Custom alerts", image: "03-custom-alert-concept.png", caption: "Show control and proof: choose structured fields, preview them, and send a real test. Final artwork must use the shipping notification-settings screen." }
+      ];
+      const params = new URLSearchParams(location.search);
+      let index = Math.max(0, variants.findIndex((item) => item.key === (params.get("variant") || "A").toUpperCase()));
+      const image = document.querySelector("#concept");
+      const label = document.querySelector("#label");
+      const caption = document.querySelector("#caption");
+
+      function render() {
+        const variant = variants[index];
+        image.src = variant.image;
+        image.alt = `${variant.name} screenshot concept`;
+        label.textContent = `${variant.key} — ${variant.name}`;
+        caption.textContent = variant.caption;
+        const url = new URL(location.href);
+        url.searchParams.set("variant", variant.key);
+        history.replaceState({}, "", url);
+      }
+
+      function cycle(delta) { index = (index + delta + variants.length) % variants.length; render(); }
+      document.querySelector("#previous").addEventListener("click", () => cycle(-1));
+      document.querySelector("#next").addEventListener("click", () => cycle(1));
+      addEventListener("keydown", (event) => {
+        if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable) return;
+        if (event.key === "ArrowLeft") cycle(-1);
+        if (event.key === "ArrowRight") cycle(1);
+      });
+      render();
+    </script>
+  </body>
+</html>
