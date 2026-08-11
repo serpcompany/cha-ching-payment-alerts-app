@@ -115,13 +115,13 @@ private struct CustomSourceCard: View {
                     Text(source.name)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.ink)
-                    Text(source.status.title)
+                    Text(source.connectionState.title)
                         .font(.caption)
-                        .foregroundStyle(source.status == .active ? Theme.accent : .secondary)
+                        .foregroundStyle(source.connectionState == .active ? Theme.accent : .secondary)
                 }
                 Spacer()
-                Image(systemName: source.status == .active ? "checkmark.circle.fill" : "chevron.right")
-                    .foregroundStyle(source.status == .active ? Theme.accent : .secondary)
+                Image(systemName: source.connectionState == .active ? "checkmark.circle.fill" : "chevron.right")
+                    .foregroundStyle(source.connectionState == .active ? Theme.accent : .secondary)
             }
             .padding(14)
             .cardStyle(padding: 0)

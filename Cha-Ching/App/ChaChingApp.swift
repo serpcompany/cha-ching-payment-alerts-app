@@ -29,6 +29,7 @@ struct ChaChingApp: App {
             .environmentObject(notifications)
             .tint(Theme.accent)
             .task(id: auth.isSignedIn) {
+                notifications.clearAppBadge()
                 if auth.isSignedIn {
                     async let connections: Void = connectStore.refresh()
                     async let sales: Void = store.refresh()
@@ -37,7 +38,9 @@ struct ChaChingApp: App {
                 }
             }
             .onChange(of: scenePhase) { _, phase in
-                guard phase == .active, auth.isSignedIn else { return }
+                guard phase == .active else { return }
+                notifications.clearAppBadge()
+                guard auth.isSignedIn else { return }
                 Task {
                     await store.refresh()
                     notifications.registerIfAuthorized()

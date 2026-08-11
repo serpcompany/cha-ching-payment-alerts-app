@@ -8,11 +8,12 @@ A signed-in user can connect any store or payment system that can send JSON to a
 
 1. Tap **Connect another payment source** and give it a recognizable name.
 2. Copy either the private webhook URL or **Copy instructions for developer**. The copied instructions include the URL, security rules, request contract, setup steps, test expectations, retry check, and completion checklist.
-3. Send one test event, then tap **Check connection** in Cha-Ching.
-4. Tap **Customize notifications** to move to a separate **Notification settings** screen. Payment matching and notification design live there; the connection screen does not contain a separate **Match the payment** section.
-5. Confirm or adjust Payment ID, Amount, Currency, amount format, and optional payment mappings in the notification-settings experience.
-6. Every observed scalar field appears once and starts on. The compact ordered list shows only the user-facing label, example value, and direct on/off switch. Tap a row to rename it, remap it, or move it; the technical source path appears only inside that detail screen.
-7. Tap **Preview notification** to review the exact multiline body. **Test notification** sends that same sample immediately as a genuine Apple notification without creating a payment. Apple's abbreviated preview shows only a few lines; pressing it safely launches or resumes Cha-Ching and opens every selected line in the full scrollable detail sheet. **Test lock screen** asks the Worker to queue the exact sample for a short delay and then tells the user to lock the iPhone. **Activate payment source** remains in the preview.
+3. The source starts at **Waiting for first event**. Ask the developer to send one representative event containing the fields the user may want, then tap **Check for event** in Cha-Ching.
+4. After the Worker receives that event, the source shows **Event received** and its real receipt time. Cha-Ching does not preload a mock event in production.
+5. Tap **Customize notifications** to move to a separate **Notification settings** screen. Payment matching and notification design live there; the connection screen does not contain a separate **Match the payment** section.
+6. Confirm or adjust Payment ID, Amount, Currency, amount format, and optional payment mappings in the notification-settings experience.
+7. Every observed scalar field appears once and starts on. The compact ordered list shows only the user-facing label, example value, and direct on/off switch. Tap a row to rename it, remap it, or move it; the technical source path appears only inside that detail screen.
+8. Tap **Preview notification** to review the exact multiline body. **Test notification** sends that same observed event immediately as a genuine Apple notification without creating a payment. Apple's abbreviated preview shows only a few lines; pressing it safely launches or resumes Cha-Ching and opens every selected line in the full scrollable detail sheet. **Test lock screen** asks the Worker to queue the exact observed event for a short delay and then tells the user to lock the iPhone. **Activate payment source** remains in the preview.
 
 The sender owns the payload shape. Cha-Ching discovers every scalar value actually present in a valid sample payload up to 64 KiB and saves the user's mapping and notification design. A sample received during setup is never counted as revenue and never sends a notification. Changing a field toggle, label, mapping, or order invalidates the old preview, so activation always uses the design currently visible on screen.
 
@@ -22,13 +23,15 @@ The selected UI is Variant A from the throwaway [notification-settings prototype
 
 The MVP keeps payment-source connection and notification design as two distinct jobs:
 
-1. **Connect tab** — shows one card per custom source with its name and current setup, active, or paused status.
+1. **Connect tab** — shows one card per custom source with its name and honest connection state: **Waiting for first event**, **Event received**, **Active**, or **Paused**.
 2. **Payment-source setup** — creates the source, exposes the durable private URL and developer instructions, and checks for a sample. It does not contain payment-field pickers or notification rows.
 3. **Notification settings** — opens from the dedicated **Customize notifications** next step after a sample is found. It owns both payment matching and notification design, shows the source as connected, provides preview and test actions, and contains an ordered list with every observed field exactly once.
 4. **Field row** — shows only the display label, sample value, disclosure indicator, and a direct on/off switch. The section header shows the current included count, such as **15 of 17 on**.
 5. **Edit detail** — tapping a row opens its focused editor. The user can show or hide the line, rename its display label, remap it to any observed payload field, inspect the example and technical path, move it earlier or later, and see that line's preview. The main list also supports drag reordering through **Edit**.
 6. **Notification preview and device test** — Preview notification shows an iPhone-style preview containing the exact title, line order, labels, and sample values that will be sent. The adjacent Test notification action sends that design through APNs using the cash-register sound and reports whether a registered device accepted it. **Activate payment source** remains an explicit confirmation of the previewed design.
 7. **Active-source management** — reopening an activated source currently provides pause/resume, URL copy, developer-prompt copy, and explicit URL regeneration. Editing an already activated notification design is not part of the current MVP; configuration happens before activation.
+
+The Notification settings screen always pins **Activate payment source** above the bottom edge. It is visibly disabled with guidance until payment matching is complete and the current choices have been previewed. Previewing never hides activation inside the preview sheet: the user closes the preview, sees the enabled activation action in the same place, and explicitly puts the source live. Once active, new unique webhook events create Dashboard payments and notifications.
 
 The notification screen deliberately avoids repeating technical source paths or a full preview beneath every row. Technical details are disclosed only when editing a field, and the complete notification appears in one dedicated preview. The MVP does not include search or filtering; the compact ordered list is the current all-fields navigation model.
 
@@ -46,7 +49,7 @@ This vocabulary, the exact multiline renderer, and the ordered mapping are locke
 
 ## SERP Store working sample
 
-The current SERP Store test contract contains 17 observed scalar fields. All 17 appear in the designer and start included; the user may hide Payment ID, Currency, or any other field. The 15 business-facing fields are Buyer Email, Checkout Country (IP), Product, Entitlement, Purchase Type, Sale Event, Amount, Dub Affiliate ID, UTM Source, UTM Medium, UTM Campaign, UTM Term, UTM Content, Paid At, and Source Store.
+The agreed SERP Store sender contract contains 17 scalar fields. When SERP Store sends them in its first real event, all 17 appear in the designer and start included; the user may hide Payment ID, Currency, or any other field. The 15 business-facing fields are Buyer Email, Checkout Country (IP), Product, Entitlement, Purchase Type, Sale Event, Amount, Dub Affiliate ID, UTM Source, UTM Medium, UTM Campaign, UTM Term, UTM Content, Paid At, and Source Store.
 
 `Checkout Country (IP)` is derived from the checkout request's IP country. It is useful for context but is not a verified billing country; a future `Billing Country` must remain a separate field.
 
@@ -117,6 +120,7 @@ Because the copied developer instructions contain that private URL, they are als
 - A private URL remains identical until its owner explicitly regenerates it.
 - The app can copy a self-contained developer handoff containing the source name, exact private URL, security boundary, JSON contract, sample payload, setup sequence, expected responses, duplicate-retry check, and completion checklist.
 - Setup samples expose selectable scalar paths and values without affecting history or notifications.
+- A new production source contains no fabricated setup event. It remains **Waiting for first event** until its private URL receives a valid sender POST, then shows **Event received** with the actual receipt time; activation changes it to **Active**.
 - A valid mapping produces a preview before activation.
 - Every observed scalar field is present in the notification designer and starts enabled; the UI does not call this a catalog of every theoretically available sender field.
 - Connection setup and notification customization are separate screens connected by a clear **Customize notifications** next step.
@@ -131,10 +135,11 @@ Because the copied developer instructions contain that private URL, they are als
 - An owner-authenticated test action sends the exact current preview to active registered devices, uses the bundled cash-register sound, and creates no payment or payment-history row.
 - Active retries are idempotent by the source-scoped mapped Payment ID.
 - Pausing and resuming does not replace the URL or erase history.
+- Setup cannot dead-end after customization: **Activate payment source** remains visible, explains what is missing, and enables only for the exact mapping the user previewed.
 - Oversized, malformed, or unmappable payloads do not create sales.
 
 ## Production status
 
-Migrations `0005` through `0009` and Worker version `5ffd0713-7e1c-4336-8b27-4fa0a55b5732` were deployed on 2026-08-11 JST. The live `serp.store` source remains in setup and its encrypted sample was safely replaced with the 17-field fake payload above; production stayed at 11 sales and 11 deliveries. Migration `0009` adds the normalized notification-field snapshot used for custom pushes. The current Worker also accepts an owner-authenticated delayed sample test, confirms an active registered phone, and places the exact preview body on Cloudflare Queue without creating a payment.
+Migrations `0005` through `0009` and Worker version `6d0c1df3-79ba-42ca-b038-153b02d7ebc0` were deployed on 2026-08-11 JST. The production `serp.store` sender delivered a real setup event at `2026-08-11 08:55:11` UTC; the source now truthfully reports **Event received**, retains its existing private URL, has one active iPhone, and awaits explicit mapping preview and activation. Production still has zero custom-source payments and deliveries. The Worker returns `waiting`, `event_received`, `active`, or `paused` as an explicit connection state and does not set a synthetic unread badge on pushes. Migration `0009` adds the normalized notification-field snapshot used for custom pushes. The Worker also accepts an owner-authenticated delayed setup-event notification test, confirms an active registered phone, and places the exact preview body on Cloudflare Queue without creating a payment.
 
-TestFlight build `11` (`9b7476b8-ed3f-4005-bf31-3efe6f26df90`) is `VALID` and `IN_BETA_TESTING` in the internal group **Cha-Ching Internal**. It contains the separate Notification settings screen, all-observed-fields list, direct field toggles, rename/remap/reorder editor, deterministic one-field-per-line body, genuine Apple notifications with crash-safe cold-launch full details, delayed lock-screen testing, cash-register sound, and focused Dashboard/navigation. Final custom-source acceptance still requires opening the existing source on a signed iPhone, testing both sampled presentations, activating it, then replaying one real sender payment and observing one matching payment and notification.
+TestFlight build `14` (`65aee6a4-7236-447e-93a9-488d050ebdd5`) is `VALID` and `IN_BETA_TESTING` in the internal group **Cha-Ching Internal**. It contains the explicit **Waiting for first event** → **Event received** → **Active** flow, separate Notification settings, pinned activation guidance/action, all-observed-fields list, direct field toggles, rename/remap/reorder editor, deterministic one-field-per-line body, genuine Apple notifications with crash-safe cold-launch full details, delayed lock-screen testing, non-sticky icon badges, cash-register sound, and focused Dashboard/navigation. Final custom-source acceptance now requires opening the existing source on a signed iPhone, previewing and activating it, then allowing the developer's next clearly identifiable unique live payment event through and observing one matching Dashboard payment and notification.

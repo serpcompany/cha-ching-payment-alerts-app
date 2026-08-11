@@ -152,6 +152,15 @@ actor APIClient {
         _ = try await perform(request)
     }
 
+    func deleteResponse<Response: Decodable>(
+        _ path: String,
+        as type: Response.Type = Response.self
+    ) async throws -> Response {
+        let request = try makeRequest(path: path, method: "DELETE")
+        let (data, _) = try await perform(request)
+        return try decoder.decode(type, from: data)
+    }
+
     nonisolated func clearAuthToken() {
         KeychainToken.delete()
     }

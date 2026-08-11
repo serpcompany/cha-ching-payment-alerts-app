@@ -4,6 +4,22 @@ import UserNotifications
 @testable import Cha_Ching
 
 struct PaymentNotificationPresentationTests {
+    @Test @MainActor func openingANotificationClearsTheAppBadge() async {
+        let probe = BadgeClearProbe()
+
+        await withCheckedContinuation { continuation in
+            PaymentNotificationResponseRouter.route(
+                title: "Cha-ching!",
+                body: "Amount: $9.00",
+                clearBadge: { probe.wasCleared = true },
+                onOpen: { _ in },
+                completion: { continuation.resume() }
+            )
+        }
+
+        #expect(probe.wasCleared)
+    }
+
     @Test func lockScreenResponseReturnsControlToUIKitOnTheMainThread() async {
         let completedOnMainThread = await Task.detached {
             await withCheckedContinuation { continuation in
@@ -51,4 +67,9 @@ struct PaymentNotificationPresentationTests {
 
         #expect(PaymentNotificationPreference(defaults: defaults).isEnabled == false)
     }
+}
+
+@MainActor
+private final class BadgeClearProbe {
+    var wasCleared = false
 }

@@ -63,6 +63,8 @@ interface CustomSourceRow {
   updated_at: string;
 }
 
+type CustomSourceConnectionState = "waiting" | "event_received" | "active" | "paused";
+
 const MAX_CUSTOM_WEBHOOK_BYTES = 64 * 1024;
 
 function webhookURL(env: Env, token: string): string {
@@ -79,10 +81,16 @@ async function publicSource(env: Env, row: CustomSourceRow) {
     id: row.id,
     name: row.name,
     status: row.status,
+    connectionState: sourceConnectionState(row),
     webhookUrl: webhookURL(env, token),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function sourceConnectionState(row: CustomSourceRow): CustomSourceConnectionState {
+  if (row.status === "active" || row.status === "paused") return row.status;
+  return row.sample_received_at ? "event_received" : "waiting";
 }
 
 async function createSource(env: Env, auth: Auth, request: Request): Promise<Response> {
@@ -112,7 +120,7 @@ async function createSource(env: Env, auth: Auth, request: Request): Promise<Res
     ) VALUES (?1, ?2, ?3, 'setup', ?4, ?5)`,
   ).bind(id, user.id, name, tokenHash, tokenCiphertext).run();
   const row = await env.DB.prepare(
-    `SELECT id, name, status, webhook_token_ciphertext, created_at, updated_at
+    `SELECT id, name, status, webhook_token_ciphertext, sample_received_at, created_at, updated_at
      FROM custom_payment_sources WHERE id = ?1 AND user_id = ?2`,
   ).bind(id, user.id).first<CustomSourceRow>();
   return Response.json({ source: await publicSource(env, row!) }, { status: 201 });
@@ -121,7 +129,7 @@ async function createSource(env: Env, auth: Auth, request: Request): Promise<Res
 async function listSources(env: Env, auth: Auth, request: Request): Promise<Response> {
   const user = await requireUser(auth, request);
   const result = await env.DB.prepare(
-    `SELECT id, name, status, webhook_token_ciphertext, created_at, updated_at
+    `SELECT id, name, status, webhook_token_ciphertext, sample_received_at, created_at, updated_at
      FROM custom_payment_sources WHERE user_id = ?1 ORDER BY created_at, id`,
   ).bind(user.id).all<CustomSourceRow>();
   return Response.json({ sources: await Promise.all(result.results.map((row) => publicSource(env, row))) });

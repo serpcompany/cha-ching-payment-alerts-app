@@ -189,6 +189,30 @@ export async function setConnectionActivity(
   });
 }
 
+export async function clearProviderPayments(
+  env: Env,
+  auth: Auth,
+  request: Request,
+  providerValue: string,
+): Promise<Response> {
+  const provider = parseProvider(providerValue);
+  if (!provider) return Response.json({ error: "Unsupported provider" }, { status: 400 });
+  const user = await requireUser(auth, request);
+  const connection = await env.DB.prepare(
+    "SELECT 1 AS found FROM provider_connections WHERE user_id = ?1 AND provider = ?2",
+  )
+    .bind(user.id, provider)
+    .first<{ found: number }>();
+  if (!connection) return Response.json({ error: "Connection not found" }, { status: 404 });
+
+  const deleted = await env.DB.prepare(
+    "DELETE FROM sales WHERE user_id = ?1 AND provider = ?2 RETURNING id",
+  )
+    .bind(user.id, provider)
+    .all<{ id: string }>();
+  return Response.json({ clearedPayments: deleted.results.length });
+}
+
 export async function disconnect(
   env: Env,
   auth: Auth,

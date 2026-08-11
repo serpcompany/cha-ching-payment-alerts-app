@@ -16,6 +16,30 @@ private struct SaleResponse: Decodable {
     let occurredAt: String
 }
 
+struct SalesClient: Sendable {
+    let load: @MainActor @Sendable () async throws -> [Sale]
+
+    static let live = SalesClient(load: {
+        guard APIClient.shared.hasAuthToken else { return [] }
+        let response: SalesResponse = try await APIClient.shared.get("/v1/sales")
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return response.sales.compactMap { row in
+            guard let date = formatter.date(from: row.occurredAt) else { return nil }
+            return Sale(
+                id: row.id,
+                product: row.productLabel,
+                amountMinor: row.amountMinor,
+                currency: row.currency,
+                source: row.provider,
+                date: date,
+                isSubscription: row.isSubscription,
+                countryCode: row.countryCode
+            )
+        }
+    })
+}
+
 @MainActor
 final class SalesStore: ObservableObject {
     private static let logger = Logger(
@@ -27,9 +51,21 @@ final class SalesStore: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
 
-    private var notificationObserver: NSObjectProtocol?
+    private struct RefreshOperation {
+        let id: UUID
+        let task: Task<[Sale], Error>
+    }
 
-    init() {
+    private let client: SalesClient
+    private var notificationObserver: NSObjectProtocol?
+    private var refreshOperation: RefreshOperation?
+
+    convenience init() {
+        self.init(client: .live)
+    }
+
+    init(client: SalesClient) {
+        self.client = client
         notificationObserver = NotificationCenter.default.addObserver(
             forName: .chaChingSaleReceived,
             object: nil,
@@ -40,53 +76,41 @@ final class SalesStore: ObservableObject {
     }
 
     func refresh() async {
-        guard APIClient.shared.hasAuthToken else {
-            sales = []
-            return
+        let operation: RefreshOperation
+        if let existing = refreshOperation {
+            operation = existing
+        } else {
+            isLoading = true
+            errorMessage = nil
+            let created = RefreshOperation(
+                id: UUID(),
+                task: Task { try await client.load() }
+            )
+            refreshOperation = created
+            operation = created
         }
-        isLoading = true
-        defer { isLoading = false }
+
         do {
-            let response: SalesResponse = try await APIClient.shared.get("/v1/sales")
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            sales = response.sales.compactMap { row in
-                guard let date = formatter.date(from: row.occurredAt) else { return nil }
-                return Sale(
-                    id: row.id,
-                    product: row.productLabel,
-                    amountMinor: row.amountMinor,
-                    currency: row.currency,
-                    source: row.provider,
-                    date: date,
-                    isSubscription: row.isSubscription,
-                    countryCode: row.countryCode
-                )
-            }
+            let refreshedSales = try await operation.task.value
+            guard refreshOperation?.id == operation.id else { return }
+            sales = refreshedSales
             errorMessage = nil
         } catch is CancellationError {
-            return
+            // View lifecycle cancellation is not a failed server refresh.
+        } catch let error as URLError where error.code == .cancelled {
+            // URLSession can surface cancellation as URLError instead.
         } catch {
+            guard refreshOperation?.id == operation.id else { return }
             Self.logger.error("Sales refresh failed: \(error.localizedDescription, privacy: .public)")
-            errorMessage = "Couldn't load sales."
+            errorMessage = "Payments couldn't refresh."
         }
+
+        guard refreshOperation?.id == operation.id else { return }
+        refreshOperation = nil
+        isLoading = false
     }
 
-    var todaysSales: [Sale] {
-        let calendar = Calendar.current
-        return sales.filter { calendar.isDateInToday($0.date) }
+    func dismissLoadError() {
+        errorMessage = nil
     }
-
-    var todayTotal: Double { todaysSales.reduce(0) { $0 + $1.amount } }
-
-    var yesterdayTotal: Double {
-        let calendar = Calendar.current
-        return sales.filter { calendar.isDateInYesterday($0.date) }.reduce(0) { $0 + $1.amount }
-    }
-
-    var dayOverDayChange: Double {
-        guard yesterdayTotal > 0 else { return todayTotal > 0 ? 1 : 0 }
-        return (todayTotal - yesterdayTotal) / yesterdayTotal
-    }
-
 }

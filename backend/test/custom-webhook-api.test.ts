@@ -83,18 +83,27 @@ describe("custom payment source HTTP API", () => {
       }),
     );
     expect(create.status).toBe(201);
-    const created = await create.json<{ source: { id: string; name: string; webhookUrl: string } }>();
+    const created = await create.json<{
+      source: { id: string; name: string; webhookUrl: string; connectionState: string };
+    }>();
     expect(created.source.name).toBe("SERP Store");
     expect(created.source.webhookUrl).toMatch(/^https:\/\/api\.cha-ching\.test\/v1\/webhooks\/custom\/[A-Za-z0-9_-]{40,}$/);
+    expect(created.source.connectionState).toBe("waiting");
 
     const list = await handleCustomSourceRequest(
       env,
       authFor("user-one"),
       new Request("https://api.cha-ching.test/v1/custom-sources"),
     );
-    const listed = await list.json<{ sources: Array<{ id: string; webhookUrl: string }> }>();
+    const listed = await list.json<{
+      sources: Array<{ id: string; webhookUrl: string; connectionState: string }>;
+    }>();
     expect(listed.sources).toEqual([
-      expect.objectContaining({ id: created.source.id, webhookUrl: created.source.webhookUrl }),
+      expect.objectContaining({
+        id: created.source.id,
+        webhookUrl: created.source.webhookUrl,
+        connectionState: "waiting",
+      }),
     ]);
   });
 
@@ -132,7 +141,11 @@ describe("custom payment source HTTP API", () => {
       new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
     );
     expect(await check.json()).toEqual({
-      source: expect.objectContaining({ id: created.source.id, status: "setup" }),
+      source: expect.objectContaining({
+        id: created.source.id,
+        status: "setup",
+        connectionState: "event_received",
+      }),
       sample: {
         receivedAt: expect.any(String),
         fields: expect.arrayContaining([
@@ -233,7 +246,9 @@ describe("custom payment source HTTP API", () => {
         body: JSON.stringify(mapping),
       }),
     );
-    expect((await activate.json<{ source: { status: string } }>()).source.status).toBe("active");
+    expect((await activate.json<{ source: { status: string; connectionState: string } }>()).source).toEqual(
+      expect.objectContaining({ status: "active", connectionState: "active" }),
+    );
     const check = await handleCustomSourceRequest(
       env,
       authFor("user-one"),
@@ -315,7 +330,6 @@ describe("custom payment source HTTP API", () => {
         aps: {
           alert: { title: "Cha-ching!", body: "Product: Download Pro\nAmount: $27.00" },
           sound: "cash-register.caf",
-          badge: 1,
         },
         testNotification: true,
       },

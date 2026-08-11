@@ -17,6 +17,7 @@
 		405010C6F04A7FEE07B40F66 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8764F36998B956216842955 /* AuthManager.swift */; };
 		44BD0E0C3503D2F05CDB52F8 /* Sale.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ECEEA344D12969329CC034A /* Sale.swift */; };
 		4500C3B0EEBBE88F08C7AD8A /* CustomPaymentSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 468DDF9F4DEF74FC897AF682 /* CustomPaymentSource.swift */; };
+		4BFC9D438C135FDD2C3CA473 /* SalesStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEBA6FCB9D4D20B2ACB4B83D /* SalesStoreTests.swift */; };
 		577767016C99FC718193832E /* CustomNotificationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F89BF279E44EEFE4CF4B7558 /* CustomNotificationSettingsView.swift */; };
 		63FF238A5F0308F390742C0F /* CustomWebhookDeveloperPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7996CF08A2EAA4E22A254C26 /* CustomWebhookDeveloperPromptTests.swift */; };
 		6887DC54A2B68216D2EFAE95 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA321C7A5BA4FBE69295C95C /* RootTabView.swift */; };
@@ -66,6 +67,7 @@
 		A78F14FB2FD3E9606C1258A1 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		AA321C7A5BA4FBE69295C95C /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		B4B800513E0052C6450AFC2B /* Cha-Ching.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Cha-Ching.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BEBA6FCB9D4D20B2ACB4B83D /* SalesStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalesStoreTests.swift; sourceTree = "<group>"; };
 		C0FD894F5B73CA31CF884DA9 /* ChaChing.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ChaChing.entitlements; sourceTree = "<group>"; };
 		C6F6855FD89FDB53F76A4457 /* ProviderWebAuthenticationSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderWebAuthenticationSession.swift; sourceTree = "<group>"; };
 		C702CA5FCE9B85FA055A62E1 /* CustomWebhookDeveloperPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomWebhookDeveloperPrompt.swift; sourceTree = "<group>"; };
@@ -142,6 +144,7 @@
 				A5BFDF9B844EE38D865B037E /* AppNavigationTests.swift */,
 				7996CF08A2EAA4E22A254C26 /* CustomWebhookDeveloperPromptTests.swift */,
 				0B698CD26E86058C88F518AE /* PaymentNotificationPresentationTests.swift */,
+				BEBA6FCB9D4D20B2ACB4B83D /* SalesStoreTests.swift */,
 				CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */,
 			);
 			path = "Cha-ChingTests";
@@ -313,6 +316,7 @@
 				7FF6A62D26FE5A1B2DEF4248 /* AppNavigationTests.swift in Sources */,
 				63FF238A5F0308F390742C0F /* CustomWebhookDeveloperPromptTests.swift in Sources */,
 				A0039B73D3CA4C97E635C7AA /* PaymentNotificationPresentationTests.swift in Sources */,
+				4BFC9D438C135FDD2C3CA473 /* SalesStoreTests.swift in Sources */,
 				A18C3C775864A1B0EB0A332C /* WebhookNotificationDesignerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -422,7 +426,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 15;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 847HR8U8D9;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -487,7 +491,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 15;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 847HR8U8D9;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

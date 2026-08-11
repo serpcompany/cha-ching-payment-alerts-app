@@ -95,7 +95,6 @@ describe("delivery recovery", () => {
           aps: {
             alert: { title: "Cha-ching!", body: "Product: Download Pro\nAmount: $27.00" },
             sound: "cash-register.caf",
-            badge: 1,
           },
           testNotification: true,
         },

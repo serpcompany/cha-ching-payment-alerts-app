@@ -2,13 +2,13 @@
 
 ## User outcome
 
-Cha-Ching opens into one clear **Dashboard** for current revenue and payments. Connection management and Settings remain separate destinations; duplicate history and processor summaries do not compete with the primary payment view.
+Cha-Ching opens into one clear **Dashboard** for payments. Connection management and Settings remain separate destinations; speculative metrics, duplicate history, and processor summaries do not compete with the primary payment view.
 
 ## Navigation
 
 The signed-in app has exactly three tabs:
 
-1. **Dashboard** — today's revenue summary and payments.
+1. **Dashboard** — payments reported by active sources.
 2. **Connect** — Stripe, PayPal, and custom payment-source setup and management.
 3. **Settings** — payment-notification controls and account sign-out.
 
@@ -16,12 +16,13 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 
 ## Dashboard content
 
-- The hero uses **Notifications on/off**, never “Pings on/off.”
-- The MVP Dashboard contains only the revenue-today hero and **Payments**. It has no **Top seller**, **This week**, or **Last 7 days** widget, and the unused chart/stat components and aggregations do not remain in the app target.
+- The MVP Dashboard contains only **Payments**. It has no revenue hero, notification bell, **Top seller**, **This week**, or **Last 7 days** widget, and those unused dashboard components and aggregations do not remain in the app target.
 - **Connected processors** is removed; connection status belongs in **Connect**.
 - **Recent pings** becomes **Payments**.
 - The empty state says **No payments yet** and explains that a payment will appear when one arrives.
 - Payment rows and details continue to use the D1-backed sales API; this is a language and information-architecture change, not a second data source.
+- If Payments cannot refresh, already-loaded payments stay visible. A compact inline message says **Payments couldn't refresh.**, offers **Retry** and **Dismiss**, and clears automatically after a successful refresh.
+- Automatic foreground, notification-triggered, and pull-to-refresh callers share one in-flight Payments request. A canceled or superseded caller does not flash a false connectivity error while the shared request is still succeeding.
 
 ## Settings content
 
@@ -36,6 +37,7 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 - The app icon and in-app brand mark use a bold dollar symbol, not a checkmark.
 - The compiled primary icon is named `ChaChingDollarIcon`; release QA verifies both the archived app icon and Apple's processed build icon before a TestFlight handoff.
 - Remote payment notifications and sample-based test notifications use the bundled cash-register sound by default.
+- Payment pushes do not set a synthetic unread badge. Opening or returning to Cha-Ching, including by pressing a notification, clears any badge left by an older build.
 - If the user's device is muted, Focus blocks the alert, notification permission is off, or iOS suppresses sound, Cha-Ching cannot override that system behavior.
 - While Cha-Ching is open, the app requests Apple's real banner, list, sound, and badge presentation. It does not automatically substitute an in-app sheet.
 - Apple controls the abbreviated foreground and lock-screen layout and documents it as title, subtitle, and two to four body lines. Pressing the notification opens Cha-Ching's full, scrollable detail sheet containing every selected structured line, whether Cha-Ching was open, backgrounded, or not running.
@@ -46,7 +48,10 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 - The tab bar contains Dashboard, Connect, and Settings in that order, with no History or Today tab.
 - Dashboard contains no Connected processors section and no user-facing use of “ping.”
 - Dashboard contains no Top seller, This week, or Last 7 days widget or implementation.
+- Dashboard contains no revenue hero or nonfunctional notification-bell toolbar item.
 - Dashboard contains a Payments section backed by the same payment list and detail route.
+- A Payments refresh failure is actionable and dismissible and does not erase previously loaded payments.
+- Pulling to refresh while another automatic refresh is active does not issue duplicate requests or briefly show a false failure card.
 - Settings contains a working Payment notifications toggle and Sign out, with no Plan access section.
 - A foreground sample push is a genuine Apple banner. Pressing either a foreground or lock-screen notification safely launches or resumes Cha-Ching and exposes every selected line in its scrollable detail presentation; a lock-screen test is queued only after the server accepts the delayed request.
 - The compiled app includes matching dollar-symbol app-icon and BrandMark assets.

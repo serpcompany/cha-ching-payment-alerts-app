@@ -48,7 +48,6 @@ enum PaymentNotificationPresentation {
         .banner,
         .list,
         .sound,
-        .badge,
     ]
     static let showsFullDetailsAutomatically = false
     static let showsFullDetailsAfterTap = true
@@ -58,10 +57,12 @@ enum PaymentNotificationResponseRouter {
     static func route(
         title: String,
         body: String,
+        clearBadge: @escaping @MainActor @Sendable () -> Void = {},
         onOpen: @escaping @MainActor @Sendable (ForegroundPaymentNotification) -> Void,
         completion: @escaping @Sendable () -> Void
     ) {
         DispatchQueue.main.async {
+            clearBadge()
             onOpen(ForegroundPaymentNotification(title: title, body: body))
             completion()
         }
@@ -213,6 +214,12 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         foregroundNotification = nil
     }
 
+    func clearAppBadge() {
+        Task {
+            try? await center.setBadgeCount(0)
+        }
+    }
+
     private func uploadToken() async {
         guard paymentNotificationsEnabled, let deviceToken, APIClient.shared.hasAuthToken else { return }
         #if DEBUG
@@ -243,6 +250,7 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         await MainActor.run {
+            clearAppBadge()
             NotificationCenter.default.post(name: .chaChingSaleReceived, object: nil)
         }
         return PaymentNotificationPresentation.foregroundOptions
@@ -257,6 +265,7 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         PaymentNotificationResponseRouter.route(
             title: content.title,
             body: content.body,
+            clearBadge: { [weak self] in self?.clearAppBadge() },
             onOpen: { [weak self] notification in
                 guard let self else { return }
                 NotificationCenter.default.post(name: .chaChingSaleReceived, object: nil)

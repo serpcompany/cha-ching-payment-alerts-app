@@ -2,6 +2,7 @@ import { createAuth, requireUser } from "./auth";
 import { handleCustomSourceRequest } from "./custom-webhooks";
 import {
   beginConnection,
+  clearProviderPayments,
   completeConnection,
   disconnect,
   listConnections,
@@ -113,6 +114,10 @@ async function route(request: Request, env: Env): Promise<Response> {
       connectionActivityMatch[1],
       connectionActivityMatch[2] === "resume",
     );
+  }
+  const connectionPaymentsMatch = url.pathname.match(/^\/v1\/connections\/([^/]+)\/payments$/);
+  if (request.method === "DELETE" && connectionPaymentsMatch) {
+    return clearProviderPayments(env, auth, request, connectionPaymentsMatch[1]);
   }
   const connectionMatch = url.pathname.match(/^\/v1\/connections\/([^/]+)$/);
   if (request.method === "DELETE" && connectionMatch) {
