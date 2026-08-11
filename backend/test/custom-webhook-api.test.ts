@@ -301,6 +301,117 @@ describe("custom payment source HTTP API", () => {
     });
   });
 
+  it("keeps paused source identity and persisted settings unchanged after rejected notification edits", async () => {
+    const create = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/custom-sources", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Paused checkout" }),
+      }),
+    );
+    const created = await create.json<{ source: { id: string; webhookUrl: string } }>();
+    const mapping = {
+      paymentIdPath: "/payment/id",
+      amountPath: "/payment/amount_minor",
+      amountUnit: "minor",
+      currencyPath: "/payment/currency",
+      notificationFields: [
+        { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: true },
+        { id: "buyer", path: "/buyer/email", label: "Buyer", enabled: true },
+      ],
+    };
+    await env.DB.prepare(
+      "UPDATE custom_payment_sources SET status = 'paused', mapping_json = ?1 WHERE id = ?2",
+    ).bind(JSON.stringify(mapping), created.source.id).run();
+
+    const endpoint = `https://api.cha-ching.test/v1/custom-sources/${created.source.id}/notification-fields`;
+    const validFields = [
+      { id: "buyer", path: "/buyer/email", label: "Customer email", enabled: true },
+      { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: false },
+    ];
+    const crossUser = await handleCustomSourceRequest(
+      env,
+      authFor("user-two"),
+      new Request(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ notificationFields: validFields }),
+      }),
+    );
+    expect(crossUser.status).toBe(404);
+
+    const invalid = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          notificationFields: [
+            { id: "amount", path: "/payment/amount_minor", label: "", enabled: true },
+            { id: "buyer", path: "/buyer/email", label: "Buyer", enabled: true },
+          ],
+        }),
+      }),
+    );
+    expect(invalid.status).toBe(400);
+
+    const remapped = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          notificationFields: [
+            { id: "amount", path: "/payment/total_minor", label: "Amount", enabled: true },
+            { id: "buyer", path: "/buyer/email", label: "Buyer", enabled: true },
+          ],
+        }),
+      }),
+    );
+    expect(remapped.status).toBe(400);
+
+    const unchanged = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
+    );
+    expect(await unchanged.json()).toEqual(expect.objectContaining({
+      source: expect.objectContaining({
+        status: "paused",
+        webhookUrl: created.source.webhookUrl,
+      }),
+      mapping,
+    }));
+
+    const accepted = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ notificationFields: validFields }),
+      }),
+    );
+    expect(accepted.status).toBe(200);
+
+    const persisted = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
+    );
+    expect(await persisted.json()).toEqual(expect.objectContaining({
+      source: expect.objectContaining({
+        status: "paused",
+        webhookUrl: created.source.webhookUrl,
+      }),
+      mapping: { ...mapping, notificationFields: validFields },
+    }));
+  });
+
   it("previews a user's field mapping and activates the source without retaining the sample", async () => {
     const create = await handleCustomSourceRequest(
       env,
