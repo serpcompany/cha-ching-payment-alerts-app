@@ -1,8 +1,16 @@
 import Foundation
 import Testing
+import UserNotifications
 @testable import Cha_Ching
 
 struct PaymentNotificationPresentationTests {
+    @Test func foregroundDeliveryUsesARealAppleNotificationAndFullDetailsWaitForATap() {
+        #expect(PaymentNotificationPresentation.foregroundOptions.contains(.banner))
+        #expect(PaymentNotificationPresentation.foregroundOptions.contains(.list))
+        #expect(PaymentNotificationPresentation.showsFullDetailsAutomatically == false)
+        #expect(PaymentNotificationPresentation.showsFullDetailsAfterTap)
+    }
+
     @Test func foregroundPresentationPreservesEverySelectedStructuredLine() {
         let expectedLines = (1...17).map { "Field \($0): Value \($0)" }
 

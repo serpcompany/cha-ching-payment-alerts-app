@@ -24,6 +24,8 @@ struct CustomNotificationSettingsView: View {
                 previewButton
                 testNotificationButton
                 testLockScreenButton
+            } footer: {
+                Text("iPhone shows a shortened two-to-four-line preview. Press the notification to see every selected detail in Cha-Ching.")
             }
 
             paymentMatchingSection
@@ -157,7 +159,7 @@ struct CustomNotificationSettingsView: View {
                     Text("Test notification")
                         .fontWeight(.semibold)
                         .foregroundStyle(.primary)
-                    Text("See every selected detail while Cha-Ching is open")
+                    Text("Send a real iPhone notification now")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

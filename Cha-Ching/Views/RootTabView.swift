@@ -75,18 +75,6 @@ private struct SettingsView: View {
                         )
                     )
                     .disabled(notifications.isUpdatingPaymentNotifications)
-                    HStack {
-                        Text("Status")
-                        Spacer()
-                        if notifications.isUpdatingPaymentNotifications {
-                            ProgressView()
-                        } else {
-                            Text(notifications.statusText)
-                                .foregroundStyle(
-                                    notifications.canDeliverNotifications ? Theme.accent : .secondary
-                                )
-                        }
-                    }
                     if notifications.paymentNotificationsEnabled
                         && notifications.isAuthorized
                         && !notifications.canDeliverNotifications {

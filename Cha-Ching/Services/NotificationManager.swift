@@ -43,6 +43,17 @@ struct ForegroundPaymentNotification: Identifiable, Equatable {
     }
 }
 
+enum PaymentNotificationPresentation {
+    static let foregroundOptions: UNNotificationPresentationOptions = [
+        .banner,
+        .list,
+        .sound,
+        .badge,
+    ]
+    static let showsFullDetailsAutomatically = false
+    static let showsFullDetailsAfterTap = true
+}
+
 @MainActor
 final class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
@@ -219,12 +230,8 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     ) async -> UNNotificationPresentationOptions {
         await MainActor.run {
             NotificationCenter.default.post(name: .chaChingSaleReceived, object: nil)
-            foregroundNotification = ForegroundPaymentNotification(
-                title: notification.request.content.title,
-                body: notification.request.content.body
-            )
         }
-        return [.sound, .badge]
+        return PaymentNotificationPresentation.foregroundOptions
     }
 
     nonisolated func userNotificationCenter(
@@ -233,6 +240,12 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     ) async {
         await MainActor.run {
             NotificationCenter.default.post(name: .chaChingSaleReceived, object: nil)
+            if PaymentNotificationPresentation.showsFullDetailsAfterTap {
+                foregroundNotification = ForegroundPaymentNotification(
+                    title: response.notification.request.content.title,
+                    body: response.notification.request.content.body
+                )
+            }
         }
     }
 }
