@@ -3,9 +3,18 @@ import { importPKCS8, SignJWT } from "jose";
 import type { Env } from "./env";
 import type { SaleSource } from "./env";
 
-export interface NotificationMessage {
+export interface SaleNotificationMessage {
   saleId: string;
 }
+
+export interface TestNotificationMessage {
+  testNotification: {
+    userId: string;
+    body: string;
+  };
+}
+
+export type NotificationMessage = SaleNotificationMessage | TestNotificationMessage;
 
 export const PAYMENT_NOTIFICATION_SOUND = "cash-register.caf";
 
@@ -33,6 +42,7 @@ interface DeviceRow {
 export interface TestNotificationResult {
   registered: number;
   sent: number;
+  shouldRetry: boolean;
 }
 
 interface DeliveryStatusRow {
@@ -112,10 +122,11 @@ export async function sendTestNotification(
   const devices = await env.DB.prepare(
     "SELECT id, token, environment FROM device_tokens WHERE user_id = ?1 AND status = 'active'",
   ).bind(userId).all<DeviceRow>();
-  if (devices.results.length === 0) return { registered: 0, sent: 0 };
+  if (devices.results.length === 0) return { registered: 0, sent: 0, shouldRetry: false };
   if (!env.APNS_KEY_ID || !env.APNS_PRIVATE_KEY) throw new Error("APNs is not configured");
   const providerToken = await apnsProviderToken(env);
   let sent = 0;
+  let shouldRetry = false;
   for (const device of devices.results) {
     const host = device.environment === "production" ? "api.push.apple.com" : "api.sandbox.push.apple.com";
     const response = await fetch(`https://${host}/3/device/${device.token}`, {
@@ -146,9 +157,11 @@ export async function sendTestNotification(
       await env.DB.prepare(
         "UPDATE device_tokens SET status = 'invalid', updated_at = CURRENT_TIMESTAMP WHERE id = ?1",
       ).bind(device.id).run();
+    } else if (retryable(response.status, payload?.reason ?? null)) {
+      shouldRetry = true;
     }
   }
-  return { registered: devices.results.length, sent };
+  return { registered: devices.results.length, sent, shouldRetry };
 }
 
 function retryable(status: number, reason: string | null): boolean {
@@ -202,7 +215,7 @@ async function sendToDevice(
   return "failed";
 }
 
-async function deliverSale(env: Env, message: NotificationMessage): Promise<boolean> {
+async function deliverSale(env: Env, message: SaleNotificationMessage): Promise<boolean> {
   const sale = await env.DB.prepare(
     `SELECT id, user_id, amount_minor, currency, provider, product_label,
             plan_label, sale_type_label, notification_fields_json
@@ -298,8 +311,18 @@ async function deliverSale(env: Env, message: NotificationMessage): Promise<bool
   return !shouldRetry;
 }
 
-function validMessage(value: unknown): value is NotificationMessage {
+function isSaleMessage(value: unknown): value is SaleNotificationMessage {
   return Boolean(value && typeof value === "object" && typeof (value as Record<string, unknown>).saleId === "string");
+}
+
+function isTestMessage(value: unknown): value is TestNotificationMessage {
+  if (!value || typeof value !== "object") return false;
+  const test = (value as Record<string, unknown>).testNotification;
+  return Boolean(
+    test && typeof test === "object"
+      && typeof (test as Record<string, unknown>).userId === "string"
+      && typeof (test as Record<string, unknown>).body === "string",
+  );
 }
 
 export async function processNotificationBatch(
@@ -307,17 +330,31 @@ export async function processNotificationBatch(
   batch: MessageBatch<NotificationMessage>,
 ): Promise<void> {
   for (const message of batch.messages) {
-    if (!validMessage(message.body)) {
+    if (!isSaleMessage(message.body) && !isTestMessage(message.body)) {
       message.ack();
       continue;
     }
     try {
-      if (await deliverSale(env, message.body)) message.ack();
-      else message.retry({ delaySeconds: 60 });
+      if (isTestMessage(message.body)) {
+        const result = await sendTestNotification(
+          env,
+          message.body.testNotification.userId,
+          message.body.testNotification.body,
+        );
+        if (result.shouldRetry) message.retry({ delaySeconds: 60 });
+        else message.ack();
+      } else if (await deliverSale(env, message.body)) {
+        message.ack();
+      } else {
+        message.retry({ delaySeconds: 60 });
+      }
     } catch (error) {
+      const reference = isSaleMessage(message.body)
+        ? { saleId: message.body.saleId }
+        : { testNotificationUserId: message.body.testNotification.userId };
       console.error(JSON.stringify({
         message: "notification.delivery.failed",
-        saleId: message.body.saleId,
+        ...reference,
         error: error instanceof Error ? error.message : "Unknown error",
       }));
       message.retry({ delaySeconds: 60 });

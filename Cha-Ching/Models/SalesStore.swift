@@ -79,12 +79,6 @@ final class SalesStore: ObservableObject {
 
     var todayTotal: Double { todaysSales.reduce(0) { $0 + $1.amount } }
 
-    var last7DaysTotal: Double {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -6, to: Date()) ?? Date()
-        return sales.filter { $0.date >= Calendar.current.startOfDay(for: cutoff) }
-            .reduce(0) { $0 + $1.amount }
-    }
-
     var yesterdayTotal: Double {
         let calendar = Calendar.current
         return sales.filter { calendar.isDateInYesterday($0.date) }.reduce(0) { $0 + $1.amount }
@@ -95,26 +89,4 @@ final class SalesStore: ObservableObject {
         return (todayTotal - yesterdayTotal) / yesterdayTotal
     }
 
-    var weeklyTotals: [DayTotal] {
-        let calendar = Calendar.current
-        return (0..<7).reversed().compactMap { offset in
-            guard let day = calendar.date(byAdding: .day, value: -offset, to: Date()) else { return nil }
-            let total = sales.filter { calendar.isDate($0.date, inSameDayAs: day) }
-                .reduce(0) { $0 + $1.amount }
-            return DayTotal(date: day, total: total)
-        }
-    }
-
-    var topProduct: (name: String, total: Double)? {
-        let grouped = Dictionary(grouping: sales, by: \.product)
-            .mapValues { $0.reduce(0) { $0 + $1.amount } }
-        guard let best = grouped.max(by: { $0.value < $1.value }) else { return nil }
-        return (best.key, best.value)
-    }
-}
-
-struct DayTotal: Identifiable {
-    var id: Date { date }
-    let date: Date
-    let total: Double
 }

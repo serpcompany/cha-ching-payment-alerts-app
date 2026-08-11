@@ -1,5 +1,10 @@
 import SwiftUI
 
+enum DashboardSection: CaseIterable {
+    case revenueToday
+    case payments
+}
+
 struct HomeView: View {
     @EnvironmentObject private var store: SalesStore
     @EnvironmentObject private var notifications: NotificationManager
@@ -21,8 +26,6 @@ struct HomeView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .cardStyle(padding: 12)
                         }
-                        statRow
-                        WeeklyChartCard(data: store.weeklyTotals, weekTotal: store.last7DaysTotal)
                         recentSection
                     }
                     .padding(.horizontal, 18)
@@ -42,19 +45,6 @@ struct HomeView: View {
                         .foregroundStyle(Theme.accent)
                 }
             }
-        }
-    }
-
-    private var statRow: some View {
-        HStack(spacing: 12) {
-            StatTile(title: "Last 7 days",
-                     value: Formatters.money(store.last7DaysTotal),
-                     symbol: "calendar",
-                     tint: Theme.accent)
-            StatTile(title: "Top seller",
-                     value: store.topProduct?.name ?? "—",
-                     symbol: "flame.fill",
-                     tint: Theme.gold)
         }
     }
 

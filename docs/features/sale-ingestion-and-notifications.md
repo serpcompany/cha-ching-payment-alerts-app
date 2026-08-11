@@ -24,7 +24,7 @@ Custom notifications have a fixed `Cha-ching!` title. Their body is deterministi
 
 - `GET /v1/sales` returns at most the signed-in user's 100 newest sales. Stripe entries are provider-verified; custom entries are sender-reported.
 - The Dashboard Payments section reads this API; sample revenue is not part of production behavior.
-- iOS asks for notification permission after a provider is connected, registers its APNs token through `POST /v1/devices`, refreshes it on launch, and removes the device on sign-out.
+- iOS asks for notification permission after a provider is connected, registers its APNs token through `POST /v1/devices`, refreshes it on launch only while the user's Payment notifications preference is on, and removes the device on sign-out or when that preference is turned off.
 - The UI reports payment notifications as on only after both notification permission and backend device registration succeed. Simulator permission alone is not presented as a working push channel; production push acceptance uses a signed iPhone build.
 - Device tokens are never returned by a read API.
 
@@ -37,6 +37,8 @@ Custom notifications have a fixed `Cha-ching!` title. Their body is deterministi
 - Transient APNs failures retry; exhausted messages go to `cha-ching-notifications-dlq`.
 - Invalid APNs tokens are disabled. A stale in-progress claim can be reclaimed after five minutes.
 - Notification taps and foreground delivery trigger a fresh sales-history fetch.
+- Foreground delivery becomes a full, scrollable in-app notification so all selected custom fields remain visible instead of being limited by the compact iOS banner. Background and lock-screen layout remain controlled by iOS.
+- A sample can also be queued as a delayed lock-screen test. The authenticated request validates the current preview, confirms a registered device, and places the exact body on Cloudflare Queue without creating a payment; the Queue consumer sends it after the delay.
 - Live and sample-based test notifications use the bundled cash-register sound by default. System mute, Focus, permission, and foreground-presentation rules remain controlled by iOS.
 
 ## Data retention
@@ -53,7 +55,9 @@ Sale metadata and delivery records remain associated with the Cha-Ching account 
 - A signed-in user can only list their own sales and manage their own device registration.
 - A registered production device receives an amount/provider notification for a verified Stripe charge.
 - Removing notification permission or signing out cannot expose another user's sales.
+- Turning Payment notifications off removes that phone's backend registration and prevents launch-time re-registration until the user turns it on again.
+- Immediate foreground testing preserves every selected structured line in the app, and delayed lock-screen testing does not depend on the app staying active after the server accepts the request.
 
 ## Live verification status
 
-The Worker, D1 schema, Queue consumer, API, and iOS client are implemented. Stripe App version 0.1.0 is approved under the DS Apps owner account, and its live connected-account event destination is active. On 2026-08-11 JST, diagnosis found that the first installation had linked a Stripe sandbox while the real payment occurred on the separate live SERP! account. Cha-Ching was then installed on the live account, and Stripe's actual `$27.00` successful Charge event was replayed through the signed production webhook. D1 persisted the real payment, Queue processed it, APNs accepted one production delivery on the first attempt, and the user confirmed that the notification appeared on the signed iPhone. Replaying the exact event left one payment and one delivery. TestFlight build 8 contains production APNs signing, universal custom sources, provider pause controls, retry/crash recovery, configurable all-fields notifications, the real test-notification action, and the cash-register sound. A production callback regression test rejects sandbox accounts before they can be stored as connected.
+The Worker, D1 schema, Queue consumer, API, and iOS client are implemented. Stripe App version 0.1.0 is approved under the DS Apps owner account, and its live connected-account event destination is active. On 2026-08-11 JST, diagnosis found that the first installation had linked a Stripe sandbox while the real payment occurred on the separate live SERP! account. Cha-Ching was then installed on the live account, and Stripe's actual `$27.00` successful Charge event was replayed through the signed production webhook. D1 persisted the real payment, Queue processed it, APNs accepted one production delivery on the first attempt, and the user confirmed that the notification appeared on the signed iPhone. Replaying the exact event left one payment and one delivery. TestFlight build 9 contains production APNs signing, universal custom sources, provider pause controls, retry/crash recovery, configurable all-fields notifications, a real per-device notification toggle, full foreground details, delayed lock-screen testing, and the cash-register sound. A production callback regression test rejects sandbox accounts before they can be stored as connected.

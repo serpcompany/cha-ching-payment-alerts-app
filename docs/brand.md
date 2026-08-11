@@ -27,4 +27,4 @@ Use rounded, heavy system typography and generous continuous corners. The recurr
 
 ## App icon
 
-`Cha-Ching/Assets.xcassets/AppIcon.appiconset/ChaChingAppIcon.png` is the canonical 1024px icon. `BrandMark.imageset` carries the same mark for in-app use. Both use the same text-free dollar-symbol composition; preserve its proportions and colors.
+`Cha-Ching/Assets.xcassets/ChaChingDollarIcon.appiconset/ChaChingDollarAppIcon.png` is the canonical 1024px icon. The distinct asset-catalog name ensures new TestFlight builds advertise the dollar icon rather than inheriting stale `AppIcon` metadata. `BrandMark.imageset` carries the same mark for in-app use. Both use the same text-free dollar-symbol composition; preserve its proportions and colors.

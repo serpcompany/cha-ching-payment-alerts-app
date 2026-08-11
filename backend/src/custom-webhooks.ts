@@ -5,6 +5,7 @@ import { requireCustomSourceEntitlement } from "./entitlements";
 import type { Env } from "./env";
 import { enqueueSaleNotification } from "./notification-queue";
 import { formatMinorAmount, notificationFieldsBody, sendTestNotification } from "./notifications";
+import type { TestNotificationMessage } from "./notifications";
 
 export interface DiscoveredWebhookField {
   path: string;
@@ -346,8 +347,26 @@ async function activateSource(env: Env, auth: Auth, request: Request, sourceId: 
 async function testNotification(env: Env, auth: Auth, request: Request, sourceId: string): Promise<Response> {
   const user = await requireUser(auth, request);
   let mapping: WebhookFieldMapping | null = null;
+  let delaySeconds = 0;
   try {
-    mapping = parseMapping(await request.json());
+    const input = await request.json() as unknown;
+    if (input && typeof input === "object" && "mapping" in input) {
+      const wrapper = input as Record<string, unknown>;
+      mapping = parseMapping(wrapper.mapping);
+      if (wrapper.delaySeconds !== undefined) {
+        if (
+          typeof wrapper.delaySeconds !== "number"
+          || !Number.isInteger(wrapper.delaySeconds)
+          || wrapper.delaySeconds < 1
+          || wrapper.delaySeconds > 60
+        ) {
+          return Response.json({ error: "Notification delay must be between 1 and 60 seconds" }, { status: 400 });
+        }
+        delaySeconds = wrapper.delaySeconds;
+      }
+    } else {
+      mapping = parseMapping(input);
+    }
   } catch {
     // The response below covers missing and malformed JSON uniformly.
   }
@@ -380,6 +399,19 @@ async function testNotification(env: Env, auth: Auth, request: Request, sourceId
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Notification could not be tested" }, { status: 422 });
   }
+  if (delaySeconds > 0) {
+    const devices = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM device_tokens WHERE user_id = ?1 AND status = 'active'",
+    ).bind(user.id).first<{ count: number }>();
+    const registered = Number(devices?.count ?? 0);
+    if (registered === 0) {
+      return Response.json({ error: "No registered iPhone is ready for notifications" }, { status: 409 });
+    }
+    const message: TestNotificationMessage = { testNotification: { userId: user.id, body } };
+    await env.NOTIFICATION_QUEUE.send(message, { delaySeconds });
+    return Response.json({ scheduled: true, delaySeconds, registered }, { status: 202 });
+  }
+
   const result = await sendTestNotification(env, user.id, body);
   if (result.registered === 0) {
     return Response.json({ error: "No registered iPhone is ready for notifications" }, { status: 409 });

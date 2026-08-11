@@ -23,6 +23,7 @@ struct CustomNotificationSettingsView: View {
                 sourceSummary
                 previewButton
                 testNotificationButton
+                testLockScreenButton
             }
 
             paymentMatchingSection
@@ -156,7 +157,7 @@ struct CustomNotificationSettingsView: View {
                     Text("Test notification")
                         .fontWeight(.semibold)
                         .foregroundStyle(.primary)
-                    Text("Send this sample to your iPhone")
+                    Text("See every selected detail while Cha-Ching is open")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -165,7 +166,32 @@ struct CustomNotificationSettingsView: View {
             .contentShape(Rectangle())
         }
         .disabled(!mappingIsComplete)
-        .accessibilityHint("Sends the current sample as a real notification without creating a payment.")
+        .accessibilityHint("Sends the current sample immediately without creating a payment.")
+    }
+
+    private var testLockScreenButton: some View {
+        Button {
+            Task { await sendLockScreenTestNotification() }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "lock.iphone")
+                    .font(.title3)
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 30)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Test lock screen")
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+                    Text("Arrives in about 10 seconds — lock your iPhone")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .disabled(!mappingIsComplete)
+        .accessibilityHint("Queues the sample for ten seconds so you have time to lock your iPhone.")
     }
 
     private var paymentMatchingSection: some View {
@@ -354,10 +380,30 @@ struct CustomNotificationSettingsView: View {
         await run {
             preview = try await store.previewCustomSource(id: source.id, mapping: mapping)
             previewedMapping = mapping
-            let sent = try await store.testCustomSourceNotification(id: source.id, mapping: mapping)
-            testResultMessage = sent == 1
-                ? "Sent to your registered iPhone. Lock the screen or leave Cha-Ching open to check both presentation styles."
-                : "Sent to \(sent) registered iPhones."
+            let result = try await store.testCustomSourceNotification(id: source.id, mapping: mapping)
+            if result.sent != 1 {
+                testResultMessage = "Sent to \(result.sent ?? 0) registered iPhones."
+                showingTestResult = true
+            }
+        }
+    }
+
+    private func sendLockScreenTestNotification() async {
+        guard mappingIsComplete else {
+            errorMessage = "Finish payment matching and turn on at least one notification detail before testing."
+            return
+        }
+        await NotificationManager.shared.requestPermissionAndRegister()
+        await run {
+            preview = try await store.previewCustomSource(id: source.id, mapping: mapping)
+            previewedMapping = mapping
+            let result = try await store.testCustomSourceNotification(
+                id: source.id,
+                mapping: mapping,
+                delaySeconds: 10
+            )
+            guard result.scheduled == true else { throw APIError.invalidResponse }
+            testResultMessage = "Scheduled. Lock your iPhone now — the sample should arrive in about 10 seconds."
             showingTestResult = true
         }
     }

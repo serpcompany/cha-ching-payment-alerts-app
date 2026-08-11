@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 enum AppTab: String, CaseIterable {
     case dashboard
@@ -32,6 +33,8 @@ enum AppTab: String, CaseIterable {
 }
 
 struct RootTabView: View {
+    @EnvironmentObject private var notifications: NotificationManager
+
     var body: some View {
         TabView {
             ForEach(AppTab.allCases, id: \.self) { tab in
@@ -39,6 +42,18 @@ struct RootTabView: View {
                     .tabItem { Label(tab.title, systemImage: tab.systemImage) }
             }
         }
+        .sheet(item: foregroundNotificationBinding) { notification in
+            ForegroundPaymentNotificationView(notification: notification)
+        }
+    }
+
+    private var foregroundNotificationBinding: Binding<ForegroundPaymentNotification?> {
+        Binding(
+            get: { notifications.foregroundNotification },
+            set: { value in
+                if value == nil { notifications.dismissForegroundNotification() }
+            }
+        )
     }
 }
 
@@ -50,19 +65,40 @@ private struct SettingsView: View {
         NavigationStack {
             Form {
                 Section("Notifications") {
+                    Toggle(
+                        "Payment notifications",
+                        isOn: Binding(
+                            get: { notifications.paymentNotificationsEnabled },
+                            set: { enabled in
+                                Task { await notifications.setPaymentNotificationsEnabled(enabled) }
+                            }
+                        )
+                    )
+                    .disabled(notifications.isUpdatingPaymentNotifications)
                     HStack {
-                        Text("Payment notifications")
+                        Text("Status")
                         Spacer()
-                        Text(notifications.statusText)
-                            .foregroundStyle(notifications.canDeliverNotifications ? Theme.accent : .secondary)
-                    }
-                    if !notifications.isAuthorized {
-                        Button("Enable notifications") {
-                            Task { await notifications.requestPermissionAndRegister() }
+                        if notifications.isUpdatingPaymentNotifications {
+                            ProgressView()
+                        } else {
+                            Text(notifications.statusText)
+                                .foregroundStyle(
+                                    notifications.canDeliverNotifications ? Theme.accent : .secondary
+                                )
                         }
-                    } else if !notifications.canDeliverNotifications {
+                    }
+                    if notifications.paymentNotificationsEnabled
+                        && notifications.isAuthorized
+                        && !notifications.canDeliverNotifications {
                         Button("Retry registration") {
                             notifications.registerIfAuthorized()
+                        }
+                    }
+                    if notifications.paymentNotificationsEnabled
+                        && notifications.authorizationStatus == .denied {
+                        Button("Open iPhone Settings") {
+                            guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                            UIApplication.shared.open(url)
                         }
                     }
                     if let help = notifications.registrationHelpText {
@@ -81,6 +117,42 @@ private struct SettingsView: View {
                 await notifications.refreshAuthorizationStatus()
             }
         }
+    }
+}
+
+private struct ForegroundPaymentNotificationView: View {
+    @Environment(\.dismiss) private var dismiss
+    let notification: ForegroundPaymentNotification
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    Label(notification.title, systemImage: "dollarsign.circle.fill")
+                        .font(.title2.bold())
+                        .foregroundStyle(Theme.accent)
+                        .padding(.bottom, 4)
+                    ForEach(Array(notification.lines.enumerated()), id: \.offset) { _, line in
+                        Text(line)
+                            .font(.body)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.vertical, 4)
+                        Divider()
+                    }
+                }
+                .padding(20)
+            }
+            .background(Theme.canvas)
+            .navigationTitle("Payment notification")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.large])
     }
 }
 

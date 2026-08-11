@@ -44,6 +44,70 @@ describe("delivery recovery", () => {
     expect(shouldRetryUnclaimedDelivery("failed")).toBe(false);
   });
 
+  it("delivers a delayed lock-screen test through APNs without a sale", async () => {
+    const miniflare = new Miniflare({
+      modules: true,
+      script: "export default { fetch() { return new Response('ok') } }",
+      d1Databases: ["DB"],
+    });
+    try {
+      const db = await miniflare.getD1Database("DB");
+      await db.prepare(
+        `CREATE TABLE device_tokens (
+          id TEXT PRIMARY KEY, user_id TEXT, token TEXT, environment TEXT, status TEXT,
+          updated_at TEXT
+        )`,
+      ).run();
+      await db.prepare(
+        "INSERT INTO device_tokens VALUES ('device-lock', 'owner', 'apns-token', 'production', 'active', CURRENT_TIMESTAMP)",
+      ).run();
+      const { privateKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
+      const requests: Array<{ url: string; body: unknown }> = [];
+      vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        requests.push({ url: String(input), body: JSON.parse(String(init?.body)) });
+        return new Response(null, { status: 200 });
+      }));
+      const env = {
+        DB: db,
+        APNS_KEY_ID: "TESTKEY",
+        APPLE_TEAM_ID: "TESTTEAM",
+        APNS_BUNDLE_ID: "com.example.chaching",
+        APNS_PRIVATE_KEY: privateKey.export({ format: "pem", type: "pkcs8" }).toString(),
+      } as unknown as Env;
+      const ack = vi.fn();
+      const retry = vi.fn();
+      const message = {
+        body: {
+          testNotification: {
+            userId: "owner",
+            body: "Product: Download Pro\nAmount: $27.00",
+          },
+        },
+        ack,
+        retry,
+      };
+
+      await processNotificationBatch(env, { messages: [message] } as unknown as MessageBatch<never>);
+
+      expect(requests).toEqual([{
+        url: "https://api.push.apple.com/3/device/apns-token",
+        body: {
+          aps: {
+            alert: { title: "Cha-ching!", body: "Product: Download Pro\nAmount: $27.00" },
+            sound: "cash-register.caf",
+            badge: 1,
+          },
+          testNotification: true,
+        },
+      }]);
+      expect(ack).toHaveBeenCalledOnce();
+      expect(retry).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+      await miniflare.dispose();
+    }
+  });
+
   it("reuses the persisted delivery ID and makes duplicate Queue messages one visible delivery", async () => {
     const miniflare = new Miniflare({
       modules: true,

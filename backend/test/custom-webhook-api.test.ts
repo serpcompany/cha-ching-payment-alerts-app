@@ -29,6 +29,7 @@ describe("custom payment source HTTP API", () => {
   let miniflare: Miniflare;
   let env: Env;
   const sent: Array<{ saleId: string }> = [];
+  const queueSends: Array<{ message: unknown; options: QueueSendOptions | undefined }> = [];
 
   beforeEach(async () => {
     miniflare = new Miniflare({
@@ -52,9 +53,15 @@ describe("custom payment source HTTP API", () => {
       "INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?4)",
     ).bind("user-two", "User Two", "two@example.test", Date.now()).run();
     sent.length = 0;
+    queueSends.length = 0;
     env = {
       DB: db,
-      NOTIFICATION_QUEUE: { send: vi.fn(async (message) => { sent.push(message as { saleId: string }); }) },
+      NOTIFICATION_QUEUE: {
+        send: vi.fn(async (message, options) => {
+          queueSends.push({ message, options });
+          if ((message as { saleId?: unknown }).saleId) sent.push(message as { saleId: string });
+        }),
+      },
       PUBLIC_BASE_URL: "https://api.cha-ching.test",
       PROVIDER_TOKEN_ENCRYPTION_KEY: encryptionKey,
     } as unknown as Env;
@@ -320,6 +327,76 @@ describe("custom payment source HTTP API", () => {
     );
     expect(await history.json()).toEqual({ sales: [] });
     expect(sent).toEqual([]);
+  });
+
+  it("queues the exact setup preview for a delayed lock-screen test without creating a payment", async () => {
+    await env.DB.prepare(
+      `INSERT INTO device_tokens (id, user_id, device_id, token, environment, status)
+       VALUES ('device-lock', 'user-one', 'iphone-lock', 'lock-token', 'production', 'active')`,
+    ).run();
+    const create = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/custom-sources", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "My checkout" }),
+      }),
+    );
+    const created = await create.json<{ source: { id: string; webhookUrl: string } }>();
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify({
+        payment: { id: "txn_lock", total: "27.00", currency: "USD" },
+        item: { name: "Download Pro" },
+      }),
+    }));
+    const mapping = {
+      paymentIdPath: "/payment/id",
+      amountPath: "/payment/total",
+      amountUnit: "major",
+      currencyPath: "/payment/currency",
+      notificationFields: [
+        { id: "product", path: "/item/name", label: "Product", enabled: true },
+        { id: "amount", path: "/payment/total", label: "Amount", enabled: true },
+      ],
+    };
+    await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}/mapping`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(mapping),
+      }),
+    );
+    const response = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}/test-notification`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ mapping, delaySeconds: 8 }),
+      }),
+    );
+
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ scheduled: true, delaySeconds: 8, registered: 1 });
+    expect(queueSends).toEqual([{
+      message: {
+        testNotification: {
+          userId: "user-one",
+          body: "Product: Download Pro\nAmount: $27.00",
+        },
+      },
+      options: { delaySeconds: 8 },
+    }]);
+    const history = await listSales(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/sales"),
+    );
+    expect(await history.json()).toEqual({ sales: [] });
   });
 
   it("previews the ordered SERP Store business fields as one structured line each", async () => {

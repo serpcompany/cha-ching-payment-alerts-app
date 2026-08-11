@@ -50,8 +50,16 @@ private struct CustomPreviewResponse: Decodable {
     let preview: CustomPaymentPreview
 }
 
-private struct TestNotificationResponse: Decodable {
-    let sent: Int
+struct TestNotificationResponse: Decodable {
+    let sent: Int?
+    let scheduled: Bool?
+    let delaySeconds: Int?
+    let registered: Int?
+}
+
+private struct TestNotificationRequest: Encodable {
+    let mapping: WebhookFieldMapping
+    let delaySeconds: Int?
 }
 
 @MainActor
@@ -119,12 +127,15 @@ final class ConnectStore: ObservableObject {
         return response.preview
     }
 
-    func testCustomSourceNotification(id: String, mapping: WebhookFieldMapping) async throws -> Int {
-        let response: TestNotificationResponse = try await APIClient.shared.post(
+    func testCustomSourceNotification(
+        id: String,
+        mapping: WebhookFieldMapping,
+        delaySeconds: Int? = nil
+    ) async throws -> TestNotificationResponse {
+        try await APIClient.shared.post(
             "/v1/custom-sources/\(id)/test-notification",
-            body: mapping
+            body: TestNotificationRequest(mapping: mapping, delaySeconds: delaySeconds)
         )
-        return response.sent
     }
 
     func activateCustomSource(id: String, mapping: WebhookFieldMapping) async throws -> CustomPaymentSource {

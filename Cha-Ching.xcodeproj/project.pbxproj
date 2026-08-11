@@ -27,6 +27,7 @@
 		869FC8CAC123C3A8C732E633 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 14CD4631A44997104C853CB0 /* Assets.xcassets */; };
 		8DC3CF4F0C9989CBD83F8A36 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BEAE7900E64409AE45942B /* HomeView.swift */; };
 		991C548A38405CB88DC6704C /* ConnectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0867D67A73EEC4496B1399C /* ConnectStore.swift */; };
+		A0039B73D3CA4C97E635C7AA /* PaymentNotificationPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B698CD26E86058C88F518AE /* PaymentNotificationPresentationTests.swift */; };
 		A18C3C775864A1B0EB0A332C /* WebhookNotificationDesignerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */; };
 		AF01ED49D8033099991F6BBF /* CustomWebhookDeveloperPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = C702CA5FCE9B85FA055A62E1 /* CustomWebhookDeveloperPrompt.swift */; };
 		B15D512565372F588A4ED383 /* SalesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9ABCE1E07393E5E7E9E2C3 /* SalesStore.swift */; };
@@ -46,6 +47,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0B698CD26E86058C88F518AE /* PaymentNotificationPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentNotificationPresentationTests.swift; sourceTree = "<group>"; };
 		0ECEEA344D12969329CC034A /* Sale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sale.swift; sourceTree = "<group>"; };
 		14CD4631A44997104C853CB0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1D1792A1F3D214B7B66527E1 /* CustomSourceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomSourceSheet.swift; sourceTree = "<group>"; };
@@ -139,6 +141,7 @@
 			children = (
 				A5BFDF9B844EE38D865B037E /* AppNavigationTests.swift */,
 				7996CF08A2EAA4E22A254C26 /* CustomWebhookDeveloperPromptTests.swift */,
+				0B698CD26E86058C88F518AE /* PaymentNotificationPresentationTests.swift */,
 				CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */,
 			);
 			path = "Cha-ChingTests";
@@ -309,6 +312,7 @@
 			files = (
 				7FF6A62D26FE5A1B2DEF4248 /* AppNavigationTests.swift in Sources */,
 				63FF238A5F0308F390742C0F /* CustomWebhookDeveloperPromptTests.swift in Sources */,
+				A0039B73D3CA4C97E635C7AA /* PaymentNotificationPresentationTests.swift in Sources */,
 				A18C3C775864A1B0EB0A332C /* WebhookNotificationDesignerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -365,7 +369,7 @@
 		4942D15277773F2C676D529E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = ChaChingDollarIcon;
 				CODE_SIGN_ENTITLEMENTS = "Cha-Ching/ChaChing.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = "Cha-Ching/Info.plist";
@@ -386,7 +390,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				API_BASE_URL = "https://cha-ching-api.serpcompany.workers.dev";
 				APS_ENVIRONMENT = production;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = ChaChingDollarIcon;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -418,7 +422,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 847HR8U8D9;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -451,7 +455,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				API_BASE_URL = "http://127.0.0.1:8787";
 				APS_ENVIRONMENT = development;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = ChaChingDollarIcon;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -483,7 +487,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 847HR8U8D9;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -560,7 +564,7 @@
 		D7D7530BA6189D0E5C3C9FBB /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = ChaChingDollarIcon;
 				CODE_SIGN_ENTITLEMENTS = "Cha-Ching/ChaChing.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = "Cha-Ching/Info.plist";

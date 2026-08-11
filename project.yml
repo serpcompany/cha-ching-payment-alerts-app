@@ -10,12 +10,12 @@ settings:
     CODE_SIGN_STYLE: Automatic
     SWIFT_VERSION: 6.0
     MARKETING_VERSION: 1.0
-    CURRENT_PROJECT_VERSION: 8
+    CURRENT_PROJECT_VERSION: 9
     SUPPORTED_PLATFORMS: iphoneos iphonesimulator
     TARGETED_DEVICE_FAMILY: '1'
     SUPPORTS_MACCATALYST: NO
     ALWAYS_SEARCH_USER_PATHS: NO
-    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    ASSETCATALOG_COMPILER_APPICON_NAME: ChaChingDollarIcon
   configs:
     Debug:
       API_BASE_URL: http://127.0.0.1:8787
@@ -36,6 +36,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.serpcompany.chaching
         CODE_SIGN_ENTITLEMENTS: Cha-Ching/ChaChing.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: ChaChingDollarIcon
     entitlements:
       path: Cha-Ching/ChaChing.entitlements
       properties:
@@ -56,7 +57,7 @@ targets:
         CFBundlePackageType: $(PRODUCT_BUNDLE_PACKAGE_TYPE)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        CFBundleIconName: AppIcon
+        CFBundleIconName: ChaChingDollarIcon
         ITSAppUsesNonExemptEncryption: false
         LSRequiresIPhoneOS: true
         UIApplicationSupportsIndirectInputEvents: true

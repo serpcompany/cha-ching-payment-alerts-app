@@ -1,5 +1,4 @@
 import SwiftUI
-import Charts
 
 struct HeroCard: View {
     let total: Double
@@ -64,77 +63,6 @@ struct HeroCard: View {
             .padding(.vertical, 5)
             .background(.white.opacity(0.2), in: Capsule())
             .foregroundStyle(.white)
-    }
-}
-
-struct StatTile: View {
-    let title: String
-    let value: String
-    let symbol: String
-    let tint: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: symbol)
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(tint)
-                .frame(width: 30, height: 30)
-                .background(tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(Theme.ink.opacity(0.55))
-            Text(value)
-                .font(.headline)
-                .foregroundStyle(Theme.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle()
-    }
-}
-
-struct WeeklyChartCard: View {
-    let data: [DayTotal]
-    let weekTotal: Double
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("This week")
-                        .font(.headline)
-                        .foregroundStyle(Theme.ink)
-                    Text(Formatters.money(weekTotal) + " collected")
-                        .font(.caption)
-                        .foregroundStyle(Theme.ink.opacity(0.55))
-                }
-                Spacer()
-            }
-            Chart(data) { point in
-                BarMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("Total", point.total),
-                    width: .fixed(18)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .foregroundStyle(Theme.heroGradient)
-            }
-            .chartYAxis {
-                AxisMarks(position: .leading) { _ in
-                    AxisGridLine().foregroundStyle(Theme.ink.opacity(0.08))
-                    AxisValueLabel().foregroundStyle(Theme.ink.opacity(0.5))
-                }
-            }
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .day)) { value in
-                    AxisValueLabel(format: .dateTime.weekday(.narrow))
-                        .foregroundStyle(Theme.ink.opacity(0.5))
-                }
-            }
-            .frame(height: 150)
-        }
-        .cardStyle(padding: 18)
     }
 }
 

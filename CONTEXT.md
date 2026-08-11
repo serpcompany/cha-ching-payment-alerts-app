@@ -33,7 +33,9 @@ The live MVP proves secure identity, entitlement enforcement, payment-source lin
 - Custom webhook samples are encrypted at rest and removed after activation.
 - Custom-webhook payments are reported by whoever possesses the private URL; Cha-Ching does not represent them as provider-verified.
 - Custom notification previews and APNs bodies use the fixed title `Cha-ching!` and one ordered `{label}: {value}` line per enabled field. Different semantic fields are never combined into generated prose.
-- Payment notifications use the bundled cash-register sound by default. Foreground presentation still requests banner, sound, and badge behavior from iOS.
+- Payment notifications use the bundled cash-register sound by default. Foreground delivery uses Cha-Ching's full scrollable detail presentation rather than a compact iOS banner; background and lock-screen presentation remain controlled by iOS.
+- Payment notifications are an explicit per-device user preference. Off removes the backend device registration and blocks automatic re-registration; on registers again when system permission allows it.
+- A lock-screen sample test is delayed by the server-side Queue after acceptance so the user can lock the phone without suspending the send.
 - Connected Stripe and PayPal accounts can be paused without disconnecting; paused connections retain authorization and existing payments while ignoring new payment events.
 - A provider may be entitled but unavailable when its production credentials are not configured.
 - A provider connection does not imply that provider's payment-webhook path is supported.
