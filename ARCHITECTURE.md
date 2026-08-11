@@ -33,11 +33,13 @@ A connected provider's `is_active` flag is checked before sale insertion. Pausin
 
 1. An entitled, authenticated user names a payment source. The Worker generates a random private URL token, stores its hash for lookup, and stores an encrypted copy so the same URL can be shown again.
 2. While the source is in setup, `POST /v1/webhooks/custom/:token` encrypts one JSON sample. Samples never create sales or notifications.
-3. iOS checks the connection, displays every observed scalar field path and value in the bounded payload, and lets the user map Payment ID, Amount, Currency, and optional history fields. Observed means present in this sample; the MVP has no sender-declared catalog of every possible field.
-4. A notification designer creates one initially enabled row for every observed field. The user can search and filter rows, show or hide each one, rename its display label, remap it to any observed path, and set its stable order.
-5. The Worker validates the complete mapping against the sample and returns the exact normalized notification preview: fixed title `Cha-ching!` and one ordered `{label}: {value}` line per enabled field. Activation requires that exact previewed mapping and deletes the encrypted sample.
+3. iOS checks the connection and moves payment matching into the dedicated notification-settings experience instead of showing a separate “Match the payment” section on the connection screen. The user can map Payment ID, Amount, Currency, optional history fields, and notification rows from the same observed sample. Observed means present in this sample; the MVP has no sender-declared catalog of every possible field.
+4. A notification designer creates one initially enabled row for every observed field. The user can show or hide each row, rename its display label, remap it to any observed path, and set its stable order.
+5. The Worker validates the complete mapping against the sample and returns the exact normalized notification preview: fixed title `Cha-ching!` and one ordered `{label}: {value}` line per enabled field. The authenticated owner can request a real sample-based test notification without creating payment history. Activation requires the exact previewed mapping and deletes the encrypted sample.
 6. An active source normalizes incoming JSON with the saved mapping, hashes the complete source-scoped Payment ID, stores only the enabled notification label/value pairs with the sale, and queues one notification. Retries with the same full mapped Payment ID are ignored.
 7. A paused source acknowledges and ignores new events while retaining its URL, mapping, and history.
+
+Production APNs payloads and test notifications name the bundled cash-register sound. Test notifications use the same title, body renderer, topic, environment-specific APNs host, and active registered-device boundary as payment notifications, but do not insert a payment or delivery-history row.
 
 ## Security invariants
 

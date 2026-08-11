@@ -23,8 +23,8 @@ Do not revive “Sales Ping,” “SalesPing,” or `sales-ping` in active produ
 - **Cloud** `#F4F9F6`: light canvas.
 - **Deep card** `#0D1D2A`: dark surfaces.
 
-Use rounded, heavy system typography and generous continuous corners. The recurring visual motif is a gold coin/check with compact radiating chime arcs. Avoid dollar signs, bank-building imagery, cash bills, and generic blue-fintech styling.
+Use rounded, heavy system typography and generous continuous corners. The recurring visual motif is a bold gold dollar symbol with compact radiating chime arcs. Avoid checkmarks as the primary brand mark, bank-building imagery, cash bills, and generic blue-fintech styling.
 
 ## App icon
 
-`Cha-Ching/Assets.xcassets/AppIcon.appiconset/ChaChingAppIcon.png` is the canonical 1024px icon. `BrandMark.imageset` carries the same mark for in-app use. Preserve the mark's proportions, colors, and text-free composition.
+`Cha-Ching/Assets.xcassets/AppIcon.appiconset/ChaChingAppIcon.png` is the canonical 1024px icon. `BrandMark.imageset` carries the same mark for in-app use. Both use the same text-free dollar-symbol composition; preserve its proportions and colors.

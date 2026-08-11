@@ -2,7 +2,7 @@
 
 ## Product
 
-Cha-Ching is an iPhone app for indie founders and small software businesses. A user links the payment accounts they already own and receives a recognizable notification when a supported provider verifies a new sale.
+Cha-Ching is an iPhone app for indie founders and small software businesses. A user links the payment accounts they already own and receives a recognizable payment notification when a supported source reports a successful payment.
 
 The live MVP proves secure identity, plan access, provider-account linking, Stripe sale ingestion, real sales history, and APNs delivery. PayPal sale ingestion is not part of the first alert path.
 
@@ -18,8 +18,8 @@ The live MVP proves secure identity, plan access, provider-account linking, Stri
 - **Provider account**: the user's account at a provider. It is linked through provider-hosted authorization, never by pasting credentials into the app.
 - **Connection**: Cha-Ching's revocable, least-privilege authorization to identify and read events for one provider account.
 - **Entitlement**: server-owned permission enabling a feature for a user. UI presentation never grants access.
-- **Sale**: a normalized payment event persisted without customer name or email. Provider webhooks can verify a sale; custom webhook sales are sender-reported.
-- **Ping**: a user-visible APNs notification produced from a sale.
+- **Payment**: the normalized successful-payment record shown on the Dashboard. Provider webhooks can verify a payment; custom-webhook payments are sender-reported.
+- **Payment notification**: the user-visible iPhone notification produced from a payment. “Ping” is not product language.
 
 ## Product invariants
 
@@ -33,6 +33,7 @@ The live MVP proves secure identity, plan access, provider-account linking, Stri
 - Custom webhook samples are encrypted at rest and removed after activation.
 - Custom webhook sales are reported by whoever possesses the private URL; Cha-Ching does not represent them as provider-verified.
 - Custom notification previews and APNs bodies use the fixed title `Cha-ching!` and one ordered `{label}: {value}` line per enabled field. Different semantic fields are never combined into generated prose.
+- Payment notifications use the bundled cash-register sound by default. Foreground presentation still requests banner, sound, and badge behavior from iOS.
 - Connected Stripe and PayPal accounts can be paused without disconnecting; paused connections retain authorization and history while ignoring new payment events.
 - A provider may be entitled but unavailable when its production credentials are not configured.
 - A provider connection does not imply that provider's sale-webhook path is supported.
@@ -42,4 +43,4 @@ The live MVP proves secure identity, plan access, provider-account linking, Stri
 
 ## MVP success
 
-A signed-in user can view entitlements and live provider availability, connect or disconnect one Stripe account and one PayPal account when configured, pause or resume their payment intake, and see D1-backed state after relaunch. A connected active Stripe user receives one persisted sale and one notification attempt for each verified successful charge. An active custom source can create sender-reported sales through its mapped private webhook.
+A signed-in user can view live provider availability, connect or disconnect one Stripe account and one PayPal account when configured, pause or resume payment intake, and see D1-backed state after relaunch. Entitlements remain a server-side access-control mechanism and are not presented as a “plan” in Settings. A connected active Stripe user receives one persisted payment and one payment-notification attempt for each verified successful charge. An active custom source can create sender-reported payments through its mapped private webhook.

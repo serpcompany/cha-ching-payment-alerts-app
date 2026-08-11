@@ -1,4 +1,4 @@
-# Sale Ingestion and Pings
+# Payment Ingestion and Notifications
 
 ## User outcome
 
@@ -23,9 +23,9 @@ Custom notifications have a fixed `Cha-ching!` title. Their body is deterministi
 ## History and device registration
 
 - `GET /v1/sales` returns at most the signed-in user's 100 newest sales. Stripe entries are provider-verified; custom entries are sender-reported.
-- The iOS History tab reads this API; sample revenue and the local test-ping action have been removed.
+- The Dashboard Payments section reads this API; sample revenue is not part of production behavior.
 - iOS asks for notification permission after a provider is connected, registers its APNs token through `POST /v1/devices`, refreshes it on launch, and removes the device on sign-out.
-- The UI reports payment pings as on only after both notification permission and backend device registration succeed. Simulator permission alone is not presented as a working push channel; production push acceptance uses a signed iPhone build.
+- The UI reports payment notifications as on only after both notification permission and backend device registration succeed. Simulator permission alone is not presented as a working push channel; production push acceptance uses a signed iPhone build.
 - Device tokens are never returned by a read API.
 
 ## Delivery
@@ -37,6 +37,7 @@ Custom notifications have a fixed `Cha-ching!` title. Their body is deterministi
 - Transient APNs failures retry; exhausted messages go to `cha-ching-notifications-dlq`.
 - Invalid APNs tokens are disabled. A stale in-progress claim can be reclaimed after five minutes.
 - Notification taps and foreground delivery trigger a fresh sales-history fetch.
+- Live and sample-based test notifications use the bundled cash-register sound by default. System mute, Focus, permission, and foreground-presentation rules remain controlled by iOS.
 
 ## Data retention
 

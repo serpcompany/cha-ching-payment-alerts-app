@@ -63,7 +63,7 @@ xcodebuild -project "Cha-Ching.xcodeproj" -scheme "Cha-Ching" \
 
 Keep the iPhone unlocked with Developer Mode enabled while installing. After
 launching, sign in with Apple and allow notifications. The Settings screen must
-say `Payment pings: On`; permission alone appears as `Waiting for device`.
+say `Payment notifications: On`; permission alone appears as `Waiting for device`.
 
 Confirm production registration without exposing the token:
 
@@ -84,7 +84,7 @@ register `production` tokens instead.
    production event destination.
 3. D1 contains one idempotent sale and one delivery for that device.
 4. APNs reports the delivery as sent, the phone shows the Cha-ching alert, and
-   the same sale appears in History.
+   the same payment appears in Dashboard → Payments.
 
 ## TestFlight archive note
 

@@ -9,10 +9,10 @@ A signed-in user can connect any store or payment system that can send JSON to a
 1. Tap **Connect another payment source** and give it a recognizable name.
 2. Copy either the private webhook URL or the ready-made **AI agent / developer** prompt. The prompt includes the URL, security rules, request contract, setup steps, test expectations, retry check, and completion checklist.
 3. Send one test event, then tap **Check connection** in Cha-Ching.
-4. Match Payment ID, Amount, and Currency. Optional history mappings are available in a collapsed disclosure instead of crowding the required setup.
-5. Tap **Customize notifications** to move to a separate **Notification settings** screen. Connecting the payment source and designing its notification are intentionally separate jobs.
+4. Tap **Customize notifications** to move to a separate **Notification settings** screen. Payment matching and notification design live there; the connection screen does not contain a separate **Match the payment** section.
+5. Confirm or adjust Payment ID, Amount, Currency, amount format, and optional history mappings in the notification-settings experience.
 6. Every observed scalar field appears once and starts on. The compact ordered list shows only the user-facing label, example value, and direct on/off switch. Tap a row to rename it, remap it, or move it; the technical source path appears only inside that detail screen.
-7. Tap **Preview notification** to review the exact multiline body, then activate the source from the preview.
+7. Tap **Preview notification** to review the exact multiline body. From that preview, **Test notification** sends the sample-based notification to the user's registered iPhone without creating a payment, and **Activate payment source** confirms the design.
 
 The sender owns the payload shape. Cha-Ching discovers every scalar value actually present in a valid sample payload up to 64 KiB and saves the user's mapping and notification design. A sample received during setup is never counted as revenue and never sends a notification. Changing a field toggle, label, mapping, or order invalidates the old preview, so activation always uses the design currently visible on screen.
 
@@ -23,11 +23,11 @@ The selected UI is Variant A from the throwaway [notification-settings prototype
 The MVP keeps payment-source connection and notification design as two distinct jobs:
 
 1. **Connect tab** — shows one card per custom source with its name and current setup, active, or paused status.
-2. **Payment-source setup** — creates the source, exposes the durable private URL and developer prompt, checks for a sample, and maps the required payment fields. Notification rows do not compete with these connection tasks.
-3. **Notification settings** — opens from the dedicated **Customize notifications** next step after Payment ID, Amount, and Currency are mapped. It shows the source as connected, one prominent preview action, and an ordered list containing every observed field exactly once.
+2. **Payment-source setup** — creates the source, exposes the durable private URL and developer instructions, and checks for a sample. It does not contain payment-field pickers or notification rows.
+3. **Notification settings** — opens from the dedicated **Customize notifications** next step after a sample is found. It owns both payment matching and notification design, shows the source as connected, provides preview and test actions, and contains an ordered list with every observed field exactly once.
 4. **Field row** — shows only the display label, sample value, disclosure indicator, and a direct on/off switch. The section header shows the current included count, such as **15 of 17 on**.
 5. **Edit detail** — tapping a row opens its focused editor. The user can show or hide the line, rename its display label, remap it to any observed payload field, inspect the example and technical path, move it earlier or later, and see that line's preview. The main list also supports drag reordering through **Edit**.
-6. **Notification preview** — shows an iPhone-style preview containing the exact title, line order, labels, and sample values that will be sent. **Activate payment source** lives here so activation is an explicit confirmation of the previewed design.
+6. **Notification preview** — shows an iPhone-style preview containing the exact title, line order, labels, and sample values that will be sent. **Test notification** sends that preview through APNs using the cash-register sound and reports whether a registered device accepted it. **Activate payment source** remains an explicit confirmation of the previewed design.
 7. **Active-source management** — reopening an activated source currently provides pause/resume, URL copy, developer-prompt copy, and explicit URL regeneration. Editing an already activated notification design is not part of the current MVP; configuration happens before activation.
 
 The notification screen deliberately avoids repeating technical source paths or a full preview beneath every row. Technical details are disclosed only when editing a field, and the complete notification appears in one dedicated preview. Build 7 does not include search or filtering; the compact ordered list is the current all-fields navigation model.
@@ -120,12 +120,14 @@ Because the developer prompt contains that private URL, it is also a secret. Sha
 - A valid mapping produces a preview before activation.
 - Every observed scalar field is present in the notification designer and starts enabled; the UI does not call this a catalog of every theoretically available sender field.
 - Connection setup and notification customization are separate screens connected by a clear **Customize notifications** next step.
+- The connection screen has no separate **Match the payment** section; required and optional payment mappings remain editable inside Notification settings.
 - The main notification list contains every observed field once, shows its display label and example value without a technical source path, and provides a direct on/off switch.
 - Tapping a notification row opens rename, remap, and ordering controls. Edit mode also supports drag reordering.
 - The exact full notification preview is available behind one tap instead of being duplicated inline with the field list.
 - Changing any mapping, label, toggle, order, or amount-format choice invalidates the preview; activation requires the exact mapping that was previewed.
 - The title is `Cha-ching!`, and each enabled structured field occupies exactly one ordered `{label}: {value}` line without combining meanings.
 - The preview body exactly matches the configured body handed to APNs for a live event.
+- An owner-authenticated test action sends the exact current preview to active registered devices, uses the bundled cash-register sound, and creates no payment or payment-history row.
 - Active retries are idempotent by the source-scoped mapped Payment ID.
 - Pausing and resuming does not replace the URL or erase history.
 - Oversized, malformed, or unmappable payloads do not create sales.
