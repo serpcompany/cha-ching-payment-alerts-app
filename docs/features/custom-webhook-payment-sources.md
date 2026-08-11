@@ -7,7 +7,7 @@ A signed-in user can connect any store or payment system that can send JSON to a
 ## Setup experience
 
 1. Tap **Connect another payment source** and give it a recognizable name.
-2. Copy either the private webhook URL or the ready-made **AI agent / developer** prompt. The prompt includes the URL, security rules, request contract, setup steps, test expectations, retry check, and completion checklist.
+2. Copy either the private webhook URL or **Copy instructions for developer**. The copied instructions include the URL, security rules, request contract, setup steps, test expectations, retry check, and completion checklist.
 3. Send one test event, then tap **Check connection** in Cha-Ching.
 4. Tap **Customize notifications** to move to a separate **Notification settings** screen. Payment matching and notification design live there; the connection screen does not contain a separate **Match the payment** section.
 5. Confirm or adjust Payment ID, Amount, Currency, amount format, and optional payment mappings in the notification-settings experience.
@@ -30,7 +30,7 @@ The MVP keeps payment-source connection and notification design as two distinct 
 6. **Notification preview and device test** — Preview notification shows an iPhone-style preview containing the exact title, line order, labels, and sample values that will be sent. The adjacent Test notification action sends that design through APNs using the cash-register sound and reports whether a registered device accepted it. **Activate payment source** remains an explicit confirmation of the previewed design.
 7. **Active-source management** — reopening an activated source currently provides pause/resume, URL copy, developer-prompt copy, and explicit URL regeneration. Editing an already activated notification design is not part of the current MVP; configuration happens before activation.
 
-The notification screen deliberately avoids repeating technical source paths or a full preview beneath every row. Technical details are disclosed only when editing a field, and the complete notification appears in one dedicated preview. Build 7 does not include search or filtering; the compact ordered list is the current all-fields navigation model.
+The notification screen deliberately avoids repeating technical source paths or a full preview beneath every row. Technical details are disclosed only when editing a field, and the complete notification appears in one dedicated preview. Build 8 does not include search or filtering; the compact ordered list is the current all-fields navigation model.
 
 ## Field vocabulary and notification contract
 
@@ -90,7 +90,7 @@ The webhook URL is random and stored with the payment source in D1. App builds, 
 
 The URL is itself the secret, following the familiar incoming-webhook setup model. It must be treated like a password and pasted only into the sending system's private webhook configuration.
 
-Because the developer prompt contains that private URL, it is also a secret. Share it only with the trusted developer or AI agent working on the sender's private backend. It must not be pasted into public chats, browser code, mobile code, source control, logs, or screenshots.
+Because the copied developer instructions contain that private URL, they are also a secret. Share them only with the trusted developer working on the sender's private backend. They must not be pasted into public chats, browser code, mobile code, source control, logs, or screenshots.
 
 ## Active and paused behavior
 
@@ -136,4 +136,4 @@ Because the developer prompt contains that private URL, it is also a secret. Sha
 
 Migrations `0005` through `0009` and Worker version `928ba03e-19e8-40c1-99d9-5e187fa1be41` were deployed on 2026-08-11 JST. The live `serp.store` source remains in setup and its encrypted sample was safely replaced with the 17-field fake payload above; production stayed at 11 sales and 11 deliveries. Migration `0009` adds the normalized notification-field snapshot used for custom pushes.
 
-TestFlight build `7` (`71ca13cd-9387-4fad-810e-e6555d788a74`) is `VALID` and `IN_BETA_TESTING` in the internal group **Cha-Ching Internal**. It contains the separate Variant A Notification settings screen, all-observed-fields list, direct field toggles, rename/remap/reorder editor, deterministic one-field-per-line body, and exact preview-before-activation flow. Final feature acceptance still requires opening the existing source on a signed iPhone, configuring and activating its sampled mapping, then replaying one real sender payment and observing one matching history item and notification.
+TestFlight build `8` (`64cc4d7f-2ee6-4fb7-81a8-d21b8561e51b`) is `VALID` and `IN_BETA_TESTING` in the internal group **Cha-Ching Internal**. It contains the separate Notification settings screen, all-observed-fields list, direct field toggles, rename/remap/reorder editor, deterministic one-field-per-line body, exact preview-before-activation flow, real sample-based test notification, cash-register sound, and redesigned Dashboard/navigation. Final custom-source acceptance still requires opening the existing source on a signed iPhone, testing its sampled notification, activating it, then replaying one real sender payment and observing one matching payment and notification.

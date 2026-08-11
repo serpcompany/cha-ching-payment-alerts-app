@@ -11,7 +11,7 @@ The live MVP proves secure identity, entitlement enforcement, payment-source lin
 - **User**: a person who signs in to Cha-Ching with Apple.
 - **Provider**: an external payment system supported by Cha-Ching. The MVP providers are Stripe and PayPal.
 - **Payment source**: any connected origin that can report payment data to Cha-Ching. A provider account is one kind of payment source; a custom webhook is another.
-- **Custom webhook**: a user-named payment source with a durable private URL. During setup it captures one encrypted sample so the user can map fields; after activation it creates normalized sales.
+- **Custom webhook**: a user-named payment source with a durable private URL. During setup it captures one encrypted sample so the user can map fields; after activation it creates normalized payments.
 - **Observed field**: a scalar path/value present in the current custom-webhook setup sample. It is not a claim about every field the sender could theoretically provide.
 - **Field catalog**: a future sender-declared list of available fields. It is not implemented in the MVP.
 - **Field mapping**: the user's ordered, saved choices for locating Payment ID, Amount, Currency, and notification display fields in a custom webhook payload.
@@ -29,17 +29,17 @@ The live MVP proves secure identity, entitlement enforcement, payment-source lin
 - A connection requires an enabled entitlement both when authorization begins and when it completes.
 - Sample data must not appear as production revenue.
 - A custom webhook URL remains stable across app and backend releases. Only the source owner's explicit regeneration invalidates it.
-- A paused payment source retains its URL, mapping, and history while ignoring new events.
+- A paused payment source retains its URL, mapping, and existing payments while ignoring new events.
 - Custom webhook samples are encrypted at rest and removed after activation.
-- Custom webhook sales are reported by whoever possesses the private URL; Cha-Ching does not represent them as provider-verified.
+- Custom-webhook payments are reported by whoever possesses the private URL; Cha-Ching does not represent them as provider-verified.
 - Custom notification previews and APNs bodies use the fixed title `Cha-ching!` and one ordered `{label}: {value}` line per enabled field. Different semantic fields are never combined into generated prose.
 - Payment notifications use the bundled cash-register sound by default. Foreground presentation still requests banner, sound, and badge behavior from iOS.
-- Connected Stripe and PayPal accounts can be paused without disconnecting; paused connections retain authorization and history while ignoring new payment events.
+- Connected Stripe and PayPal accounts can be paused without disconnecting; paused connections retain authorization and existing payments while ignoring new payment events.
 - A provider may be entitled but unavailable when its production credentials are not configured.
-- A provider connection does not imply that provider's sale-webhook path is supported.
+- A provider connection does not imply that provider's payment-webhook path is supported.
 - Stripe authorization must never include a write permission; the MVP reads only event and charge data.
 - Production Stripe connections must pass a live-mode API probe before their account ID is stored; sandbox installs are rejected.
-- Webhook retries must not create duplicate sales or duplicate completed notification deliveries.
+- Webhook retries must not create duplicate payments or duplicate completed notification deliveries.
 
 ## MVP success
 
