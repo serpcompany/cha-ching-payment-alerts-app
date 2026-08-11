@@ -2,5 +2,8 @@
   "name": "cha-ching-stripe-app",
   "version": "0.1.0",
   "private": true,
+  "scripts": {
+    "prototype:notifications": "python3 -m http.server 4173 --directory prototypes/notification-settings-prototype"
+  },
   "packageManager": "pnpm@10.15.0"
 }

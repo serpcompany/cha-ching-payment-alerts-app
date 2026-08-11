@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cha-Ching notification settings prototype</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #121b19;
+      --muted: #6f7976;
+      --line: #e3e8e6;
+      --canvas: #f3f6f5;
+      --card: #ffffff;
+      --green: #00a86b;
+      --green-dark: #007d50;
+      --green-soft: #e4f7ef;
+      --amber: #ffb344;
+      --shadow: 0 18px 45px rgba(18, 27, 25, .10);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 15% -5%, #d6f2e6 0, transparent 30rem),
+        var(--canvas);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .app-shell {
+      width: min(100%, 470px);
+      min-height: 100vh;
+      margin: 0 auto;
+      background: var(--canvas);
+      padding: 18px 18px 128px;
+    }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 22px; }
+    .back, .text-button {
+      border: 0; background: transparent; color: var(--green-dark); padding: 7px 0; font-weight: 650;
+    }
+    .source-pill {
+      display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700;
+      color: var(--green-dark); background: var(--green-soft); padding: 7px 10px; border-radius: 999px;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+    h1 { margin: 0; font-size: 31px; line-height: 1.08; letter-spacing: -.9px; }
+    h2 { margin: 0; font-size: 20px; letter-spacing: -.3px; }
+    h3 { margin: 0; font-size: 16px; }
+    p { margin: 0; }
+    .lede { margin-top: 8px; color: var(--muted); line-height: 1.45; font-size: 15px; }
+    .separate-note {
+      margin: 18px 0 20px; padding: 12px 14px; background: #fff; border: 1px solid var(--line);
+      border-radius: 14px; display: flex; align-items: center; gap: 11px; font-size: 13px; color: var(--muted);
+    }
+    .check {
+      display: grid; place-items: center; width: 25px; height: 25px; flex: 0 0 auto;
+      border-radius: 50%; color: white; background: var(--green); font-size: 14px; font-weight: 900;
+    }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 4px 16px rgba(18,27,25,.04); }
+    .section-head { display: flex; justify-content: space-between; align-items: end; margin: 24px 2px 10px; }
+    .count { color: var(--muted); font-size: 13px; }
+    .primary {
+      width: 100%; border: 0; border-radius: 15px; padding: 15px 18px; color: #fff;
+      background: var(--ink); font-weight: 750; box-shadow: 0 8px 22px rgba(18,27,25,.16);
+    }
+    .secondary {
+      border: 1px solid var(--line); color: var(--ink); background: white; border-radius: 13px;
+      padding: 11px 14px; font-weight: 680;
+    }
+    .notification {
+      padding: 15px 16px; background: rgba(255,255,255,.92); border: 1px solid rgba(255,255,255,.8);
+      border-radius: 22px; box-shadow: var(--shadow); backdrop-filter: blur(20px);
+    }
+    .notification-head { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
+    .app-icon {
+      display: grid; place-items: center; width: 31px; height: 31px; border-radius: 8px;
+      color: white; background: var(--green); font-weight: 900; font-size: 17px;
+    }
+    .notification-title { font-weight: 780; font-size: 14px; flex: 1; }
+    .notification-time { color: var(--muted); font-size: 12px; }
+    .notification-lines { display: grid; gap: 6px; font-size: 13px; line-height: 1.25; }
+    .notification-lines b { font-weight: 730; }
+    .preview-summary { display: flex; align-items: center; gap: 11px; padding: 14px 15px; }
+    .preview-summary-copy { min-width: 0; flex: 1; }
+    .preview-summary-copy strong { display: block; font-size: 15px; }
+    .preview-summary-copy small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .field-row { display: flex; align-items: center; gap: 11px; padding: 13px 14px; border-top: 1px solid var(--line); }
+    .field-row:first-child { border-top: 0; }
+    .field-main { min-width: 0; flex: 1; }
+    .field-label { font-size: 15px; font-weight: 720; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .field-value { margin-top: 3px; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .handle { color: #a5aeab; font-weight: 800; letter-spacing: -2px; }
+    .chevron { color: #a5aeab; font-size: 20px; }
+    .toggle { position: relative; width: 44px; height: 27px; flex: 0 0 auto; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle span { position: absolute; inset: 0; border-radius: 99px; background: #c8cfcd; transition: .18s; }
+    .toggle span::after {
+      content: ""; position: absolute; width: 23px; height: 23px; left: 2px; top: 2px;
+      border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.2); transition: .18s;
+    }
+    .toggle input:checked + span { background: var(--green); }
+    .toggle input:checked + span::after { transform: translateX(17px); }
+    .add-row { width: 100%; border: 0; border-top: 1px solid var(--line); background: white; color: var(--green-dark); padding: 15px; font-weight: 730; text-align: left; }
+    .helper { color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .prototype-switcher {
+      position: fixed; z-index: 20; left: 50%; bottom: 20px; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 8px; padding: 7px; border-radius: 999px;
+      color: #fff; background: #101817; box-shadow: 0 14px 40px rgba(0,0,0,.28);
+    }
+    .prototype-switcher button {
+      width: 39px; height: 39px; border: 0; border-radius: 50%; color: #fff; background: #2a3432;
+      font-size: 18px;
+    }
+    .prototype-label { width: 180px; text-align: center; font-size: 12px; font-weight: 740; }
+    .prototype-tag { display: block; color: #9eaaa6; font-size: 9px; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 2px; }
+
+    /* B — edit the notification itself */
+    .phone-stage {
+      margin-top: 18px; padding: 48px 15px 20px; border-radius: 30px;
+      background: linear-gradient(150deg, #a4d7c7, #5f887f 45%, #243c38); position: relative; overflow: hidden;
+    }
+    .phone-stage::before { content: "9:41"; position: absolute; top: 15px; left: 20px; color: white; font-weight: 760; font-size: 13px; }
+    .editable-line {
+      display: flex; gap: 5px; border-radius: 8px; padding: 5px 7px; margin: 0 -7px; border: 1px solid transparent;
+    }
+    .editable-line:hover, .editable-line.selected { border-color: var(--green); background: var(--green-soft); }
+    .tap-hint { text-align: center; color: rgba(255,255,255,.86); font-size: 12px; margin-top: 13px; }
+    .inspector { margin-top: 14px; padding: 17px; }
+    .inspector-empty { text-align: center; color: var(--muted); padding: 18px 8px; }
+    .form-label { display: block; margin: 13px 0 6px; color: var(--muted); font-size: 11px; font-weight: 760; text-transform: uppercase; letter-spacing: .8px; }
+    .input {
+      width: 100%; border: 1px solid var(--line); background: #f8faf9; border-radius: 11px; padding: 11px 12px; color: var(--ink);
+    }
+    .inspector-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .field-strip { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: none; }
+    .chip { white-space: nowrap; border: 1px solid var(--line); background: white; border-radius: 999px; padding: 9px 12px; color: var(--ink); font-size: 12px; font-weight: 680; }
+
+    /* C — progressive disclosure */
+    .steps { display: flex; align-items: center; gap: 8px; margin: 19px 0; }
+    .step { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; font-weight: 720; }
+    .step-number { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: #dfe5e3; }
+    .step.active { color: var(--ink); }
+    .step.active .step-number { color: white; background: var(--green); }
+    .step-line { flex: 1; height: 1px; background: #d6ddda; }
+    .category { margin-top: 12px; overflow: hidden; }
+    .category-title { padding: 13px 15px 8px; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; }
+    .choice-row { display: flex; align-items: center; gap: 11px; padding: 12px 15px; border-top: 1px solid var(--line); }
+    .choice-row:first-of-type { border-top: 0; }
+    .checkbox { width: 22px; height: 22px; accent-color: var(--green); }
+    .choice-copy { flex: 1; }
+    .choice-copy strong { display: block; font-size: 14px; }
+    .choice-copy small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }
+    .sticky-save {
+      position: sticky; bottom: 78px; margin-top: 20px; padding: 12px; border-radius: 18px;
+      background: rgba(243,246,245,.92); backdrop-filter: blur(16px);
+    }
+    .summary-line { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-bottom: 9px; }
+
+    @media (min-width: 720px) {
+      .app-shell { margin-top: 24px; min-height: calc(100vh - 48px); border-radius: 34px; box-shadow: var(--shadow); }
+    }
+  </style>
+</head>
+<body>
+  <main id="app"></main>
+  <nav class="prototype-switcher" aria-label="Prototype variants">
+    <button id="previous" aria-label="Previous variant">←</button>
+    <div class="prototype-label"><span class="prototype-tag">Throwaway prototype</span><span id="variant-label"></span></div>
+    <button id="next" aria-label="Next variant">→</button>
+  </nav>
+  <script>
+    // Three variants of the separate notification settings screen, switchable via ?variant=.
+    const variants = {
+      A: { name: "Ordered builder", render: renderA },
+      B: { name: "Edit the notification", render: renderB },
+      C: { name: "Guided two-step", render: renderC }
+    };
+    const fields = [
+      ["Buyer Email", "buyer@example.com", "Buyer"],
+      ["Checkout Country (IP)", "JP", "Buyer"],
+      ["Product", "Circle Video Downloader", "Purchase"],
+      ["Entitlement", "circle-video-downloader", "Purchase"],
+      ["Purchase Type", "Subscription", "Purchase"],
+      ["Sale Event", "New sale", "Purchase"],
+      ["Amount", "$9.00", "Purchase"],
+      ["Dub Affiliate ID", "pn_hasanul", "Attribution"],
+      ["UTM Source", "dub", "Attribution"],
+      ["UTM Medium", "affiliate", "Attribution"],
+      ["UTM Campaign", "summer-launch", "Attribution"],
+      ["UTM Term", "video downloader", "Attribution"],
+      ["UTM Content", "pricing-page", "Attribution"],
+      ["Paid At", "Aug 11, 2026 at 5:27 PM", "Purchase"],
+      ["Source Store", "serp.store", "Technical"],
+      ["Payment ID", "cs_live_123", "Technical"],
+      ["Currency", "USD", "Technical"]
+    ].map(([label, value, group], index) => ({ id: index, label, value, group, enabled: true }));
+    let selectedId = 2;
+
+    function shell(content) {
+      return `<div class="app-shell">
+        <div class="topbar"><button class="back">‹ SERP Store</button><span class="source-pill"><span class="dot"></span>Connected</span></div>
+        <h1>Notification settings</h1>
+        <p class="lede">Choose what a SERP Store payment looks like when it reaches your phone.</p>
+        <div class="separate-note"><span class="check">✓</span><span><b>Payment source connected.</b><br>Connection and notification setup are now separate.</span></div>
+        ${content}
+      </div>`;
+    }
+
+    function notificationLines(limit = 7, editable = false) {
+      return fields.filter(f => f.enabled).slice(0, limit).map(f =>
+        `<div class="${editable ? `editable-line ${selectedId === f.id ? "selected" : ""}` : ""}" ${editable ? `data-select="${f.id}"` : ""}><b>${f.label}:</b> <span>${f.value}</span></div>`
+      ).join("");
+    }
+
+    function notificationPreview(editable = false) {
+      return `<div class="notification">
+        <div class="notification-head"><span class="app-icon">$</span><span class="notification-title">Cha-ching!</span><span class="notification-time">now</span></div>
+        <div class="notification-lines">${notificationLines(editable ? 17 : 7, editable)}</div>
+      </div>`;
+    }
+
+    function compactRows(limit = 7) {
+      return fields.slice(0, limit).map(f => `<div class="field-row">
+        <span class="handle">☷</span>
+        <div class="field-main"><div class="field-label">${f.label}</div><div class="field-value">${f.value}</div></div>
+        <label class="toggle" aria-label="Show ${f.label}"><input data-toggle="${f.id}" type="checkbox" ${f.enabled ? "checked" : ""}><span></span></label>
+        <span class="chevron">›</span>
+      </div>`).join("");
+    }
+
+    function renderA() {
+      return shell(`
+        <button class="card preview-summary" style="width:100%;text-align:left">
+          <span class="app-icon">$</span><span class="preview-summary-copy"><strong>Preview notification</strong><small>Cha-ching! · ${fields.filter(f => f.enabled).length} details</small></span><span class="chevron">›</span>
+        </button>
+        <div class="section-head"><h2>Notification contents</h2><span class="count">${fields.filter(f => f.enabled).length} details</span></div>
+        <div class="card">${compactRows()}<button class="add-row">＋ Add or find a detail</button></div>
+        <p class="helper" style="margin:10px 4px 18px">Drag to reorder. Tap a detail to rename or change where its value comes from. Technical mapping stays out of this main list.</p>
+        <button class="primary">Save notification</button>
+      `);
+    }
+
+    function renderB() {
+      const selected = fields.find(f => f.id === selectedId);
+      return shell(`
+        <div class="phone-stage">${notificationPreview(true)}<div class="tap-hint">Tap any line to edit it</div></div>
+        <div class="card inspector">
+          <div style="display:flex;align-items:center;justify-content:space-between"><h2>${selected.label}</h2><label class="toggle"><input data-toggle="${selected.id}" type="checkbox" ${selected.enabled ? "checked" : ""}><span></span></label></div>
+          <label class="form-label">Label shown on phone</label><input class="input" value="${selected.label}">
+          <label class="form-label">Payment data</label><button class="input" style="text-align:left">${selected.value}<span style="float:right">›</span></button>
+          <div class="inspector-actions"><button class="secondary">Move up</button><button class="secondary">Move down</button><button class="secondary" style="margin-left:auto;color:#b33">Remove</button></div>
+        </div>
+        <div class="section-head"><h3>Add another detail</h3><span class="count">17 observed</span></div>
+        <div class="field-strip">${fields.slice(7).map(f => `<button class="chip">＋ ${f.label}</button>`).join("")}</div>
+        <button class="primary" style="margin-top:12px">Save notification</button>
+      `);
+    }
+
+    function group(name) {
+      const rows = fields.filter(f => f.group === name).map(f => `<label class="choice-row">
+        <input class="checkbox" data-toggle="${f.id}" type="checkbox" ${f.enabled ? "checked" : ""}>
+        <span class="choice-copy"><strong>${f.label}</strong><small>${f.value}</small></span>
+      </label>`).join("");
+      return `<div class="card category"><div class="category-title">${name}</div>${rows}</div>`;
+    }
+
+    function renderC() {
+      return shell(`
+        <div class="steps"><span class="step active"><span class="step-number">1</span>Choose details</span><span class="step-line"></span><span class="step"><span class="step-number">2</span>Arrange & rename</span></div>
+        <h2>What should the notification include?</h2>
+        <p class="lede">Pick the useful information first. Labels, order, and advanced mapping come next.</p>
+        ${group("Buyer")}${group("Purchase")}${group("Attribution")}${group("Technical")}
+        <div class="sticky-save"><div class="summary-line"><span>${fields.filter(f => f.enabled).length} of 17 selected</span><span>Step 1 of 2</span></div><button class="primary">Arrange & rename →</button></div>
+      `);
+    }
+
+    function currentKey() {
+      const value = new URLSearchParams(location.search).get("variant")?.toUpperCase();
+      return variants[value] ? value : "A";
+    }
+
+    function setVariant(key) {
+      const url = new URL(location.href);
+      url.searchParams.set("variant", key);
+      history.replaceState({}, "", url);
+      render();
+    }
+
+    function cycle(direction) {
+      const keys = Object.keys(variants);
+      const index = keys.indexOf(currentKey());
+      setVariant(keys[(index + direction + keys.length) % keys.length]);
+    }
+
+    function bindPrototypeActions() {
+      document.querySelectorAll("[data-toggle]").forEach(input => input.addEventListener("change", event => {
+        fields.find(f => f.id === Number(event.target.dataset.toggle)).enabled = event.target.checked;
+        render();
+      }));
+      document.querySelectorAll("[data-select]").forEach(line => line.addEventListener("click", () => {
+        selectedId = Number(line.dataset.select);
+        render();
+      }));
+    }
+
+    function render() {
+      const key = currentKey();
+      document.getElementById("app").innerHTML = variants[key].render();
+      document.getElementById("variant-label").textContent = `${key} — ${variants[key].name}`;
+      bindPrototypeActions();
+    }
+
+    document.getElementById("previous").addEventListener("click", () => cycle(-1));
+    document.getElementById("next").addEventListener("click", () => cycle(1));
+    addEventListener("keydown", event => {
+      const tag = document.activeElement?.tagName;
+      if (["INPUT", "TEXTAREA"].includes(tag) || document.activeElement?.isContentEditable) return;
+      if (event.key === "ArrowLeft") cycle(-1);
+      if (event.key === "ArrowRight") cycle(1);
+    });
+    addEventListener("popstate", render);
+    render();
+  </script>
+</body>
+</html>
