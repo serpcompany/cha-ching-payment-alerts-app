@@ -18,6 +18,20 @@ The sender owns the payload shape. Cha-Ching discovers every scalar value actual
 
 The selected UI is Variant A from the throwaway [notification-settings prototype](https://github.com/serpcompany/cha-ching/tree/prototype/notification-settings-variants/prototypes/notification-settings-prototype). The prototype branch records the design decision and is not merged into the product branch.
 
+## Screen model and interaction rules
+
+The MVP keeps payment-source connection and notification design as two distinct jobs:
+
+1. **Connect tab** — shows one card per custom source with its name and current setup, active, or paused status.
+2. **Payment-source setup** — creates the source, exposes the durable private URL and developer prompt, checks for a sample, and maps the required payment fields. Notification rows do not compete with these connection tasks.
+3. **Notification settings** — opens from the dedicated **Customize notifications** next step after Payment ID, Amount, and Currency are mapped. It shows the source as connected, one prominent preview action, and an ordered list containing every observed field exactly once.
+4. **Field row** — shows only the display label, sample value, disclosure indicator, and a direct on/off switch. The section header shows the current included count, such as **15 of 17 on**.
+5. **Edit detail** — tapping a row opens its focused editor. The user can show or hide the line, rename its display label, remap it to any observed payload field, inspect the example and technical path, move it earlier or later, and see that line's preview. The main list also supports drag reordering through **Edit**.
+6. **Notification preview** — shows an iPhone-style preview containing the exact title, line order, labels, and sample values that will be sent. **Activate payment source** lives here so activation is an explicit confirmation of the previewed design.
+7. **Active-source management** — reopening an activated source currently provides pause/resume, URL copy, developer-prompt copy, and explicit URL regeneration. Editing an already activated notification design is not part of the current MVP; configuration happens before activation.
+
+The notification screen deliberately avoids repeating technical source paths or a full preview beneath every row. Technical details are disclosed only when editing a field, and the complete notification appears in one dedicated preview. Build 7 does not include search or filtering; the compact ordered list is the current all-fields navigation model.
+
 ## Field vocabulary and notification contract
 
 - **Observed field** means a scalar path/value present in the setup sample. It does not mean every theoretical field the sender could provide.
@@ -118,4 +132,6 @@ Because the developer prompt contains that private URL, it is also a secret. Sha
 
 ## Production status
 
-Migrations `0005` through `0009` and Worker version `928ba03e-19e8-40c1-99d9-5e187fa1be41` were deployed on 2026-08-11 JST. The live `serp.store` source remains in setup and its encrypted sample was safely replaced with the 17-field fake payload above; production stayed at 11 sales and 11 deliveries. Migration `0009` adds the normalized notification-field snapshot used for custom pushes. TestFlight build `6` (`f08e77af-a753-4867-913d-6579a9f43ad5`) is still valid but predates the separate Variant A Notification settings screen and standardized multiline body; those iOS changes require the next TestFlight upload. Final acceptance requires opening the existing source on a signed iPhone, configuring and activating its sampled mapping, then replaying one real sender payment and observing one matching history item and notification.
+Migrations `0005` through `0009` and Worker version `928ba03e-19e8-40c1-99d9-5e187fa1be41` were deployed on 2026-08-11 JST. The live `serp.store` source remains in setup and its encrypted sample was safely replaced with the 17-field fake payload above; production stayed at 11 sales and 11 deliveries. Migration `0009` adds the normalized notification-field snapshot used for custom pushes.
+
+TestFlight build `7` (`71ca13cd-9387-4fad-810e-e6555d788a74`) is `VALID` and `IN_BETA_TESTING` in the internal group **Cha-Ching Internal**. It contains the separate Variant A Notification settings screen, all-observed-fields list, direct field toggles, rename/remap/reorder editor, deterministic one-field-per-line body, and exact preview-before-activation flow. Final feature acceptance still requires opening the existing source on a signed iPhone, configuring and activating its sampled mapping, then replaying one real sender payment and observing one matching history item and notification.
