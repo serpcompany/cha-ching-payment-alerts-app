@@ -4,6 +4,7 @@ import { decryptSecret, encryptSecret, randomToken, sha256 } from "./crypto";
 import { requireCustomSourceEntitlement } from "./entitlements";
 import type { Env } from "./env";
 import { enqueueSaleNotification } from "./notification-queue";
+import { formatMinorAmount, notificationFieldsBody } from "./notifications";
 
 export interface DiscoveredWebhookField {
   path: string;
@@ -21,6 +22,18 @@ export interface WebhookFieldMapping {
   productPath?: string;
   planPath?: string;
   saleTypePath?: string;
+  notificationFields?: NotificationFieldMapping[];
+}
+
+export interface NotificationFieldMapping {
+  id: string;
+  path: string;
+  label: string;
+  enabled: boolean;
+}
+
+export interface NotificationFieldPreview extends NotificationFieldMapping {
+  value: string;
 }
 
 export interface NormalizedCustomPayment {
@@ -164,7 +177,28 @@ function parseMapping(value: unknown): WebhookFieldMapping | null {
   const optionalPaths = ["currencyPath", "fixedCurrency", "occurredAtPath", "productPath", "planPath", "saleTypePath"];
   if (optionalPaths.some((key) => item[key] !== undefined && typeof item[key] !== "string")) return null;
   if (!item.currencyPath && !item.fixedCurrency) return null;
-  return item as unknown as WebhookFieldMapping;
+  let notificationFields: NotificationFieldMapping[] | undefined;
+  if (item.notificationFields !== undefined) {
+    if (!Array.isArray(item.notificationFields)) return null;
+    notificationFields = [];
+    const ids = new Set<string>();
+    for (const rawField of item.notificationFields) {
+      if (!rawField || typeof rawField !== "object") return null;
+      const field = rawField as Record<string, unknown>;
+      const id = typeof field.id === "string" ? field.id.trim() : "";
+      const path = typeof field.path === "string" ? field.path.trim() : "";
+      const label = typeof field.label === "string" ? field.label.trim() : "";
+      if (!id || id.length > 500 || ids.has(id)) return null;
+      if (!path.startsWith("/") || path.length > 500) return null;
+      if (typeof field.enabled !== "boolean" || label.length > 50 || (field.enabled && !label)) return null;
+      ids.add(id);
+      notificationFields.push({ id, path, label, enabled: field.enabled });
+    }
+  }
+  return {
+    ...(item as unknown as WebhookFieldMapping),
+    ...(notificationFields ? { notificationFields } : {}),
+  };
 }
 
 function serializedMapping(mapping: WebhookFieldMapping): string {
@@ -178,7 +212,45 @@ function serializedMapping(mapping: WebhookFieldMapping): string {
     ...(mapping.productPath ? { productPath: mapping.productPath } : {}),
     ...(mapping.planPath ? { planPath: mapping.planPath } : {}),
     ...(mapping.saleTypePath ? { saleTypePath: mapping.saleTypePath } : {}),
+    ...(mapping.notificationFields ? { notificationFields: mapping.notificationFields } : {}),
   });
+}
+
+function notificationFieldValue(
+  payload: unknown,
+  field: NotificationFieldMapping,
+  mapping: WebhookFieldMapping,
+  normalized: NormalizedCustomPayment,
+): string {
+  if (field.path === mapping.amountPath) {
+    return formatMinorAmount(normalized.amountMinor, normalized.currency);
+  }
+  if (field.path === mapping.currencyPath) return normalized.currency;
+  if (field.path === mapping.occurredAtPath) {
+    return new Date(normalized.occurredAt * 1_000).toISOString();
+  }
+  const value = valueAtPointer(payload, field.path);
+  if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") {
+    if (field.enabled) throw new Error(`Notification field ${field.label} is missing`);
+    return "";
+  }
+  return String(value).trim().slice(0, 200);
+}
+
+function previewNotificationFields(
+  payload: unknown,
+  mapping: WebhookFieldMapping,
+  normalized: NormalizedCustomPayment,
+): NotificationFieldPreview[] {
+  const fields = (mapping.notificationFields ?? []).map((field) => ({
+    ...field,
+    value: notificationFieldValue(payload, field, mapping, normalized),
+  }));
+  const body = notificationFieldsBody(fields.filter((field) => field.enabled)) || "Payment received.";
+  if (new TextEncoder().encode(body).byteLength > 3_000) {
+    throw new Error("Notification is too long. Turn off some fields or shorten their display names.");
+  }
+  return fields;
 }
 
 async function saveMapping(env: Env, auth: Auth, request: Request, sourceId: string): Promise<Response> {
@@ -208,6 +280,14 @@ async function saveMapping(env: Env, auth: Auth, request: Request, sourceId: str
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Invalid field mapping" }, { status: 422 });
   }
+  let notificationFields: NotificationFieldPreview[] | undefined;
+  try {
+    notificationFields = mapping.notificationFields
+      ? previewNotificationFields(payload, mapping, normalized)
+      : undefined;
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "Invalid notification fields" }, { status: 422 });
+  }
   await env.DB.prepare(
     "UPDATE custom_payment_sources SET mapping_json = ?1, sample_error = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?2 AND user_id = ?3",
   ).bind(serializedMapping(mapping), sourceId, user.id).run();
@@ -221,6 +301,10 @@ async function saveMapping(env: Env, auth: Auth, request: Request, sourceId: str
       plan: normalized.details.plan,
       saleType: normalized.details.saleType,
       isSubscription: normalized.isSubscription,
+      ...(notificationFields ? {
+        notificationFields,
+        notificationBody: notificationFieldsBody(notificationFields.filter((field) => field.enabled)) || "Payment received.",
+      } : {}),
     },
   });
 }
@@ -329,8 +413,14 @@ async function captureWebhookSample(env: Env, request: Request, token: string): 
   if (source.status === "active") {
     if (!source.mapping_json) return Response.json({ error: "Payment source mapping is missing" }, { status: 409 });
     let normalized: NormalizedCustomPayment;
+    let notificationFields: NotificationFieldPreview[] | undefined;
     try {
-      normalized = normalizeCustomPayment(payload, JSON.parse(source.mapping_json), source.name);
+      const mapping = parseMapping(JSON.parse(source.mapping_json));
+      if (!mapping) throw new Error("Payment source mapping is invalid");
+      normalized = normalizeCustomPayment(payload, mapping, source.name);
+      notificationFields = mapping.notificationFields
+        ? previewNotificationFields(payload, mapping, normalized)
+        : undefined;
     } catch (error) {
       return Response.json({ error: error instanceof Error ? error.message : "Payment could not be mapped" }, { status: 422 });
     }
@@ -341,8 +431,8 @@ async function captureWebhookSample(env: Env, request: Request, token: string): 
       `INSERT OR IGNORE INTO sales (
         id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
         amount_minor, currency, product_label, plan_label, sale_type_label,
-        country_code, is_subscription, occurred_at
-      ) VALUES (?1, ?2, 'custom', ?3, ?4, ?4, ?5, ?6, ?7, ?8, ?9, NULL, ?10, ?11)`,
+        country_code, is_subscription, occurred_at, notification_fields_json
+      ) VALUES (?1, ?2, 'custom', ?3, ?4, ?4, ?5, ?6, ?7, ?8, ?9, NULL, ?10, ?11, ?12)`,
     ).bind(
       saleId,
       source.user_id,
@@ -355,6 +445,11 @@ async function captureWebhookSample(env: Env, request: Request, token: string): 
       normalized.details.saleType,
       normalized.isSubscription ? 1 : 0,
       normalized.occurredAt,
+      notificationFields
+        ? JSON.stringify(notificationFields
+          .filter((field) => field.enabled)
+          .map(({ label, value }) => ({ label, value })))
+        : null,
     ).run();
     const queued = await enqueueSaleNotification(env, saleId);
     return Response.json({ received: true, duplicate: !queued }, { status: 202 });

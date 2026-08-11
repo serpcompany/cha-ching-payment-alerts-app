@@ -56,7 +56,7 @@ describe("delivery recovery", () => {
         `CREATE TABLE sales (
           id TEXT PRIMARY KEY, user_id TEXT, amount_minor INTEGER, currency TEXT,
           provider TEXT, product_label TEXT, plan_label TEXT, sale_type_label TEXT,
-          status TEXT
+          status TEXT, notification_fields_json TEXT
         )`,
       ).run();
       await db.prepare(
@@ -75,7 +75,7 @@ describe("delivery recovery", () => {
         )`,
       ).run();
       await db.prepare(
-        "INSERT INTO sales VALUES ('sale-stable', 'owner', 2700, 'USD', 'stripe', 'Stripe payment', NULL, NULL, 'succeeded')",
+        "INSERT INTO sales VALUES ('sale-stable', 'owner', 2700, 'USD', 'stripe', 'Stripe payment', NULL, NULL, 'succeeded', NULL)",
       ).run();
       await db.prepare(
         "INSERT INTO device_tokens VALUES ('device-stable', 'owner', 'apns-token', 'production', 'active', CURRENT_TIMESTAMP)",

@@ -14,6 +14,7 @@ interface NotificationSale {
   product_label: string;
   plan_label: string | null;
   sale_type_label: string | null;
+  notification_fields_json?: string | null;
 }
 
 interface SaleNotificationRow extends NotificationSale {
@@ -54,10 +55,34 @@ export function formatMinorAmount(amountMinor: number, currency: string): string
   return new Intl.NumberFormat("en-US", { style: "currency", currency: normalized }).format(amount);
 }
 
+export interface NotificationDisplayField {
+  label: string;
+  value: string;
+}
+
+export function notificationFieldsBody(fields: NotificationDisplayField[]): string {
+  return fields.map((field) => `${field.label}: ${field.value}`).join(" · ");
+}
+
 export function notificationBody(sale: NotificationSale): string {
   const amount = formatMinorAmount(sale.amount_minor, sale.currency);
   if (sale.provider !== "custom") {
     return `You received ${amount} through ${sale.provider === "stripe" ? "Stripe" : "PayPal"}.`;
+  }
+  if (sale.notification_fields_json) {
+    try {
+      const fields = JSON.parse(sale.notification_fields_json) as unknown;
+      if (Array.isArray(fields)) {
+        const valid = fields.filter((field): field is NotificationDisplayField => Boolean(
+          field && typeof field === "object"
+          && typeof (field as Record<string, unknown>).label === "string"
+          && typeof (field as Record<string, unknown>).value === "string"
+        ));
+        if (valid.length === fields.length) return notificationFieldsBody(valid) || "Payment received.";
+      }
+    } catch {
+      // Fall through to the legacy custom-sale format for old or malformed rows.
+    }
   }
   const details = [sale.plan_label, sale.sale_type_label].filter(Boolean).join(" · ");
   return `You received ${amount} for ${sale.product_label}.${details ? ` ${details}` : ""}`;
@@ -126,7 +151,7 @@ async function sendToDevice(
 async function deliverSale(env: Env, message: NotificationMessage): Promise<boolean> {
   const sale = await env.DB.prepare(
     `SELECT id, user_id, amount_minor, currency, provider, product_label,
-            plan_label, sale_type_label
+            plan_label, sale_type_label, notification_fields_json
      FROM sales WHERE id = ?1 AND status = 'succeeded'`,
   )
     .bind(message.saleId)

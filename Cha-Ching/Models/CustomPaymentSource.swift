@@ -53,6 +53,32 @@ struct WebhookField: Identifiable, Decodable, Hashable {
     }
 }
 
+struct WebhookNotificationField: Identifiable, Codable, Equatable {
+    let id: String
+    var path: String
+    var label: String
+    var enabled: Bool
+
+    static func defaults(from fields: [WebhookField]) -> [WebhookNotificationField] {
+        fields.map { field in
+            WebhookNotificationField(
+                id: field.path,
+                path: field.path,
+                label: defaultLabel(for: field.path),
+                enabled: true
+            )
+        }
+    }
+
+    private static func defaultLabel(for path: String) -> String {
+        let leaf = path.split(separator: "/").last.map(String.init) ?? path
+        return leaf
+            .replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
+            .localizedCapitalized
+    }
+}
+
 struct WebhookFieldMapping: Codable, Equatable {
     var paymentIdPath: String
     var amountPath: String
@@ -63,6 +89,53 @@ struct WebhookFieldMapping: Codable, Equatable {
     var productPath: String?
     var planPath: String?
     var saleTypePath: String?
+    var notificationFields: [WebhookNotificationField]
+
+    init(
+        paymentIdPath: String,
+        amountPath: String,
+        amountUnit: String,
+        currencyPath: String? = nil,
+        fixedCurrency: String? = nil,
+        occurredAtPath: String? = nil,
+        productPath: String? = nil,
+        planPath: String? = nil,
+        saleTypePath: String? = nil,
+        notificationFields: [WebhookNotificationField] = []
+    ) {
+        self.paymentIdPath = paymentIdPath
+        self.amountPath = amountPath
+        self.amountUnit = amountUnit
+        self.currencyPath = currencyPath
+        self.fixedCurrency = fixedCurrency
+        self.occurredAtPath = occurredAtPath
+        self.productPath = productPath
+        self.planPath = planPath
+        self.saleTypePath = saleTypePath
+        self.notificationFields = notificationFields
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case paymentIdPath, amountPath, amountUnit, currencyPath, fixedCurrency
+        case occurredAtPath, productPath, planPath, saleTypePath, notificationFields
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        paymentIdPath = try values.decode(String.self, forKey: .paymentIdPath)
+        amountPath = try values.decode(String.self, forKey: .amountPath)
+        amountUnit = try values.decode(String.self, forKey: .amountUnit)
+        currencyPath = try values.decodeIfPresent(String.self, forKey: .currencyPath)
+        fixedCurrency = try values.decodeIfPresent(String.self, forKey: .fixedCurrency)
+        occurredAtPath = try values.decodeIfPresent(String.self, forKey: .occurredAtPath)
+        productPath = try values.decodeIfPresent(String.self, forKey: .productPath)
+        planPath = try values.decodeIfPresent(String.self, forKey: .planPath)
+        saleTypePath = try values.decodeIfPresent(String.self, forKey: .saleTypePath)
+        notificationFields = try values.decodeIfPresent(
+            [WebhookNotificationField].self,
+            forKey: .notificationFields
+        ) ?? []
+    }
 }
 
 struct WebhookMappingSuggestions: Decodable {
@@ -97,6 +170,8 @@ struct CustomPaymentPreview: Decodable {
     let plan: String?
     let saleType: String?
     let isSubscription: Bool
+    let notificationFields: [WebhookNotificationFieldPreview]?
+    let notificationBody: String?
 
     var formattedAmount: String {
         let zeroDecimal = ["BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW", "MGA", "PYG", "RWF", "UGX", "VND", "VUV", "XAF", "XOF", "XPF"]
@@ -108,4 +183,12 @@ struct CustomPaymentPreview: Decodable {
         return formatter.string(from: NSNumber(value: Double(amountMinor) / pow(10, Double(exponent))))
             ?? "\(amountMinor) \(currency)"
     }
+}
+
+struct WebhookNotificationFieldPreview: Identifiable, Decodable, Hashable {
+    let id: String
+    let path: String
+    let label: String
+    let enabled: Bool
+    let value: String
 }

@@ -7,7 +7,7 @@
 | PayPal account connection | Implemented for sandbox, live approval pending | `provider-account-connections.md` |
 | Feature entitlements | Implemented | `entitlements.md` |
 | Stripe sale ingestion and pings | Real live Charge persisted and visibly notified on a signed iPhone | `sale-ingestion-and-pings.md` |
-| Custom webhook payment sources | Production Worker and TestFlight build 4 deployed; signed-device source acceptance pending | `custom-webhook-payment-sources.md` |
+| Custom webhook payment sources | Production Worker deployed; TestFlight build 6 includes all-fields notification designer; signed-device source acceptance pending | `custom-webhook-payment-sources.md` |
 | PayPal sale ingestion and pings | Not implemented | `sale-ingestion-and-pings.md` |
 
 “Implemented” describes repository behavior. “Live” requires the production checks tracked in [GitHub Issue #1](https://github.com/serpcompany/cha-ching/issues/1).

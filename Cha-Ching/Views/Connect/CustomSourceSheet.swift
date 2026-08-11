@@ -99,7 +99,7 @@ struct CustomSourceSheet: View {
         }
 
         if !fields.isEmpty {
-            Section("3. Match payment fields") {
+            Section("3. Match payment details") {
                 WebhookFieldPicker(title: "Payment ID", fields: fields, selection: $mapping.paymentIdPath)
                 WebhookFieldPicker(title: "Amount", fields: fields, selection: $mapping.amountPath)
                 Picker("Amount format", selection: $mapping.amountUnit) {
@@ -113,18 +113,38 @@ struct CustomSourceSheet: View {
                 WebhookFieldPicker(title: "Sale type (optional)", fields: fields, selection: optionalBinding($mapping.saleTypePath), allowsNone: true)
             }
 
-            Section("4. Preview and activate") {
+            Section("4. Choose notification fields") {
+                Text("Every field is shown by default. Turn off anything you don't want on your lock screen, rename its label, or choose a different data field.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                HStack {
+                    Button("Show all") { setAllNotificationFields(enabled: true) }
+                        .buttonStyle(.borderless)
+                    Spacer()
+                    Button("Hide all") { setAllNotificationFields(enabled: false) }
+                        .buttonStyle(.borderless)
+                }
+                ForEach($mapping.notificationFields) { $notificationField in
+                    WebhookNotificationFieldEditor(
+                        field: $notificationField,
+                        fields: fields
+                    )
+                }
+                Text("Enabled values are saved with the payment and may appear on the lock screen. Avoid customer, card, or other private fields.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("5. Preview and activate") {
                 actionButton("Preview notification", systemImage: "bell.badge") {
                     await previewMapping()
                 }
                 .disabled(!mappingIsComplete)
                 if let preview {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Cha-ching! \(preview.formattedAmount)")
+                        Text("Cha-ching!")
                             .font(.headline)
-                        Text([preview.productLabel, preview.plan, preview.saleType]
-                            .compactMap { $0 }
-                            .joined(separator: " · "))
+                        Text(preview.notificationBody ?? legacyPreviewBody(preview))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -191,6 +211,22 @@ struct CustomSourceSheet: View {
         !mapping.paymentIdPath.isEmpty
             && !mapping.amountPath.isEmpty
             && !(mapping.currencyPath ?? "").isEmpty
+            && mapping.notificationFields.allSatisfy {
+                !$0.enabled || (!$0.path.isEmpty && !$0.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+    }
+
+    private func setAllNotificationFields(enabled: Bool) {
+        for index in mapping.notificationFields.indices {
+            mapping.notificationFields[index].enabled = enabled
+        }
+    }
+
+    private func legacyPreviewBody(_ preview: CustomPaymentPreview) -> String {
+        let details = [preview.productLabel, preview.plan, preview.saleType]
+            .compactMap { $0 }
+            .joined(separator: " · ")
+        return "You received \(preview.formattedAmount)\(details.isEmpty ? "." : " for \(details).")"
     }
 
     private func actionButton(_ title: String, systemImage: String, action: @escaping () async -> Void) -> some View {
@@ -237,7 +273,12 @@ struct CustomSourceSheet: View {
     private func apply(_ detail: CustomSourceDetail) {
         source = detail.source
         fields = detail.sample?.fields ?? []
-        if let saved = detail.mapping { mapping = saved }
+        if let saved = detail.mapping {
+            mapping = saved
+            if mapping.notificationFields.isEmpty && !fields.isEmpty {
+                mapping.notificationFields = WebhookNotificationField.defaults(from: fields)
+            }
+        }
         else if let suggestions = detail.sample?.suggestions {
             mapping.paymentIdPath = suggestions.paymentIdPath ?? mapping.paymentIdPath
             mapping.amountPath = suggestions.amountPath ?? mapping.amountPath
@@ -246,6 +287,9 @@ struct CustomSourceSheet: View {
             mapping.productPath = suggestions.productPath
             mapping.planPath = suggestions.planPath
             mapping.saleTypePath = suggestions.saleTypePath
+            mapping.notificationFields = WebhookNotificationField.defaults(from: fields)
+        } else if !fields.isEmpty && mapping.notificationFields.isEmpty {
+            mapping.notificationFields = WebhookNotificationField.defaults(from: fields)
         }
         if let sampleError = detail.sample?.error { errorMessage = sampleError }
     }
@@ -277,6 +321,39 @@ struct CustomSourceSheet: View {
     private func regenerateURL() async {
         guard let id = source?.id else { return }
         await run { source = try await store.regenerateCustomSourceURL(id: id) }
+    }
+}
+
+private struct WebhookNotificationFieldEditor: View {
+    @Binding var field: WebhookNotificationField
+    let fields: [WebhookField]
+
+    private var selectedSample: WebhookField? {
+        fields.first { $0.path == field.path }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Toggle(isOn: $field.enabled) {
+                Text(field.label.isEmpty ? "Unnamed field" : field.label)
+                    .fontWeight(.semibold)
+            }
+            TextField("Display name", text: $field.label)
+            Picker("Data field", selection: $field.path) {
+                ForEach(fields) { option in
+                    Text("\(option.label): \(option.value.displayValue.prefix(30))")
+                        .tag(option.path)
+                }
+            }
+            if let selectedSample {
+                Text("Sample: \(selectedSample.value.displayValue)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .contain)
     }
 }
 

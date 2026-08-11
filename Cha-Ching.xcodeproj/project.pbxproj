@@ -25,6 +25,7 @@
 		869FC8CAC123C3A8C732E633 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 14CD4631A44997104C853CB0 /* Assets.xcassets */; };
 		8DC3CF4F0C9989CBD83F8A36 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BEAE7900E64409AE45942B /* HomeView.swift */; };
 		991C548A38405CB88DC6704C /* ConnectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0867D67A73EEC4496B1399C /* ConnectStore.swift */; };
+		A18C3C775864A1B0EB0A332C /* WebhookNotificationDesignerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */; };
 		AF01ED49D8033099991F6BBF /* CustomWebhookDeveloperPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = C702CA5FCE9B85FA055A62E1 /* CustomWebhookDeveloperPrompt.swift */; };
 		B15D512565372F588A4ED383 /* SalesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9ABCE1E07393E5E7E9E2C3 /* SalesStore.swift */; };
 		BE62FAE52D0FD8AA9A9CB0EF /* ProviderWebAuthenticationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6F6855FD89FDB53F76A4457 /* ProviderWebAuthenticationSession.swift */; };
@@ -62,6 +63,7 @@
 		C6F6855FD89FDB53F76A4457 /* ProviderWebAuthenticationSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderWebAuthenticationSession.swift; sourceTree = "<group>"; };
 		C702CA5FCE9B85FA055A62E1 /* CustomWebhookDeveloperPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomWebhookDeveloperPrompt.swift; sourceTree = "<group>"; };
 		C8764F36998B956216842955 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookNotificationDesignerTests.swift; sourceTree = "<group>"; };
 		D115B8103FF1439A0C2E6D3D /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		D5BEAE7900E64409AE45942B /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		E4843FB418816E521C2646A0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -120,6 +122,7 @@
 			isa = PBXGroup;
 			children = (
 				7996CF08A2EAA4E22A254C26 /* CustomWebhookDeveloperPromptTests.swift */,
+				CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */,
 			);
 			path = "Cha-ChingTests";
 			sourceTree = "<group>";
@@ -287,6 +290,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				63FF238A5F0308F390742C0F /* CustomWebhookDeveloperPromptTests.swift in Sources */,
+				A18C3C775864A1B0EB0A332C /* WebhookNotificationDesignerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -394,7 +398,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 847HR8U8D9;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -459,7 +463,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 847HR8U8D9;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

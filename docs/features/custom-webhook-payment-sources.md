@@ -10,9 +10,10 @@ A signed-in user can connect any store or payment system that can send JSON to a
 2. Copy either the private webhook URL or the ready-made **AI agent / developer** prompt. The prompt includes the URL, security rules, request contract, setup steps, test expectations, retry check, and completion checklist.
 3. Send one test event, then tap **Check connection** in Cha-Ching.
 4. Match the discovered fields to Payment ID, Amount, Currency, and optional Time, Product, Plan, and Sale type.
-5. Preview the notification and activate the source.
+5. Customize the notification. Every discovered field appears and starts on. Each row can be toggled on or off, given a friendlier display name, or remapped to another discovered field. **Show all** and **Hide all** make bulk changes quick.
+6. Review the exact notification body and activate the source.
 
-The sender owns the payload shape. Cha-Ching discovers every scalar value in a valid payload up to 64 KiB and saves the user's mapping. A sample received during setup is never counted as revenue and never sends a notification.
+The sender owns the payload shape. Cha-Ching discovers every scalar value in a valid payload up to 64 KiB and saves the user's mapping and notification design. A sample received during setup is never counted as revenue and never sends a notification. Changing a field toggle, label, or mapping invalidates the old preview, so activation always uses the design currently visible on screen.
 
 ## URL lifecycle
 
@@ -36,7 +37,8 @@ Because the developer prompt contains that private URL, it is also a secret. Sha
 - Setup samples use the existing versioned AES-256-GCM Worker encryption key.
 - The sample is deleted when the source is activated.
 - Active raw payloads are never persisted.
-- Only normalized sale fields enter history.
+- Only normalized sale fields and the enabled notification label/value pairs enter history.
+- Enabled fields can appear on the iPhone lock screen. The designer warns the user to hide private fields before activation.
 - Custom sales are sender-reported. The private URL authenticates the sender but does not provide independent payment-provider verification.
 - Malformed JSON is reported as a setup error; active payloads missing a required mapped value are rejected.
 
@@ -47,11 +49,14 @@ Because the developer prompt contains that private URL, it is also a secret. Sha
 - The app can copy a self-contained developer handoff containing the source name, exact private URL, security boundary, JSON contract, sample payload, setup sequence, expected responses, duplicate-retry check, and completion checklist.
 - Setup samples expose selectable scalar paths and values without affecting history or notifications.
 - A valid mapping produces a preview before activation.
-- Changing any mapping or amount-format choice invalidates the preview; activation requires the exact mapping that was previewed.
+- Every discovered scalar field is available in the notification designer and starts enabled.
+- Each notification field can be toggled, renamed, and remapped; Show all and Hide all update every row.
+- Changing any mapping, label, toggle, or amount-format choice invalidates the preview; activation requires the exact mapping that was previewed.
+- The preview body exactly matches the configured body handed to APNs for a live event.
 - Active retries are idempotent by the source-scoped mapped Payment ID.
 - Pausing and resuming does not replace the URL or erase history.
 - Oversized, malformed, or unmappable payloads do not create sales.
 
 ## Production status
 
-Migrations `0005` through `0008` and Worker version `dfb64838-e4f8-44bd-a24f-b928d0c8b2d8` were deployed on 2026-08-11 JST. Existing production users, connections, Stripe events, sales, and notification deliveries were preserved. TestFlight build `5` (`5c34eebf-3352-4b1a-8c42-bcc97a043b95`) is valid and in internal beta testing with this UI and the copyable developer handoff. Final acceptance requires creating a source on a signed iPhone, receiving a real sender sample, activating its mapping, and observing one live history item and notification.
+Migrations `0005` through `0009` and Worker version `07d06a42-bc6a-4ac4-b008-cddac43f4af9` were deployed on 2026-08-11 JST. Existing production users, the setup source and encrypted sample, seven prior sales, and notification deliveries were preserved. Migration `0009` adds the normalized notification-field snapshot used for custom pushes. TestFlight build `6` (`f08e77af-a753-4867-913d-6579a9f43ad5`) is valid and contains the all-fields notification designer. Final acceptance requires opening the existing source on a signed iPhone, configuring and activating its sampled mapping, then replaying one real sender payment and observing one matching history item and notification.

@@ -33,10 +33,11 @@ A connected provider's `is_active` flag is checked before sale insertion. Pausin
 
 1. An entitled, authenticated user names a payment source. The Worker generates a random private URL token, stores its hash for lookup, and stores an encrypted copy so the same URL can be shown again.
 2. While the source is in setup, `POST /v1/webhooks/custom/:token` encrypts one JSON sample. Samples never create sales or notifications.
-3. iOS checks the connection, displays every scalar field path and value in the bounded payload, and lets the user map Payment ID, Amount, Currency, and optional notification fields.
-4. The Worker validates the mapping against the sample and returns a normalized preview. Activation requires the exact previewed mapping and deletes the encrypted sample.
-5. An active source normalizes incoming JSON with the saved mapping, hashes the complete source-scoped Payment ID, inserts one D1 sale, and queues one notification. Retries with the same full mapped Payment ID are ignored.
-6. A paused source acknowledges and ignores new events while retaining its URL, mapping, and history.
+3. iOS checks the connection, displays every scalar field path and value in the bounded payload, and lets the user map Payment ID, Amount, Currency, and optional history fields.
+4. A notification designer creates one initially enabled row for every discovered field. The user can show or hide each row, rename its display label, and remap it to any discovered path.
+5. The Worker validates the complete mapping against the sample and returns the exact normalized notification preview. Activation requires that exact previewed mapping and deletes the encrypted sample.
+6. An active source normalizes incoming JSON with the saved mapping, hashes the complete source-scoped Payment ID, stores only the enabled notification label/value pairs with the sale, and queues one notification. Retries with the same full mapped Payment ID are ignored.
+7. A paused source acknowledges and ignores new events while retaining its URL, mapping, and history.
 
 ## Security invariants
 
@@ -51,6 +52,6 @@ A connected provider's `is_active` flag is checked before sale insertion. Pausin
 - A sandbox Stripe account cannot be stored by a production callback, even though sandbox and live identifiers share the `acct_` format.
 - Provider event IDs, payment IDs, and notification deliveries are unique so retries are idempotent.
 - Custom webhook tokens have 256 bits of entropy. D1 uses their SHA-256 hashes for public request lookup; encrypted token copies are returned only through owner-authenticated APIs.
-- Custom payloads are limited to 64 KiB. Setup samples are encrypted at rest, never logged, and removed on activation; active payloads are normalized without storing the original JSON.
+- Custom payloads are limited to 64 KiB. Setup samples are encrypted at rest, never logged, and removed on activation; active payloads are normalized without storing the original JSON. Only enabled notification labels and values are retained with a sale.
 - A custom URL authenticates its sender but does not independently verify the truth of the reported sale.
 - APNs device tokens are user-scoped, revocable at sign-out, and invalidated after Apple rejects them.

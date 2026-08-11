@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { generateKeyPairSync } from "node:crypto";
 
 import { Miniflare } from "miniflare";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,6 +9,7 @@ import type { Auth } from "../src/auth";
 import { sha256 } from "../src/crypto";
 import { handleCustomSourceRequest } from "../src/custom-webhooks";
 import type { Env } from "../src/env";
+import { processNotificationBatch } from "../src/notifications";
 import { listSales } from "../src/sales";
 
 const encryptionKey = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
@@ -35,7 +37,7 @@ describe("custom payment source HTTP API", () => {
       d1Databases: ["DB"],
     });
     const db = await miniflare.getD1Database("DB");
-    for (const migration of ["0001_initial.sql", "0002_sales_and_notifications.sql", "0003_anonymous_simulator_user.sql", "0004_nullable_provider_access_token.sql", "0005_custom_payment_sources.sql", "0006_provider_connection_activity.sql", "0007_provider_event_disposition.sql", "0008_notification_queue_claims.sql"]) {
+    for (const migration of ["0001_initial.sql", "0002_sales_and_notifications.sql", "0003_anonymous_simulator_user.sql", "0004_nullable_provider_access_token.sql", "0005_custom_payment_sources.sql", "0006_provider_connection_activity.sql", "0007_provider_event_disposition.sql", "0008_notification_queue_claims.sql", "0009_custom_notification_fields.sql"]) {
       const statements = (await readFile(join(process.cwd(), "migrations", migration), "utf8"))
         .replace(/--.*$/gm, "")
         .split(";")
@@ -230,6 +232,153 @@ describe("custom payment source HTTP API", () => {
       new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
     );
     expect((await check.json<{ sample: unknown }>()).sample).toBeNull();
+  });
+
+  it("previews every configured notification field with its label, visibility, and remapped value", async () => {
+    const create = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/custom-sources", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "SERP Store" }),
+      }),
+    );
+    const created = await create.json<{ source: { id: string; webhookUrl: string } }>();
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify({
+        payment: {
+          id: "cs_live_123",
+          amount_minor: 900,
+          currency: "USD",
+          occurred_at: "2026-08-11T08:27:14Z",
+        },
+        product: { name: "SERP App Plan", intended_product: "Video Downloader" },
+        sale_type: "new_buy",
+        source_store: "serp.store",
+      }),
+    }));
+    const mapping = {
+      paymentIdPath: "/payment/id",
+      amountPath: "/payment/amount_minor",
+      amountUnit: "minor",
+      currencyPath: "/payment/currency",
+      occurredAtPath: "/payment/occurred_at",
+      productPath: "/product/intended_product",
+      planPath: "/product/name",
+      saleTypePath: "/sale_type",
+      notificationFields: [
+        { id: "paid", path: "/payment/amount_minor", label: "Paid", enabled: true },
+        { id: "currency".repeat(30), path: "/payment/currency", label: "", enabled: false },
+        { id: "product", path: "/product/intended_product", label: "App", enabled: true },
+        { id: "store", path: "/source_store", label: "Store", enabled: true },
+      ],
+    };
+
+    const preview = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}/mapping`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(mapping),
+      }),
+    );
+
+    expect(preview.status).toBe(200);
+    expect((await preview.json<{ preview: unknown }>()).preview).toEqual(expect.objectContaining({
+      notificationFields: [
+        { id: "paid", path: "/payment/amount_minor", label: "Paid", enabled: true, value: "$9.00" },
+        { id: "currency".repeat(30), path: "/payment/currency", label: "", enabled: false, value: "USD" },
+        { id: "product", path: "/product/intended_product", label: "App", enabled: true, value: "Video Downloader" },
+        { id: "store", path: "/source_store", label: "Store", enabled: true, value: "serp.store" },
+      ],
+      notificationBody: "Paid: $9.00 · App: Video Downloader · Store: serp.store",
+    }));
+  });
+
+  it("delivers a live custom payment using only the activated labels and visible fields", async () => {
+    const { privateKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
+    Object.assign(env, {
+      APNS_KEY_ID: "TESTKEY",
+      APPLE_TEAM_ID: "TESTTEAM",
+      APNS_BUNDLE_ID: "com.example.chaching",
+      APNS_PRIVATE_KEY: privateKey.export({ format: "pem", type: "pkcs8" }).toString(),
+    });
+    await env.DB.prepare(
+      `INSERT INTO device_tokens (id, user_id, device_id, token, environment, status)
+       VALUES ('device-custom-fields', 'user-one', 'iphone-custom-fields', 'apns-token', 'production', 'active')`,
+    ).run();
+    const create = await handleCustomSourceRequest(env, authFor("user-one"), new Request(
+      "https://api.cha-ching.test/v1/custom-sources",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "SERP Store" }),
+      },
+    ));
+    const created = await create.json<{ source: { id: string; webhookUrl: string } }>();
+    const payment = {
+      payment: { id: "serp-order-123", amount_minor: 900, currency: "USD" },
+      product: { name: "SERP App Plan", intended_product: "Video Downloader" },
+      sale_type: "new_buy",
+      source_store: "serp.store",
+    };
+    const mapping = {
+      paymentIdPath: "/payment/id",
+      amountPath: "/payment/amount_minor",
+      amountUnit: "minor",
+      currencyPath: "/payment/currency",
+      productPath: "/product/intended_product",
+      planPath: "/product/name",
+      saleTypePath: "/sale_type",
+      notificationFields: [
+        { id: "paid", path: "/payment/amount_minor", label: "Paid", enabled: true },
+        { id: "currency", path: "/payment/currency", label: "Currency", enabled: false },
+        { id: "product", path: "/product/intended_product", label: "App", enabled: true },
+        { id: "store", path: "/source_store", label: "Store", enabled: true },
+      ],
+    };
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify(payment),
+    }));
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(
+      `https://api.cha-ching.test/v1/custom-sources/${created.source.id}/mapping`,
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(mapping) },
+    ));
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(
+      `https://api.cha-ching.test/v1/custom-sources/${created.source.id}/activate`,
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(mapping) },
+    ));
+
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify(payment),
+    }));
+    expect(sent).toHaveLength(1);
+    const apnsBodies: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      apnsBodies.push(JSON.parse(String(init?.body)));
+      return new Response(null, { status: 200 });
+    }));
+    const ack = vi.fn();
+    await processNotificationBatch(env, {
+      messages: [{ body: sent[0], ack, retry: vi.fn() }],
+    } as unknown as MessageBatch<{ saleId: string }>);
+
+    expect(apnsBodies).toEqual([
+      expect.objectContaining({
+        aps: expect.objectContaining({
+          alert: {
+            title: "Cha-ching!",
+            body: "Paid: $9.00 · App: Video Downloader · Store: serp.store",
+          },
+        }),
+      }),
+    ]);
+    expect(ack).toHaveBeenCalledOnce();
   });
 
   it("rejects unsafe numeric payment IDs with guidance to map a lossless string field", async () => {
