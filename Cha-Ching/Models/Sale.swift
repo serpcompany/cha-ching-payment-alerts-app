@@ -73,6 +73,11 @@ enum SaleSource: String, Codable, Hashable {
     }
 }
 
+struct SaleDetail: Codable, Hashable {
+    let label: String
+    let value: String
+}
+
 struct Sale: Identifiable, Hashable {
     let id: String
     let product: String
@@ -82,6 +87,29 @@ struct Sale: Identifiable, Hashable {
     let date: Date
     let isSubscription: Bool
     let countryCode: String?
+    let details: [SaleDetail]
+
+    init(
+        id: String,
+        product: String,
+        amountMinor: Int,
+        currency: String,
+        source: SaleSource,
+        date: Date,
+        isSubscription: Bool,
+        countryCode: String?,
+        details: [SaleDetail] = []
+    ) {
+        self.id = id
+        self.product = product
+        self.amountMinor = amountMinor
+        self.currency = currency
+        self.source = source
+        self.date = date
+        self.isSubscription = isSubscription
+        self.countryCode = countryCode
+        self.details = details
+    }
 
     var amount: Double {
         Double(amountMinor) / pow(10, Double(currencyExponent))

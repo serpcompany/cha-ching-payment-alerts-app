@@ -20,7 +20,7 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 - **Connected processors** is removed; connection status belongs in **Connect**.
 - **Recent pings** becomes **Payments**.
 - The empty state says **No payments yet** and explains that a payment will appear when one arrives.
-- Payment rows and details continue to use the D1-backed sales API; this is a language and information-architecture change, not a second data source.
+- Payment rows and details continue to use the D1-backed sales API. A custom payment detail shows the saved enabled label/value fields in their configured order; Stripe payments retain the normalized fallback details.
 - If Payments cannot refresh, already-loaded payments stay visible. A compact inline message says **Payments couldn't refresh.**, offers **Retry** and **Dismiss**, and clears automatically after a successful refresh.
 - Automatic foreground, notification-triggered, and pull-to-refresh callers share one in-flight Payments request. A canceled or superseded caller does not flash a false connectivity error while the shared request is still succeeding.
 
@@ -40,7 +40,7 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 - Payment pushes do not set a synthetic unread badge. Opening or returning to Cha-Ching, including by pressing a notification, clears any badge left by an older build.
 - If the user's device is muted, Focus blocks the alert, notification permission is off, or iOS suppresses sound, Cha-Ching cannot override that system behavior.
 - While Cha-Ching is open, the app requests Apple's real banner, list, sound, and badge presentation. It does not automatically substitute an in-app sheet.
-- Apple controls the abbreviated foreground and lock-screen layout and documents it as title, subtitle, and two to four body lines. Pressing the notification opens Cha-Ching's full, scrollable detail sheet containing every selected structured line, whether Cha-Ching was open, backgrounded, or not running.
+- Apple controls the abbreviated foreground and lock-screen layout and documents it as title, subtitle, and two to four body lines. Pressing a real payment notification selects Dashboard and opens that D1-backed payment detail, whether Cha-Ching was open, backgrounded, or not running. A setup test notification has no payment and therefore keeps the standalone preview sheet.
 - **Test lock screen** schedules the sample from the Worker through Cloudflare Queue with a short delay, then tells the user to lock the phone. Because the Worker owns the delay, locking the app cannot suspend the outgoing request.
 
 ## Acceptance criteria
@@ -53,6 +53,6 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 - A Payments refresh failure is actionable and dismissible and does not erase previously loaded payments.
 - Pulling to refresh while another automatic refresh is active does not issue duplicate requests or briefly show a false failure card.
 - Settings contains a working Payment notifications toggle and Sign out, with no Plan access section.
-- A foreground sample push is a genuine Apple banner. Pressing either a foreground or lock-screen notification safely launches or resumes Cha-Ching and exposes every selected line in its scrollable detail presentation; a lock-screen test is queued only after the server accepts the delayed request.
+- A foreground sample push is a genuine Apple banner and opens its standalone preview after a press. Pressing a real payment notification safely launches or resumes Cha-Ching, selects Dashboard, and opens the matching payment with every saved configured detail; a lock-screen test is queued only after the server accepts the delayed request.
 - The compiled app includes matching dollar-symbol app-icon and BrandMark assets.
 - The compiled app bundle includes the named cash-register sound used by both live and test APNs payloads.

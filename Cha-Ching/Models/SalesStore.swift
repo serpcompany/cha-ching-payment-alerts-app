@@ -14,6 +14,7 @@ private struct SaleResponse: Decodable {
     let countryCode: String?
     let isSubscription: Bool
     let occurredAt: String
+    let notificationFields: [SaleDetail]?
 }
 
 struct SalesClient: Sendable {
@@ -22,6 +23,14 @@ struct SalesClient: Sendable {
     static let live = SalesClient(load: {
         guard APIClient.shared.hasAuthToken else { return [] }
         let response: SalesResponse = try await APIClient.shared.get("/v1/sales")
+        return payments(from: response)
+    })
+
+    static func decode(_ data: Data) throws -> [Sale] {
+        payments(from: try JSONDecoder().decode(SalesResponse.self, from: data))
+    }
+
+    private static func payments(from response: SalesResponse) -> [Sale] {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return response.sales.compactMap { row in
@@ -34,10 +43,11 @@ struct SalesClient: Sendable {
                 source: row.provider,
                 date: date,
                 isSubscription: row.isSubscription,
-                countryCode: row.countryCode
+                countryCode: row.countryCode,
+                details: row.notificationFields ?? []
             )
         }
-    })
+    }
 }
 
 @MainActor

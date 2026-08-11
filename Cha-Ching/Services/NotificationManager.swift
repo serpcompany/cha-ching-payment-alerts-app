@@ -53,17 +53,35 @@ enum PaymentNotificationPresentation {
     static let showsFullDetailsAfterTap = true
 }
 
+enum PaymentNotificationDestination: Equatable, Sendable {
+    case dashboardPayment(id: String)
+    case preview(ForegroundPaymentNotification)
+}
+
 enum PaymentNotificationResponseRouter {
+    static func destination(
+        userInfo: [AnyHashable: Any],
+        title: String,
+        body: String
+    ) -> PaymentNotificationDestination {
+        if let saleID = userInfo["saleId"] as? String, !saleID.isEmpty {
+            return .dashboardPayment(id: saleID)
+        }
+        return .preview(ForegroundPaymentNotification(title: title, body: body))
+    }
+
     static func route(
+        userInfo: [AnyHashable: Any] = [:],
         title: String,
         body: String,
         clearBadge: @escaping @MainActor @Sendable () -> Void = {},
-        onOpen: @escaping @MainActor @Sendable (ForegroundPaymentNotification) -> Void,
+        onOpen: @escaping @MainActor @Sendable (PaymentNotificationDestination) -> Void,
         completion: @escaping @Sendable () -> Void
     ) {
+        let destination = destination(userInfo: userInfo, title: title, body: body)
         DispatchQueue.main.async {
             clearBadge()
-            onOpen(ForegroundPaymentNotification(title: title, body: body))
+            onOpen(destination)
             completion()
         }
     }
@@ -79,6 +97,7 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     @Published private(set) var paymentNotificationsEnabled: Bool
     @Published private(set) var isUpdatingPaymentNotifications = false
     @Published private(set) var foregroundNotification: ForegroundPaymentNotification?
+    @Published private(set) var openedSaleID: String?
 
     var isAuthorized: Bool {
         authorizationStatus == .authorized || authorizationStatus == .provisional
@@ -214,6 +233,10 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         foregroundNotification = nil
     }
 
+    func consumeOpenedSale(_ id: String) {
+        if openedSaleID == id { openedSaleID = nil }
+    }
+
     func clearAppBadge() {
         Task {
             try? await center.setBadgeCount(0)
@@ -263,13 +286,17 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     ) {
         let content = response.notification.request.content
         PaymentNotificationResponseRouter.route(
+            userInfo: content.userInfo,
             title: content.title,
             body: content.body,
             clearBadge: { [weak self] in self?.clearAppBadge() },
-            onOpen: { [weak self] notification in
+            onOpen: { [weak self] destination in
                 guard let self else { return }
                 NotificationCenter.default.post(name: .chaChingSaleReceived, object: nil)
-                if PaymentNotificationPresentation.showsFullDetailsAfterTap {
+                switch destination {
+                case let .dashboardPayment(id):
+                    openedSaleID = id
+                case let .preview(notification):
                     foregroundNotification = notification
                 }
             },

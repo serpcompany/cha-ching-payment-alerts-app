@@ -170,6 +170,63 @@ describe("custom payment source HTTP API", () => {
     expect(sent).toEqual([]);
   });
 
+  it("updates only the active source notification presentation for future payments", async () => {
+    const create = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/custom-sources", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "My checkout" }),
+      }),
+    );
+    const created = await create.json<{ source: { id: string; webhookUrl: string } }>();
+    const mapping = {
+      paymentIdPath: "/payment/id",
+      amountPath: "/payment/amount_minor",
+      amountUnit: "minor",
+      currencyPath: "/payment/currency",
+      notificationFields: [
+        { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: true },
+        { id: "buyer", path: "/buyer/email", label: "Buyer", enabled: true },
+      ],
+    };
+    await env.DB.prepare(
+      "UPDATE custom_payment_sources SET status = 'active', mapping_json = ?1 WHERE id = ?2",
+    ).bind(JSON.stringify(mapping), created.source.id).run();
+
+    const updatedFields = [
+      { id: "buyer", path: "/buyer/email", label: "Customer email", enabled: true },
+      { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: false },
+    ];
+    const update = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}/notification-fields`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ notificationFields: updatedFields }),
+      }),
+    );
+
+    expect(update.status).toBe(200);
+    expect(await update.json()).toEqual({ mapping: { ...mapping, notificationFields: updatedFields } });
+
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify({
+        payment: { id: "future-payment", amount_minor: 900, currency: "USD" },
+        buyer: { email: "future@example.com" },
+      }),
+    }));
+    const saved = await env.DB.prepare(
+      "SELECT notification_fields_json FROM sales WHERE provider = 'custom' ORDER BY created_at DESC LIMIT 1",
+    ).first<{ notification_fields_json: string }>();
+    expect(JSON.parse(saved!.notification_fields_json)).toEqual([
+      { label: "Customer email", value: "future@example.com" },
+    ]);
+  });
+
   it("previews a user's field mapping and activates the source without retaining the sample", async () => {
     const create = await handleCustomSourceRequest(
       env,
@@ -654,6 +711,33 @@ describe("custom payment source HTTP API", () => {
       }),
     ]);
     expect(ack).toHaveBeenCalledOnce();
+
+    const history = await listSales(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/sales"),
+    );
+    expect(await history.json()).toEqual({
+      sales: [expect.objectContaining({
+        notificationFields: [
+          { label: "Buyer Email", value: "buyer@example.com" },
+          { label: "Checkout Country (IP)", value: "JP" },
+          { label: "Product", value: "Circle Video Downloader" },
+          { label: "Entitlement", value: "circle-video-downloader" },
+          { label: "Purchase Type", value: "Subscription" },
+          { label: "Sale Event", value: "New sale" },
+          { label: "Amount", value: "$9.00" },
+          { label: "Dub Affiliate ID", value: "pn_hasanul" },
+          { label: "UTM Source", value: "dub" },
+          { label: "UTM Medium", value: "affiliate" },
+          { label: "UTM Campaign", value: "summer-launch" },
+          { label: "UTM Term", value: "video downloader" },
+          { label: "UTM Content", value: "pricing-page" },
+          { label: "Paid At", value: "2026-08-11T08:27:14.000Z" },
+          { label: "Source Store", value: "serp.store" },
+        ],
+      })],
+    });
   });
 
   it("accepts a real payment when optional notification fields from the setup sample are absent", async () => {

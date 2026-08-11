@@ -6,9 +6,11 @@ enum DashboardSection: CaseIterable {
 
 struct HomeView: View {
     @EnvironmentObject private var store: SalesStore
+    @EnvironmentObject private var notifications: NotificationManager
+    @State private var path: [Sale] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack {
                 Theme.canvas.ignoresSafeArea()
                 ScrollView {
@@ -24,6 +26,14 @@ struct HomeView: View {
             }
             .task {
                 await store.refresh()
+            }
+            .task(id: notifications.openedSaleID) {
+                guard let saleID = notifications.openedSaleID else { return }
+                await store.refresh()
+                if let sale = store.sales.first(where: { $0.id == saleID }) {
+                    path = [sale]
+                }
+                notifications.consumeOpenedSale(saleID)
             }
             .navigationTitle("Dashboard")
         }

@@ -225,6 +225,45 @@ function serializedMapping(mapping: WebhookFieldMapping): string {
   });
 }
 
+async function updateNotificationFields(
+  env: Env,
+  auth: Auth,
+  request: Request,
+  sourceId: string,
+): Promise<Response> {
+  const user = await requireUser(auth, request);
+  const row = await env.DB.prepare(
+    `SELECT mapping_json FROM custom_payment_sources
+     WHERE id = ?1 AND user_id = ?2 AND status IN ('active', 'paused')`,
+  ).bind(sourceId, user.id).first<{ mapping_json: string | null }>();
+  if (!row?.mapping_json) return Response.json({ error: "Active payment source not found" }, { status: 404 });
+
+  let input: unknown;
+  try {
+    input = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  const current = parseMapping(JSON.parse(row.mapping_json));
+  const requestedFields = (input as { notificationFields?: unknown })?.notificationFields;
+  const updated = current && parseMapping({ ...current, notificationFields: requestedFields });
+  if (!current || !updated?.notificationFields) {
+    return Response.json({ error: "Invalid notification fields" }, { status: 400 });
+  }
+  const currentPaths = new Map((current.notificationFields ?? []).map((field) => [field.id, field.path]));
+  const changesPresentationOnly = updated.notificationFields.length === currentPaths.size
+    && updated.notificationFields.every((field) => currentPaths.get(field.id) === field.path);
+  if (!changesPresentationOnly) {
+    return Response.json({ error: "Active notification fields can only be renamed, shown, hidden, or reordered" }, { status: 400 });
+  }
+
+  const mappingJSON = serializedMapping(updated);
+  await env.DB.prepare(
+    "UPDATE custom_payment_sources SET mapping_json = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2 AND user_id = ?3",
+  ).bind(mappingJSON, sourceId, user.id).run();
+  return Response.json({ mapping: JSON.parse(mappingJSON) });
+}
+
 function notificationFieldValue(
   payload: unknown,
   field: NotificationFieldMapping,
@@ -593,6 +632,10 @@ export async function handleCustomSourceRequest(
   const mappingMatch = url.pathname.match(/^\/v1\/custom-sources\/([^/]+)\/mapping$/);
   if (request.method === "POST" && mappingMatch) {
     return saveMapping(env, auth, request, decodeURIComponent(mappingMatch[1]));
+  }
+  const notificationFieldsMatch = url.pathname.match(/^\/v1\/custom-sources\/([^/]+)\/notification-fields$/);
+  if (request.method === "POST" && notificationFieldsMatch) {
+    return updateNotificationFields(env, auth, request, decodeURIComponent(notificationFieldsMatch[1]));
   }
   const activateMatch = url.pathname.match(/^\/v1\/custom-sources\/([^/]+)\/activate$/);
   if (request.method === "POST" && activateMatch) {

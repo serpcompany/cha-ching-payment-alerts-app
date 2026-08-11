@@ -166,6 +166,28 @@ struct CustomSourceSheet: View {
                 .foregroundStyle(.secondary)
         }
 
+        Section("Notifications") {
+            NavigationLink {
+                CustomNotificationSettingsView(
+                    source: source,
+                    fields: [],
+                    mapping: $mapping,
+                    onActivated: { _ in }
+                )
+            } label: {
+                Label {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Customize notifications").fontWeight(.semibold)
+                        Text("Rename, show, hide, or reorder future payment details")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "bell.badge").foregroundStyle(Theme.accent)
+                }
+            }
+        }
+
         Section("Webhook URL") {
             Text(source.webhookUrl.absoluteString)
                 .font(.caption.monospaced())

@@ -43,6 +43,40 @@ private final class ControlledSalesLoader {
 }
 
 struct SalesStoreTests {
+    @Test func aCustomPaymentPreservesEveryConfiguredDetailInOrder() throws {
+        let response = Data(#"""
+        {
+          "sales": [{
+            "id": "sale-custom",
+            "provider": "custom",
+            "amountMinor": 900,
+            "currency": "USD",
+            "productLabel": "Circle Video Downloader",
+            "plan": null,
+            "saleType": "new_sale",
+            "countryCode": null,
+            "isSubscription": false,
+            "occurredAt": "2026-08-11T08:27:14.000Z",
+            "notificationFields": [
+              {"label": "Buyer Email", "value": "buyer@example.com"},
+              {"label": "Product", "value": "Circle Video Downloader"},
+              {"label": "Amount", "value": "$9.00"},
+              {"label": "UTM Campaign", "value": "summer-launch"}
+            ]
+          }]
+        }
+        """#.utf8)
+
+        let payment = try #require(SalesClient.decode(response).first)
+
+        #expect(payment.details == [
+            SaleDetail(label: "Buyer Email", value: "buyer@example.com"),
+            SaleDetail(label: "Product", value: "Circle Video Downloader"),
+            SaleDetail(label: "Amount", value: "$9.00"),
+            SaleDetail(label: "UTM Campaign", value: "summer-launch")
+        ])
+    }
+
     @Test @MainActor func aPaymentRefreshFailurePreservesPaymentsAndIsDismissible() async {
         let payment = Sale(
             id: "sale",
