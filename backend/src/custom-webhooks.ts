@@ -495,6 +495,7 @@ async function testNotification(env: Env, auth: Auth, request: Request, sourceId
   }>();
   if (!row) return Response.json({ error: "Payment source not found" }, { status: 404 });
   let body: string;
+  let linkedSaleId: string | undefined;
   if (row.status === "setup") {
     if (!row.sample_payload_ciphertext) {
       return Response.json({ error: "Send a sample payment before testing notifications" }, { status: 409 });
@@ -523,11 +524,12 @@ async function testNotification(env: Env, auth: Auth, request: Request, sourceId
       return Response.json({ error: "Active notification fields can only be renamed, shown, hidden, or reordered" }, { status: 400 });
     }
     const latest = await env.DB.prepare(
-      `SELECT notification_fields_json FROM sales
+      `SELECT id, notification_fields_json FROM sales
        WHERE provider = 'custom' AND provider_account_id = ?1 AND user_id = ?2
          AND notification_fields_json IS NOT NULL
        ORDER BY occurred_at DESC, created_at DESC LIMIT 1`,
-    ).bind(sourceId, user.id).first<{ notification_fields_json: string }>();
+    ).bind(sourceId, user.id).first<{ id: string; notification_fields_json: string }>();
+    linkedSaleId = latest?.id;
     const rendered = latest
       ? applyHistoricalNotificationPresentation(
         latest.notification_fields_json,
@@ -550,12 +552,14 @@ async function testNotification(env: Env, auth: Auth, request: Request, sourceId
     if (registered === 0) {
       return Response.json({ error: "No registered iPhone is ready for notifications" }, { status: 409 });
     }
-    const message: TestNotificationMessage = { testNotification: { userId: user.id, body } };
+    const message: TestNotificationMessage = {
+      testNotification: { userId: user.id, body, ...(linkedSaleId ? { saleId: linkedSaleId } : {}) },
+    };
     await env.NOTIFICATION_QUEUE.send(message, { delaySeconds });
     return Response.json({ scheduled: true, delaySeconds, registered }, { status: 202 });
   }
 
-  const result = await sendTestNotification(env, user.id, body);
+  const result = await sendTestNotification(env, user.id, body, linkedSaleId);
   if (result.registered === 0) {
     return Response.json({ error: "No registered iPhone is ready for notifications" }, { status: 409 });
   }

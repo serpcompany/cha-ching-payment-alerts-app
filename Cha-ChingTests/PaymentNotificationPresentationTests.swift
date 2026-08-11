@@ -64,6 +64,13 @@ struct PaymentNotificationPresentationTests {
         #expect(completedOnMainThread)
     }
 
+    @Test func lockScreenCountdownStartsWithoutAnAcknowledgementStep() {
+        let feedback = NotificationTestFeedback.lockScreenScheduled(delaySeconds: 10)
+
+        #expect(feedback.message == "Scheduled. Lock your iPhone now — the test will arrive in about 10 seconds.")
+        #expect(feedback.requiresAcknowledgement == false)
+    }
+
     @Test func foregroundDeliveryUsesARealAppleNotificationAndFullDetailsWaitForATap() {
         #expect(PaymentNotificationPresentation.foregroundOptions.contains(.banner))
         #expect(PaymentNotificationPresentation.foregroundOptions.contains(.list))

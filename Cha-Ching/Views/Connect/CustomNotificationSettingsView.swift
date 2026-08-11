@@ -15,6 +15,7 @@ struct CustomNotificationSettingsView: View {
     @State private var showingPreview = false
     @State private var testResultMessage: String?
     @State private var showingTestResult = false
+    @State private var inlineTestStatus: String?
     @State private var isBusy = false
     @State private var errorMessage: String?
     @State private var activeDraft: ActiveNotificationSettingsDraft
@@ -89,6 +90,14 @@ struct CustomNotificationSettingsView: View {
                     Text(errorMessage)
                         .font(.footnote)
                         .foregroundStyle(.red)
+                }
+            }
+
+            if let inlineTestStatus {
+                Section {
+                    Label(inlineTestStatus, systemImage: "checkmark.circle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.accent)
                 }
             }
         }
@@ -462,6 +471,7 @@ struct CustomNotificationSettingsView: View {
             errorMessage = "Finish payment matching and turn on at least one notification detail before testing."
             return
         }
+        inlineTestStatus = nil
         await NotificationManager.shared.requestPermissionAndRegister()
         await run {
             if !isEditingActiveSource {
@@ -481,6 +491,7 @@ struct CustomNotificationSettingsView: View {
             errorMessage = "Finish payment matching and turn on at least one notification detail before testing."
             return
         }
+        inlineTestStatus = nil
         await NotificationManager.shared.requestPermissionAndRegister()
         await run {
             if !isEditingActiveSource {
@@ -493,8 +504,13 @@ struct CustomNotificationSettingsView: View {
                 delaySeconds: 10
             )
             guard result.scheduled == true else { throw APIError.invalidResponse }
-            testResultMessage = "Scheduled. Lock your iPhone now — the sample should arrive in about 10 seconds."
-            showingTestResult = true
+            let feedback = NotificationTestFeedback.lockScreenScheduled(delaySeconds: 10)
+            if feedback.requiresAcknowledgement {
+                testResultMessage = feedback.message
+                showingTestResult = true
+            } else {
+                inlineTestStatus = feedback.message
+            }
         }
     }
 

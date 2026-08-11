@@ -5,7 +5,7 @@ struct SaleRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: sale.source.symbol)
+            Image(systemName: sale.cardSymbol)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(sale.source.color)
                 .frame(width: 40, height: 40)
@@ -16,7 +16,7 @@ struct SaleRow: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.ink)
                     .lineLimit(1)
-                Text("\(sale.country) \(sale.source.attribution)")
+                Text(sale.cardSubtitle)
                     .font(.caption)
                     .foregroundStyle(Theme.ink.opacity(0.55))
                     .lineLimit(1)

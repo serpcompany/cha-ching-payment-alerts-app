@@ -283,6 +283,18 @@ struct ActiveNotificationSettingsDraft: Equatable {
     }
 }
 
+struct NotificationTestFeedback: Equatable {
+    let message: String
+    let requiresAcknowledgement: Bool
+
+    static func lockScreenScheduled(delaySeconds: Int) -> NotificationTestFeedback {
+        NotificationTestFeedback(
+            message: "Scheduled. Lock your iPhone now — the test will arrive in about \(delaySeconds) seconds.",
+            requiresAcknowledgement: false
+        )
+    }
+}
+
 struct WebhookMappingSuggestions: Decodable {
     let paymentIdPath: String?
     let amountPath: String?

@@ -75,6 +75,8 @@ struct SalesStoreTests {
             SaleDetail(label: "Amount", value: "$9.00"),
             SaleDetail(label: "UTM Campaign", value: "summer-launch")
         ])
+        #expect(payment.cardSymbol == "dollarsign.circle.fill")
+        #expect(payment.cardSubtitle == "Buyer Email: buyer@example.com")
     }
 
     @Test @MainActor func aPaymentRefreshFailurePreservesPaymentsAndIsDismissible() async {

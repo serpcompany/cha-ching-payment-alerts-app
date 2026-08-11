@@ -122,6 +122,18 @@ struct Sale: Identifiable, Hashable {
         }.joined()
     }
 
+    var cardSymbol: String {
+        source == .custom ? "dollarsign.circle.fill" : source.symbol
+    }
+
+    var cardSubtitle: String {
+        if source == .custom, let detail = details.first {
+            return "\(detail.label): \(detail.value)"
+        }
+        guard countryCode != nil else { return source.title }
+        return "\(source.title) · \(country)"
+    }
+
     private var currencyExponent: Int {
         let zeroDecimal = ["BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW", "MGA", "PYG", "RWF", "UGX", "VND", "VUV", "XAF", "XOF", "XPF"]
         let threeDecimal = ["BHD", "JOD", "KWD", "OMR", "TND"]

@@ -481,6 +481,12 @@ describe("custom payment source HTTP API", () => {
         buyer: { email: "buyer@example.com" },
       }),
     }));
+    const history = await listSales(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/sales"),
+    );
+    const latestSale = (await history.json<{ sales: Array<{ id: string }> }>()).sales[0];
     const draft = {
       ...mapping,
       notificationFields: [
@@ -514,6 +520,7 @@ describe("custom payment source HTTP API", () => {
           sound: "cash-register.caf",
         },
         testNotification: true,
+        saleId: latestSale.id,
       },
     }]);
   });
