@@ -5,6 +5,7 @@ struct CustomNotificationSettingsView: View {
     let fields: [WebhookField]
     @Binding var mapping: WebhookFieldMapping
     let onActivated: (CustomPaymentSource) -> Void
+    let onSaved: (String) -> Void
 
     @EnvironmentObject private var store: ConnectStore
     @Environment(\.dismiss) private var dismiss
@@ -14,8 +15,38 @@ struct CustomNotificationSettingsView: View {
     @State private var showingPreview = false
     @State private var testResultMessage: String?
     @State private var showingTestResult = false
+    @State private var inlineTestStatus: String?
     @State private var isBusy = false
     @State private var errorMessage: String?
+    @State private var activeDraft: ActiveNotificationSettingsDraft
+
+    init(
+        source: CustomPaymentSource,
+        fields: [WebhookField],
+        mapping: Binding<WebhookFieldMapping>,
+        onActivated: @escaping (CustomPaymentSource) -> Void,
+        onSaved: @escaping (String) -> Void = { _ in }
+    ) {
+        self.source = source
+        self.fields = fields
+        _mapping = mapping
+        self.onActivated = onActivated
+        self.onSaved = onSaved
+        _activeDraft = State(initialValue: ActiveNotificationSettingsDraft(mapping: mapping.wrappedValue))
+    }
+
+    private var isEditingActiveSource: Bool { source.status != .setup }
+
+    private var notificationFields: [WebhookNotificationField] {
+        get { isEditingActiveSource ? activeDraft.notificationFields : mapping.notificationFields }
+        nonmutating set {
+            if isEditingActiveSource {
+                activeDraft.notificationFields = newValue
+            } else {
+                mapping.notificationFields = newValue
+            }
+        }
+    }
 
     var body: some View {
         List {
@@ -28,10 +59,10 @@ struct CustomNotificationSettingsView: View {
                 Text("iPhone shows a shortened two-to-four-line preview. Press the notification to see every selected detail in Cha-Ching.")
             }
 
-            paymentMatchingSection
+            if !isEditingActiveSource { paymentMatchingSection }
 
             Section {
-                ForEach(mapping.notificationFields) { field in
+                ForEach(notificationFields) { field in
                     notificationFieldRow(field)
                 }
                 .onMove(perform: moveNotificationFields)
@@ -39,11 +70,13 @@ struct CustomNotificationSettingsView: View {
                 HStack {
                     Text("Notification contents")
                     Spacer()
-                    Text("\(includedFieldCount) of \(mapping.notificationFields.count) on")
+                    Text("\(includedFieldCount) of \(notificationFields.count) on")
                         .textCase(nil)
                 }
             } footer: {
-                Text("All details found in the test payment are listed. Each enabled detail appears on its own “Label: Value” line.")
+                Text(isEditingActiveSource
+                     ? "Changes update existing Dashboard details and future payments."
+                     : "All details found in the test payment are listed. Each enabled detail appears on its own “Label: Value” line.")
             }
 
             Section {
@@ -57,6 +90,14 @@ struct CustomNotificationSettingsView: View {
                     Text(errorMessage)
                         .font(.footnote)
                         .foregroundStyle(.red)
+                }
+            }
+
+            if let inlineTestStatus {
+                Section {
+                    Label(inlineTestStatus, systemImage: "checkmark.circle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.accent)
                 }
             }
         }
@@ -77,19 +118,20 @@ struct CustomNotificationSettingsView: View {
             WebhookNotificationFieldEditor(
                 field: field,
                 fields: fields,
+                allowsRemapping: !isEditingActiveSource,
                 canMoveEarlier: notificationFieldIndex(id: field.id) != 0,
                 canMoveLater: notificationFieldIndex(id: field.id).map {
-                    $0 < mapping.notificationFields.count - 1
+                    $0 < notificationFields.count - 1
                 } ?? false,
                 onSave: updateNotificationField,
                 onMove: moveNotificationField
             )
         }
         .sheet(isPresented: $showingPreview) {
-            if let preview {
+            if let previewBody {
                 CustomNotificationPreviewSheet(
                     sourceName: source.name,
-                    notificationBody: preview.notificationBody ?? legacyPreviewBody(preview)
+                    notificationBody: previewBody
                 )
             }
         }
@@ -99,7 +141,7 @@ struct CustomNotificationSettingsView: View {
             Text(testResultMessage ?? "The test notification was sent.")
         }
         .safeAreaInset(edge: .bottom) {
-            activationBar
+            if isEditingActiveSource { saveBar } else { activationBar }
         }
     }
 
@@ -281,11 +323,17 @@ struct CustomNotificationSettingsView: View {
     }
 
     private var includedFieldCount: Int {
-        mapping.notificationFields.count(where: \.enabled)
+        notificationFields.count(where: \.enabled)
+    }
+
+    private var currentMapping: WebhookFieldMapping {
+        var current = mapping
+        current.notificationFields = notificationFields
+        return current
     }
 
     private var mappingIsComplete: Bool {
-        mapping.isCompleteForNotification
+        currentMapping.isCompleteForNotification
     }
 
     private var paymentMappingIsComplete: Bool {
@@ -339,35 +387,45 @@ struct CustomNotificationSettingsView: View {
     }
 
     private func sampleValue(path: String) -> String {
-        fields.first { $0.path == path }?.value.displayValue ?? "No sample value"
+        fields.first { $0.path == path }?.value.displayValue
+            ?? (isEditingActiveSource ? "Future payments" : "No sample value")
     }
 
     private func notificationFieldIndex(id: String) -> Int? {
-        mapping.notificationFields.firstIndex { $0.id == id }
+        notificationFields.firstIndex { $0.id == id }
     }
 
     private func notificationFieldEnabledBinding(id: String) -> Binding<Bool> {
         Binding(
-            get: { mapping.notificationFields.first(where: { $0.id == id })?.enabled ?? false },
+            get: { notificationFields.first(where: { $0.id == id })?.enabled ?? false },
             set: { enabled in
                 guard let index = notificationFieldIndex(id: id) else { return }
-                mapping.notificationFields[index].enabled = enabled
+                var updated = notificationFields
+                updated[index].enabled = enabled
+                notificationFields = updated
             }
         )
     }
 
     private func updateNotificationField(_ field: WebhookNotificationField) {
         guard let index = notificationFieldIndex(id: field.id) else { return }
-        mapping.notificationFields[index] = field
+        var updated = notificationFields
+        updated[index] = field
+        notificationFields = updated
     }
 
     private func moveNotificationField(_ field: WebhookNotificationField, by offset: Int) {
         updateNotificationField(field)
-        mapping.moveNotificationField(id: field.id, by: offset)
+        var updated = mapping
+        updated.notificationFields = notificationFields
+        updated.moveNotificationField(id: field.id, by: offset)
+        notificationFields = updated.notificationFields
     }
 
     private func moveNotificationFields(from offsets: IndexSet, to destination: Int) {
-        mapping.notificationFields.move(fromOffsets: offsets, toOffset: destination)
+        var updated = notificationFields
+        updated.move(fromOffsets: offsets, toOffset: destination)
+        notificationFields = updated
     }
 
     private func legacyPreviewBody(_ preview: CustomPaymentPreview) -> String {
@@ -395,6 +453,12 @@ struct CustomNotificationSettingsView: View {
             return
         }
 
+        if isEditingActiveSource {
+            preview = nil
+            showingPreview = true
+            return
+        }
+
         await run {
             preview = try await store.previewCustomSource(id: source.id, mapping: mapping)
             previewedMapping = mapping
@@ -407,11 +471,14 @@ struct CustomNotificationSettingsView: View {
             errorMessage = "Finish payment matching and turn on at least one notification detail before testing."
             return
         }
+        inlineTestStatus = nil
         await NotificationManager.shared.requestPermissionAndRegister()
         await run {
-            preview = try await store.previewCustomSource(id: source.id, mapping: mapping)
-            previewedMapping = mapping
-            let result = try await store.testCustomSourceNotification(id: source.id, mapping: mapping)
+            if !isEditingActiveSource {
+                preview = try await store.previewCustomSource(id: source.id, mapping: mapping)
+                previewedMapping = mapping
+            }
+            let result = try await store.testCustomSourceNotification(id: source.id, mapping: currentMapping)
             if result.sent != 1 {
                 testResultMessage = "Sent to \(result.sent ?? 0) registered iPhones."
                 showingTestResult = true
@@ -424,18 +491,26 @@ struct CustomNotificationSettingsView: View {
             errorMessage = "Finish payment matching and turn on at least one notification detail before testing."
             return
         }
+        inlineTestStatus = nil
         await NotificationManager.shared.requestPermissionAndRegister()
         await run {
-            preview = try await store.previewCustomSource(id: source.id, mapping: mapping)
-            previewedMapping = mapping
+            if !isEditingActiveSource {
+                preview = try await store.previewCustomSource(id: source.id, mapping: mapping)
+                previewedMapping = mapping
+            }
             let result = try await store.testCustomSourceNotification(
                 id: source.id,
-                mapping: mapping,
+                mapping: currentMapping,
                 delaySeconds: 10
             )
             guard result.scheduled == true else { throw APIError.invalidResponse }
-            testResultMessage = "Scheduled. Lock your iPhone now — the sample should arrive in about 10 seconds."
-            showingTestResult = true
+            let feedback = NotificationTestFeedback.lockScreenScheduled(delaySeconds: 10)
+            if feedback.requiresAcknowledgement {
+                testResultMessage = feedback.message
+                showingTestResult = true
+            } else {
+                inlineTestStatus = feedback.message
+            }
         }
     }
 
@@ -453,6 +528,53 @@ struct CustomNotificationSettingsView: View {
             showingPreview = false
             dismiss()
         }
+    }
+
+    private var saveBar: some View {
+        VStack(spacing: 6) {
+            Button {
+                Task { await saveActiveNotificationFields() }
+            } label: {
+                HStack {
+                    Spacer()
+                    if isBusy { ProgressView().tint(.white) }
+                    Text(isBusy ? "Saving…" : "Save notification settings").fontWeight(.semibold)
+                    Spacer()
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(includedFieldCount == 0 || isBusy)
+            Text("Updates existing payment details and future payments.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(.bar)
+    }
+
+    private func saveActiveNotificationFields() async {
+        guard includedFieldCount > 0 else {
+            errorMessage = "Keep at least one notification detail on."
+            return
+        }
+        await run {
+            let accepted = try await store.updateCustomSourceNotificationFields(
+                id: source.id,
+                fields: notificationFields
+            )
+            activeDraft.accept(accepted)
+            mapping = activeDraft.persistedMapping
+            onSaved(activeDraft.saveConfirmation ?? "Notification settings saved.")
+            dismiss()
+        }
+    }
+
+    private var previewBody: String? {
+        if let preview {
+            return preview.notificationBody ?? legacyPreviewBody(preview)
+        }
+        return isEditingActiveSource ? activeDraft.previewBody : nil
     }
 }
 
@@ -478,6 +600,7 @@ private struct WebhookNotificationFieldEditor: View {
     @Environment(\.dismiss) private var dismiss
     @State private var draft: WebhookNotificationField
     let fields: [WebhookField]
+    let allowsRemapping: Bool
     let canMoveEarlier: Bool
     let canMoveLater: Bool
     let onSave: (WebhookNotificationField) -> Void
@@ -486,6 +609,7 @@ private struct WebhookNotificationFieldEditor: View {
     init(
         field: WebhookNotificationField,
         fields: [WebhookField],
+        allowsRemapping: Bool = true,
         canMoveEarlier: Bool,
         canMoveLater: Bool,
         onSave: @escaping (WebhookNotificationField) -> Void,
@@ -493,6 +617,7 @@ private struct WebhookNotificationFieldEditor: View {
     ) {
         _draft = State(initialValue: field)
         self.fields = fields
+        self.allowsRemapping = allowsRemapping
         self.canMoveEarlier = canMoveEarlier
         self.canMoveLater = canMoveLater
         self.onSave = onSave
@@ -513,14 +638,20 @@ private struct WebhookNotificationFieldEditor: View {
                 }
 
                 Section("Payment data") {
-                    Picker("Use field", selection: $draft.path) {
-                        ForEach(fields) { option in
-                            Text("\(option.label): \(option.value.displayValue.prefix(30))")
-                                .tag(option.path)
+                    if allowsRemapping {
+                        Picker("Use field", selection: $draft.path) {
+                            ForEach(fields) { option in
+                                Text("\(option.label): \(option.value.displayValue.prefix(30))")
+                                    .tag(option.path)
+                            }
                         }
+                        LabeledContent("Example", value: selectedSample?.value.displayValue ?? "—")
+                    } else {
+                        Text("The payment field stays fixed after activation.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
-                    LabeledContent("Example", value: selectedSample?.value.displayValue ?? "—")
-                    if let selectedSample {
+                    if allowsRemapping, let selectedSample {
                         Text(selectedSample.path)
                             .font(.caption.monospaced())
                             .foregroundStyle(.secondary)
@@ -545,7 +676,7 @@ private struct WebhookNotificationFieldEditor: View {
                 }
 
                 Section("Line preview") {
-                    Text("\(draft.label.isEmpty ? "Unnamed detail" : draft.label): \(selectedSample?.value.displayValue ?? "—")")
+                    Text("\(draft.label.isEmpty ? "Unnamed detail" : draft.label): \(selectedSample?.value.displayValue ?? "Future payment value")")
                 }
             }
             .navigationTitle("Edit detail")

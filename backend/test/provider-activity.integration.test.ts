@@ -43,6 +43,7 @@ describe("connected provider activity", () => {
       "0007_provider_event_disposition.sql",
       "0008_notification_queue_claims.sql",
       "0009_custom_notification_fields.sql",
+      "0010_reconcile_custom_payment_history_presentation.sql",
     ]) {
       const statements = (await readFile(join(process.cwd(), "migrations", migration), "utf8"))
         .replace(/--.*$/gm, "")

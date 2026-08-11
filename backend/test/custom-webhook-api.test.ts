@@ -38,7 +38,7 @@ describe("custom payment source HTTP API", () => {
       d1Databases: ["DB"],
     });
     const db = await miniflare.getD1Database("DB");
-    for (const migration of ["0001_initial.sql", "0002_sales_and_notifications.sql", "0003_anonymous_simulator_user.sql", "0004_nullable_provider_access_token.sql", "0005_custom_payment_sources.sql", "0006_provider_connection_activity.sql", "0007_provider_event_disposition.sql", "0008_notification_queue_claims.sql", "0009_custom_notification_fields.sql"]) {
+    for (const migration of ["0001_initial.sql", "0002_sales_and_notifications.sql", "0003_anonymous_simulator_user.sql", "0004_nullable_provider_access_token.sql", "0005_custom_payment_sources.sql", "0006_provider_connection_activity.sql", "0007_provider_event_disposition.sql", "0008_notification_queue_claims.sql", "0009_custom_notification_fields.sql", "0010_reconcile_custom_payment_history_presentation.sql"]) {
       const statements = (await readFile(join(process.cwd(), "migrations", migration), "utf8"))
         .replace(/--.*$/gm, "")
         .split(";")
@@ -168,6 +168,102 @@ describe("custom payment source HTTP API", () => {
     );
     expect(await history.json()).toEqual({ sales: [] });
     expect(sent).toEqual([]);
+  });
+
+  it("applies active notification presentation edits to payment history and future payments", async () => {
+    const create = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/custom-sources", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "My checkout" }),
+      }),
+    );
+    const created = await create.json<{ source: { id: string; webhookUrl: string } }>();
+    const mapping = {
+      paymentIdPath: "/payment/id",
+      amountPath: "/payment/amount_minor",
+      amountUnit: "minor",
+      currencyPath: "/payment/currency",
+      notificationFields: [
+        { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: true },
+        { id: "buyer", path: "/buyer/email", label: "Buyer", enabled: true },
+        { id: "utm", path: "/attribution/utm_source", label: "UTM Source", enabled: true },
+      ],
+    };
+    await env.DB.prepare(
+      "UPDATE custom_payment_sources SET status = 'active', mapping_json = ?1 WHERE id = ?2",
+    ).bind(JSON.stringify(mapping), created.source.id).run();
+
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify({
+        payment: { id: "historical-payment", amount_minor: 800, currency: "USD" },
+        buyer: { email: "historical@example.com" },
+      }),
+    }));
+
+    const updatedFields = [
+      { id: "buyer", path: "/buyer/email", label: "Customer email", enabled: true },
+      { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: false },
+      { id: "utm", path: "/attribution/utm_source", label: "UTM Source", enabled: true },
+    ];
+    const update = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}/notification-fields`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ notificationFields: updatedFields }),
+      }),
+    );
+
+    expect(update.status).toBe(200);
+    expect(await update.json()).toEqual({ mapping: { ...mapping, notificationFields: updatedFields } });
+
+    const detail = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
+    );
+    expect(await detail.json()).toEqual(expect.objectContaining({
+      mapping: { ...mapping, notificationFields: updatedFields },
+    }));
+
+    const updatedHistory = await listSales(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/sales"),
+    );
+    expect(await updatedHistory.json()).toEqual({
+      sales: [expect.objectContaining({
+        notificationFields: [{ label: "Customer email", value: "historical@example.com" }],
+      })],
+    });
+
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify({
+        payment: { id: "future-payment", amount_minor: 900, currency: "USD" },
+        buyer: { email: "future@example.com" },
+      }),
+    }));
+    const history = await listSales(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/sales"),
+    );
+    expect(await history.json()).toEqual({
+      sales: expect.arrayContaining([
+        expect.objectContaining({
+          notificationFields: [{ label: "Customer email", value: "future@example.com" }],
+        }),
+        expect.objectContaining({
+          notificationFields: [{ label: "Customer email", value: "historical@example.com" }],
+        }),
+      ]),
+    });
   });
 
   it("previews a user's field mapping and activates the source without retaining the sample", async () => {
@@ -341,6 +437,92 @@ describe("custom payment source HTTP API", () => {
     );
     expect(await history.json()).toEqual({ sales: [] });
     expect(sent).toEqual([]);
+  });
+
+  it("tests an active source with its draft presentation and latest payment values", async () => {
+    const { privateKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
+    Object.assign(env, {
+      APNS_KEY_ID: "TESTKEY",
+      APPLE_TEAM_ID: "TESTTEAM",
+      APNS_BUNDLE_ID: "com.example.chaching",
+      APNS_PRIVATE_KEY: privateKey.export({ format: "pem", type: "pkcs8" }).toString(),
+    });
+    await env.DB.prepare(
+      `INSERT INTO device_tokens (id, user_id, device_id, token, environment, status)
+       VALUES ('device-active-preview', 'user-one', 'iphone-active-preview', 'active-preview-token', 'production', 'active')`,
+    ).run();
+    const create = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/custom-sources", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "My checkout" }),
+      }),
+    );
+    const created = await create.json<{ source: { id: string; webhookUrl: string } }>();
+    const mapping = {
+      paymentIdPath: "/payment/id",
+      amountPath: "/payment/amount_minor",
+      amountUnit: "minor",
+      currencyPath: "/payment/currency",
+      notificationFields: [
+        { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: true },
+        { id: "buyer", path: "/buyer/email", label: "Buyer", enabled: true },
+      ],
+    };
+    await env.DB.prepare(
+      "UPDATE custom_payment_sources SET status = 'active', mapping_json = ?1 WHERE id = ?2",
+    ).bind(JSON.stringify(mapping), created.source.id).run();
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify({
+        payment: { id: "latest-payment", amount_minor: 1200, currency: "USD" },
+        buyer: { email: "buyer@example.com" },
+      }),
+    }));
+    const history = await listSales(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/sales"),
+    );
+    const latestSale = (await history.json<{ sales: Array<{ id: string }> }>()).sales[0];
+    const draft = {
+      ...mapping,
+      notificationFields: [
+        { id: "buyer", path: "/buyer/email", label: "Customer email", enabled: true },
+        { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: false },
+      ],
+    };
+    const requests: Array<{ url: string; body: unknown }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requests.push({ url: String(input), body: JSON.parse(String(init?.body)) });
+      return new Response(null, { status: 200 });
+    }));
+
+    const response = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}/test-notification`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(draft),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ sent: 1 });
+    expect(requests).toEqual([{
+      url: "https://api.push.apple.com/3/device/active-preview-token",
+      body: {
+        aps: {
+          alert: { title: "Cha-ching!", body: "Customer email: buyer@example.com" },
+          sound: "cash-register.caf",
+        },
+        testNotification: true,
+        saleId: latestSale.id,
+      },
+    }]);
   });
 
   it("queues the exact setup preview for a delayed lock-screen test without creating a payment", async () => {
@@ -654,6 +836,33 @@ describe("custom payment source HTTP API", () => {
       }),
     ]);
     expect(ack).toHaveBeenCalledOnce();
+
+    const history = await listSales(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/sales"),
+    );
+    expect(await history.json()).toEqual({
+      sales: [expect.objectContaining({
+        notificationFields: [
+          { label: "Buyer Email", value: "buyer@example.com" },
+          { label: "Checkout Country (IP)", value: "JP" },
+          { label: "Product", value: "Circle Video Downloader" },
+          { label: "Entitlement", value: "circle-video-downloader" },
+          { label: "Purchase Type", value: "Subscription" },
+          { label: "Sale Event", value: "New sale" },
+          { label: "Amount", value: "$9.00" },
+          { label: "Dub Affiliate ID", value: "pn_hasanul" },
+          { label: "UTM Source", value: "dub" },
+          { label: "UTM Medium", value: "affiliate" },
+          { label: "UTM Campaign", value: "summer-launch" },
+          { label: "UTM Term", value: "video downloader" },
+          { label: "UTM Content", value: "pricing-page" },
+          { label: "Paid At", value: "2026-08-11T08:27:14.000Z" },
+          { label: "Source Store", value: "serp.store" },
+        ],
+      })],
+    });
   });
 
   it("accepts a real payment when optional notification fields from the setup sample are absent", async () => {

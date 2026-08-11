@@ -5,7 +5,7 @@ struct SaleRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: sale.source.symbol)
+            Image(systemName: sale.cardSymbol)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(sale.source.color)
                 .frame(width: 40, height: 40)
@@ -16,7 +16,7 @@ struct SaleRow: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.ink)
                     .lineLimit(1)
-                Text("\(sale.country) \(sale.source.attribution)")
+                Text(sale.cardSubtitle)
                     .font(.caption)
                     .foregroundStyle(Theme.ink.opacity(0.55))
                     .lineLimit(1)
@@ -58,13 +58,20 @@ struct SaleDetailView: View {
                     .background(Theme.heroGradient, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
 
                     VStack(spacing: 0) {
-                        detailRow("Payment source", sale.source.title)
-                        divider
-                        detailRow("Status", sale.source.attribution)
-                        divider
-                        detailRow("Country", sale.country)
-                        divider
-                        detailRow("Type", sale.isSubscription ? "Subscription" : "One-time")
+                        if sale.details.isEmpty {
+                            detailRow("Payment source", sale.source.title)
+                            divider
+                            detailRow("Status", sale.source.attribution)
+                            divider
+                            detailRow("Country", sale.country)
+                            divider
+                            detailRow("Type", sale.isSubscription ? "Subscription" : "One-time")
+                        } else {
+                            ForEach(Array(sale.details.enumerated()), id: \.offset) { index, detail in
+                                detailRow(detail.label, detail.value)
+                                if index < sale.details.count - 1 { divider }
+                            }
+                        }
                         divider
                         detailRow("Date", sale.date.formatted(date: .abbreviated, time: .shortened))
                     }

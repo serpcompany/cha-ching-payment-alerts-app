@@ -11,6 +11,7 @@ export interface TestNotificationMessage {
   testNotification: {
     userId: string;
     body: string;
+    saleId?: string;
   };
 }
 
@@ -118,6 +119,7 @@ export async function sendTestNotification(
   env: Env,
   userId: string,
   body: string,
+  saleId?: string,
 ): Promise<TestNotificationResult> {
   const devices = await env.DB.prepare(
     "SELECT id, token, environment FROM device_tokens WHERE user_id = ?1 AND status = 'active'",
@@ -145,6 +147,7 @@ export async function sendTestNotification(
           sound: PAYMENT_NOTIFICATION_SOUND,
         },
         testNotification: true,
+        ...(saleId ? { saleId } : {}),
       }),
     });
     if (response.ok) {
@@ -319,7 +322,9 @@ function isTestMessage(value: unknown): value is TestNotificationMessage {
   return Boolean(
     test && typeof test === "object"
       && typeof (test as Record<string, unknown>).userId === "string"
-      && typeof (test as Record<string, unknown>).body === "string",
+      && typeof (test as Record<string, unknown>).body === "string"
+      && ((test as Record<string, unknown>).saleId === undefined
+        || typeof (test as Record<string, unknown>).saleId === "string"),
   );
 }
 
@@ -338,6 +343,7 @@ export async function processNotificationBatch(
           env,
           message.body.testNotification.userId,
           message.body.testNotification.body,
+          message.body.testNotification.saleId,
         );
         if (result.shouldRetry) message.retry({ delaySeconds: 60 });
         else message.ack();

@@ -20,6 +20,7 @@ struct CustomSourceSheet: View {
     @State private var errorMessage: String?
     @State private var copiedItem: CopiedItem?
     @State private var confirmRegenerate = false
+    @State private var saveConfirmation: String?
 
     var body: some View {
         NavigationStack {
@@ -164,6 +165,33 @@ struct CustomSourceSheet: View {
                  : "Paused. Your setup and existing payments are kept, but new events are ignored.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+        }
+
+        Section("Notifications") {
+            NavigationLink {
+                CustomNotificationSettingsView(
+                    source: source,
+                    fields: [],
+                    mapping: $mapping,
+                    onActivated: { _ in },
+                    onSaved: { saveConfirmation = $0 }
+                )
+            } label: {
+                Label {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Customize notifications").fontWeight(.semibold)
+                        Text("Rename, show, hide, or reorder future payment details")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "bell.badge").foregroundStyle(Theme.accent)
+                }
+            }
+            if let saveConfirmation {
+                Label(saveConfirmation, systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(Theme.accent)
+            }
         }
 
         Section("Webhook URL") {

@@ -34,13 +34,18 @@ enum AppTab: String, CaseIterable {
 
 struct RootTabView: View {
     @EnvironmentObject private var notifications: NotificationManager
+    @State private var selectedTab = AppTab.dashboard
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             ForEach(AppTab.allCases, id: \.self) { tab in
                 tab.content
                     .tabItem { Label(tab.title, systemImage: tab.systemImage) }
+                    .tag(tab)
             }
+        }
+        .onChange(of: notifications.openedSaleID) { _, saleID in
+            if saleID != nil { selectedTab = .dashboard }
         }
         .sheet(item: foregroundNotificationBinding) { notification in
             ForegroundPaymentNotificationView(notification: notification)

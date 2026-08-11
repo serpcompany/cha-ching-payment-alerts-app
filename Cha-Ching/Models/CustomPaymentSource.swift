@@ -258,6 +258,43 @@ struct WebhookFieldMapping: Codable, Equatable {
     }
 }
 
+struct ActiveNotificationSettingsDraft: Equatable {
+    private(set) var persistedMapping: WebhookFieldMapping
+    var notificationFields: [WebhookNotificationField]
+    private(set) var saveConfirmation: String?
+
+    init(mapping: WebhookFieldMapping) {
+        persistedMapping = mapping
+        notificationFields = mapping.notificationFields
+    }
+
+    var previewBody: String {
+        let body = notificationFields
+            .filter(\.enabled)
+            .map { "\($0.label): Example value" }
+            .joined(separator: "\n")
+        return body.isEmpty ? "Payment received." : body
+    }
+
+    mutating func accept(_ mapping: WebhookFieldMapping) {
+        persistedMapping = mapping
+        notificationFields = mapping.notificationFields
+        saveConfirmation = "Notification settings saved."
+    }
+}
+
+struct NotificationTestFeedback: Equatable {
+    let message: String
+    let requiresAcknowledgement: Bool
+
+    static func lockScreenScheduled(delaySeconds: Int) -> NotificationTestFeedback {
+        NotificationTestFeedback(
+            message: "Scheduled. Lock your iPhone now — the test will arrive in about \(delaySeconds) seconds.",
+            requiresAcknowledgement: false
+        )
+    }
+}
+
 struct WebhookMappingSuggestions: Decodable {
     let paymentIdPath: String?
     let amountPath: String?

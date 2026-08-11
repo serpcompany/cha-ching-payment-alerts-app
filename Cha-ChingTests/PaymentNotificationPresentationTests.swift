@@ -1,9 +1,36 @@
 import Foundation
+import AVFAudio
 import Testing
 import UserNotifications
 @testable import Cha_Ching
 
 struct PaymentNotificationPresentationTests {
+    @Test func bundledCashRegisterSoundIsAudible() throws {
+        let url = try #require(Bundle.main.url(forResource: "cash-register", withExtension: "caf"))
+        let file = try AVAudioFile(forReading: url)
+        let buffer = try #require(AVAudioPCMBuffer(
+            pcmFormat: file.processingFormat,
+            frameCapacity: AVAudioFrameCount(file.length)
+        ))
+        try file.read(into: buffer)
+        let samples = try #require(buffer.floatChannelData?[0])
+        let peak = (0..<Int(buffer.frameLength)).reduce(Float.zero) {
+            max($0, abs(samples[$1]))
+        }
+
+        #expect(peak >= 0.7)
+    }
+
+    @Test func aRealPaymentNotificationTargetsTheDashboardPayment() {
+        let destination = PaymentNotificationResponseRouter.destination(
+            userInfo: ["saleId": "sale-custom-123"],
+            title: "Cha-ching!",
+            body: "Amount: $9.00"
+        )
+
+        #expect(destination == .dashboardPayment(id: "sale-custom-123"))
+    }
+
     @Test @MainActor func openingANotificationClearsTheAppBadge() async {
         let probe = BadgeClearProbe()
 
@@ -35,6 +62,13 @@ struct PaymentNotificationPresentationTests {
         }.value
 
         #expect(completedOnMainThread)
+    }
+
+    @Test func lockScreenCountdownStartsWithoutAnAcknowledgementStep() {
+        let feedback = NotificationTestFeedback.lockScreenScheduled(delaySeconds: 10)
+
+        #expect(feedback.message == "Scheduled. Lock your iPhone now — the test will arrive in about 10 seconds.")
+        #expect(feedback.requiresAcknowledgement == false)
     }
 
     @Test func foregroundDeliveryUsesARealAppleNotificationAndFullDetailsWaitForATap() {

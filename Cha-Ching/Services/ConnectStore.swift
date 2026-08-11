@@ -42,6 +42,14 @@ private struct CustomSourceResponse: Decodable {
     let source: CustomPaymentSource
 }
 
+private struct CustomSourceMappingResponse: Decodable {
+    let mapping: WebhookFieldMapping
+}
+
+private struct NotificationFieldsRequest: Encodable {
+    let notificationFields: [WebhookNotificationField]
+}
+
 private struct CreateCustomSourceRequest: Encodable {
     let name: String
 }
@@ -149,6 +157,17 @@ final class ConnectStore: ObservableObject {
         )
         replaceCustomSource(response.source)
         return response.source
+    }
+
+    func updateCustomSourceNotificationFields(
+        id: String,
+        fields: [WebhookNotificationField]
+    ) async throws -> WebhookFieldMapping {
+        let response: CustomSourceMappingResponse = try await APIClient.shared.post(
+            "/v1/custom-sources/\(id)/notification-fields",
+            body: NotificationFieldsRequest(notificationFields: fields)
+        )
+        return response.mapping
     }
 
     func setCustomSource(id: String, active: Bool) async throws -> CustomPaymentSource {
