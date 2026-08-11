@@ -230,7 +230,7 @@ function notificationFieldValue(
   field: NotificationFieldMapping,
   mapping: WebhookFieldMapping,
   normalized: NormalizedCustomPayment,
-): string {
+): string | null {
   if (field.path === mapping.amountPath) {
     return formatMinorAmount(normalized.amountMinor, normalized.currency);
   }
@@ -240,8 +240,7 @@ function notificationFieldValue(
   }
   const value = valueAtPointer(payload, field.path);
   if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") {
-    if (field.enabled) throw new Error(`Notification field ${field.label} is missing`);
-    return "";
+    return null;
   }
   const displayValue = String(value).trim().slice(0, 200);
   const fieldName = decodedPointerSegment(field.path.split("/").at(-1) ?? "").toLowerCase();
@@ -256,11 +255,15 @@ function previewNotificationFields(
   payload: unknown,
   mapping: WebhookFieldMapping,
   normalized: NormalizedCustomPayment,
+  omitMissing = false,
 ): NotificationFieldPreview[] {
-  const fields = (mapping.notificationFields ?? []).map((field) => ({
-    ...field,
-    value: notificationFieldValue(payload, field, mapping, normalized),
-  }));
+  const fields = (mapping.notificationFields ?? []).flatMap((field): NotificationFieldPreview[] => {
+    const value = notificationFieldValue(payload, field, mapping, normalized);
+    if (value !== null) return [{ ...field, value }];
+    if (omitMissing) return [];
+    if (field.enabled) throw new Error(`Notification field ${field.label} is missing`);
+    return [{ ...field, value: "" }];
+  });
   const body = notificationFieldsBody(fields.filter((field) => field.enabled)) || "Payment received.";
   if (new TextEncoder().encode(body).byteLength > 3_000) {
     throw new Error("Notification is too long. Turn off some fields or shorten their display names.");
@@ -512,10 +515,16 @@ async function captureWebhookSample(env: Env, request: Request, token: string): 
       if (!mapping) throw new Error("Payment source mapping is invalid");
       normalized = normalizeCustomPayment(payload, mapping, source.name);
       notificationFields = mapping.notificationFields
-        ? previewNotificationFields(payload, mapping, normalized)
+        ? previewNotificationFields(payload, mapping, normalized, true)
         : undefined;
     } catch (error) {
-      return Response.json({ error: error instanceof Error ? error.message : "Payment could not be mapped" }, { status: 422 });
+      const message = error instanceof Error ? error.message : "Payment could not be mapped";
+      console.warn(JSON.stringify({
+        message: "custom.webhook.rejected",
+        sourceId: source.id,
+        reason: message,
+      }));
+      return Response.json({ error: message }, { status: 422 });
     }
     const paymentFingerprint = await sha256(`${source.id}\u0000${normalized.paymentId}`);
     const scopedPaymentId = `${source.id}:${paymentFingerprint}`;

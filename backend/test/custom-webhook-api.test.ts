@@ -656,6 +656,95 @@ describe("custom payment source HTTP API", () => {
     expect(ack).toHaveBeenCalledOnce();
   });
 
+  it("accepts a real payment when optional notification fields from the setup sample are absent", async () => {
+    const { privateKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
+    Object.assign(env, {
+      APNS_KEY_ID: "TESTKEY",
+      APPLE_TEAM_ID: "TESTTEAM",
+      APNS_BUNDLE_ID: "com.example.chaching",
+      APNS_PRIVATE_KEY: privateKey.export({ format: "pem", type: "pkcs8" }).toString(),
+    });
+    await env.DB.prepare(
+      `INSERT INTO device_tokens (id, user_id, device_id, token, environment, status)
+       VALUES ('device-optional-fields', 'user-one', 'iphone-optional-fields', 'optional-fields-token', 'production', 'active')`,
+    ).run();
+    const create = await handleCustomSourceRequest(env, authFor("user-one"), new Request(
+      "https://api.cha-ching.test/v1/custom-sources",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "SERP Store" }),
+      },
+    ));
+    const created = await create.json<{ source: { id: string; webhookUrl: string } }>();
+    const setupSample = {
+      payment: { id: "setup-payment", amount_minor: 2700, currency: "USD" },
+      buyer: { email: "setup@example.com" },
+      attribution: { utm_source: "newsletter", utm_campaign: "launch" },
+    };
+    const mapping = {
+      paymentIdPath: "/payment/id",
+      amountPath: "/payment/amount_minor",
+      amountUnit: "minor",
+      currencyPath: "/payment/currency",
+      notificationFields: [
+        { id: "buyer-email", path: "/buyer/email", label: "Buyer Email", enabled: true },
+        { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: true },
+        { id: "utm-source", path: "/attribution/utm_source", label: "UTM Source", enabled: true },
+        { id: "utm-campaign", path: "/attribution/utm_campaign", label: "UTM Campaign", enabled: true },
+      ],
+    };
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify(setupSample),
+    }));
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(
+      `https://api.cha-ching.test/v1/custom-sources/${created.source.id}/mapping`,
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(mapping) },
+    ));
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(
+      `https://api.cha-ching.test/v1/custom-sources/${created.source.id}/activate`,
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(mapping) },
+    ));
+
+    const livePayment = {
+      payment: { id: "real-payment-without-attribution", amount_minor: 2700, currency: "USD" },
+      buyer: { email: "buyer@example.com" },
+    };
+    const response = await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify(livePayment),
+    }));
+
+    expect(response.status).toBe(202);
+    expect(sent).toHaveLength(1);
+    if (sent.length !== 1) return;
+    const apnsBodies: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      apnsBodies.push(JSON.parse(String(init?.body)));
+      return new Response(null, { status: 200 });
+    }));
+    await processNotificationBatch(env, {
+      messages: [{ body: sent[0], ack: vi.fn(), retry: vi.fn() }],
+    } as unknown as MessageBatch<{ saleId: string }>);
+
+    expect(apnsBodies).toEqual([
+      expect.objectContaining({
+        aps: expect.objectContaining({
+          alert: {
+            title: "Cha-ching!",
+            body: [
+              "Buyer Email: buyer@example.com",
+              "Amount: $27.00",
+            ].join("\n"),
+          },
+        }),
+      }),
+    ]);
+    const history = await listSales(env, authFor("user-one"), new Request("https://api.cha-ching.test/v1/sales"));
+    expect((await history.json<{ sales: unknown[] }>()).sales).toHaveLength(1);
+  });
+
   it("rejects unsafe numeric payment IDs with guidance to map a lossless string field", async () => {
     const create = await handleCustomSourceRequest(
       env,
