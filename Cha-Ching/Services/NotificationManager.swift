@@ -54,6 +54,20 @@ enum PaymentNotificationPresentation {
     static let showsFullDetailsAfterTap = true
 }
 
+enum PaymentNotificationResponseRouter {
+    static func route(
+        title: String,
+        body: String,
+        onOpen: @escaping @MainActor @Sendable (ForegroundPaymentNotification) -> Void,
+        completion: @escaping @Sendable () -> Void
+    ) {
+        DispatchQueue.main.async {
+            onOpen(ForegroundPaymentNotification(title: title, body: body))
+            completion()
+        }
+    }
+}
+
 @MainActor
 final class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
@@ -236,17 +250,22 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
 
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
-        await MainActor.run {
-            NotificationCenter.default.post(name: .chaChingSaleReceived, object: nil)
-            if PaymentNotificationPresentation.showsFullDetailsAfterTap {
-                foregroundNotification = ForegroundPaymentNotification(
-                    title: response.notification.request.content.title,
-                    body: response.notification.request.content.body
-                )
-            }
-        }
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping @Sendable () -> Void
+    ) {
+        let content = response.notification.request.content
+        PaymentNotificationResponseRouter.route(
+            title: content.title,
+            body: content.body,
+            onOpen: { [weak self] notification in
+                guard let self else { return }
+                NotificationCenter.default.post(name: .chaChingSaleReceived, object: nil)
+                if PaymentNotificationPresentation.showsFullDetailsAfterTap {
+                    foregroundNotification = notification
+                }
+            },
+            completion: completionHandler
+        )
     }
 }
 

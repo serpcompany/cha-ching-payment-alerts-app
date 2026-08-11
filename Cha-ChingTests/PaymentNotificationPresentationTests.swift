@@ -4,6 +4,23 @@ import UserNotifications
 @testable import Cha_Ching
 
 struct PaymentNotificationPresentationTests {
+    @Test func lockScreenResponseReturnsControlToUIKitOnTheMainThread() async {
+        let completedOnMainThread = await Task.detached {
+            await withCheckedContinuation { continuation in
+                PaymentNotificationResponseRouter.route(
+                    title: "Cha-ching!",
+                    body: "Amount: $9.00",
+                    onOpen: { _ in },
+                    completion: {
+                        continuation.resume(returning: Thread.isMainThread)
+                    }
+                )
+            }
+        }.value
+
+        #expect(completedOnMainThread)
+    }
+
     @Test func foregroundDeliveryUsesARealAppleNotificationAndFullDetailsWaitForATap() {
         #expect(PaymentNotificationPresentation.foregroundOptions.contains(.banner))
         #expect(PaymentNotificationPresentation.foregroundOptions.contains(.list))
