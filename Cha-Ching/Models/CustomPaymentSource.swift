@@ -60,14 +60,48 @@ struct WebhookNotificationField: Identifiable, Codable, Equatable {
     var enabled: Bool
 
     static func defaults(from fields: [WebhookField]) -> [WebhookNotificationField] {
-        fields.map { field in
-            WebhookNotificationField(
-                id: field.path,
-                path: field.path,
-                label: defaultLabel(for: field.path),
-                enabled: true
-            )
-        }
+        fields.enumerated()
+            .sorted { left, right in
+                let leftPriority = defaultPriority(for: left.element.path)
+                let rightPriority = defaultPriority(for: right.element.path)
+                return leftPriority == rightPriority
+                    ? left.offset < right.offset
+                    : leftPriority < rightPriority
+            }
+            .map { _, field in
+                WebhookNotificationField(
+                    id: field.path,
+                    path: field.path,
+                    label: defaultLabel(for: field.path),
+                    enabled: true
+                )
+            }
+    }
+
+    private static func defaultPriority(for path: String) -> Int {
+        let leaf = path.split(separator: "/").last.map(String.init)?.lowercased() ?? path.lowercased()
+        let priorities = [
+            "email": 10,
+            "buyer_email": 10,
+            "checkout_country_ip": 20,
+            "product": 30,
+            "entitlement": 40,
+            "purchase_type": 50,
+            "sale_event": 60,
+            "amount_minor": 70,
+            "amount": 70,
+            "dub_affiliate_id": 80,
+            "utm_source": 90,
+            "utm_medium": 100,
+            "utm_campaign": 110,
+            "utm_term": 120,
+            "utm_content": 130,
+            "occurred_at": 140,
+            "store": 150,
+            "id": 160,
+            "currency": 170
+        ]
+        return priorities[leaf] ?? 1_000
     }
 
     static func defaultLabel(for path: String) -> String {
@@ -130,6 +164,33 @@ struct WebhookFieldMapping: Codable, Equatable {
         self.planPath = planPath
         self.saleTypePath = saleTypePath
         self.notificationFields = notificationFields
+    }
+
+    static func inferredAmountUnit(for path: String) -> String {
+        let fieldName = path.split(separator: "/").last?.lowercased() ?? path.lowercased()
+        return fieldName.contains("minor")
+            || fieldName.hasSuffix("cent")
+            || fieldName.hasSuffix("cents")
+            ? "minor"
+            : "major"
+    }
+
+    mutating func refreshUntouchedDefaults(from fields: [WebhookField]) {
+        let defaults = WebhookNotificationField.defaults(from: fields)
+        let defaultPaths = Set(defaults.map(\.path))
+        let containsOnlyGeneratedRows = notificationFields.count == defaults.count
+            && Set(notificationFields.map(\.path)) == defaultPaths
+            && notificationFields.allSatisfy { field in
+                field.enabled
+                    && field.id == field.path
+                    && field.label == WebhookNotificationField.defaultLabel(for: field.path)
+            }
+
+        guard notificationFields.isEmpty || containsOnlyGeneratedRows else { return }
+        notificationFields = defaults
+        if amountUnit == "major", Self.inferredAmountUnit(for: amountPath) == "minor" {
+            amountUnit = "minor"
+        }
     }
 
     private enum CodingKeys: String, CodingKey {

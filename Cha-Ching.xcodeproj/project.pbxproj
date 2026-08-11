@@ -17,6 +17,7 @@
 		405010C6F04A7FEE07B40F66 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8764F36998B956216842955 /* AuthManager.swift */; };
 		44BD0E0C3503D2F05CDB52F8 /* Sale.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ECEEA344D12969329CC034A /* Sale.swift */; };
 		4500C3B0EEBBE88F08C7AD8A /* CustomPaymentSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 468DDF9F4DEF74FC897AF682 /* CustomPaymentSource.swift */; };
+		577767016C99FC718193832E /* CustomNotificationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F89BF279E44EEFE4CF4B7558 /* CustomNotificationSettingsView.swift */; };
 		63FF238A5F0308F390742C0F /* CustomWebhookDeveloperPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7996CF08A2EAA4E22A254C26 /* CustomWebhookDeveloperPromptTests.swift */; };
 		6887DC54A2B68216D2EFAE95 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA321C7A5BA4FBE69295C95C /* RootTabView.swift */; };
 		69948E549340E6EE519B3471 /* SaleRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30DF41A590E1799F2D791252 /* SaleRow.swift */; };
@@ -70,6 +71,7 @@
 		EE2EC057FBB36035F143FC48 /* Cha-ChingTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = "Cha-ChingTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0867D67A73EEC4496B1399C /* ConnectStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectStore.swift; sourceTree = "<group>"; };
 		F544C6BA875EDD9ECF20E81B /* ConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectView.swift; sourceTree = "<group>"; };
+		F89BF279E44EEFE4CF4B7558 /* CustomNotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomNotificationSettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -113,6 +115,7 @@
 			children = (
 				5D8CF3A6096695D8F6D6B808 /* ConnectSheet.swift */,
 				F544C6BA875EDD9ECF20E81B /* ConnectView.swift */,
+				F89BF279E44EEFE4CF4B7558 /* CustomNotificationSettingsView.swift */,
 				1D1792A1F3D214B7B66527E1 /* CustomSourceSheet.swift */,
 			);
 			path = Connect;
@@ -304,6 +307,7 @@
 				E67C106D234520815AC76138 /* ConnectSheet.swift in Sources */,
 				991C548A38405CB88DC6704C /* ConnectStore.swift in Sources */,
 				80CEDB095F8C9808067CBFAC /* ConnectView.swift in Sources */,
+				577767016C99FC718193832E /* CustomNotificationSettingsView.swift in Sources */,
 				4500C3B0EEBBE88F08C7AD8A /* CustomPaymentSource.swift in Sources */,
 				7336998C7ED8AB0D08878F80 /* CustomSourceSheet.swift in Sources */,
 				AF01ED49D8033099991F6BBF /* CustomWebhookDeveloperPrompt.swift in Sources */,

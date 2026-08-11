@@ -3,6 +3,12 @@ import Testing
 @testable import Cha_Ching
 
 struct WebhookNotificationDesignerTests {
+    @Test func amountUnitFollowsTheObservedAmountFieldName() {
+        #expect(WebhookFieldMapping.inferredAmountUnit(for: "/payment/amount_minor") == "minor")
+        #expect(WebhookFieldMapping.inferredAmountUnit(for: "/order/total_cents") == "minor")
+        #expect(WebhookFieldMapping.inferredAmountUnit(for: "/order/total") == "major")
+    }
+
     @Test func everyDiscoveredFieldBecomesAnEnabledEditableNotificationRow() {
         let fields = [
             WebhookField(path: "/payment/id", value: .string("order_123"), valueType: "string"),
@@ -12,9 +18,97 @@ struct WebhookNotificationDesignerTests {
 
         let rows = WebhookNotificationField.defaults(from: fields)
 
-        #expect(rows.map(\.path) == fields.map(\.path))
-        #expect(rows.map(\.label) == ["ID", "Amount", "Source Store"])
+        #expect(Set(rows.map(\.path)) == Set(fields.map(\.path)))
+        #expect(Dictionary(uniqueKeysWithValues: rows.map { ($0.path, $0.label) }) == [
+            "/payment/id": "ID",
+            "/payment/amount_minor": "Amount",
+            "/source/store": "Source Store"
+        ])
         #expect(rows.allSatisfy { $0.enabled })
+    }
+
+    @Test func knownBusinessFieldsStartInTheStandardNotificationOrder() {
+        let fields = [
+            WebhookField(path: "/attribution/utm_campaign", value: .string("launch"), valueType: "string"),
+            WebhookField(path: "/payment/id", value: .string("order_123"), valueType: "string"),
+            WebhookField(path: "/purchase/product", value: .string("Downloader"), valueType: "string"),
+            WebhookField(path: "/buyer/email", value: .string("buyer@example.com"), valueType: "string"),
+            WebhookField(path: "/payment/amount_minor", value: .number(900), valueType: "number"),
+            WebhookField(path: "/custom/note", value: .string("Keep me"), valueType: "string")
+        ]
+
+        let rows = WebhookNotificationField.defaults(from: fields)
+
+        #expect(rows.map(\.path) == [
+            "/buyer/email",
+            "/purchase/product",
+            "/payment/amount_minor",
+            "/attribution/utm_campaign",
+            "/payment/id",
+            "/custom/note"
+        ])
+    }
+
+    @Test func oldUntouchedSetupDefaultsReceiveTheImprovedOrderAndAmountUnit() {
+        let fields = [
+            WebhookField(path: "/payment/id", value: .string("order_123"), valueType: "string"),
+            WebhookField(path: "/payment/amount_minor", value: .number(900), valueType: "number"),
+            WebhookField(path: "/buyer/email", value: .string("buyer@example.com"), valueType: "string")
+        ]
+        var mapping = WebhookFieldMapping(
+            paymentIdPath: "/payment/id",
+            amountPath: "/payment/amount_minor",
+            amountUnit: "major",
+            currencyPath: "/payment/currency",
+            notificationFields: fields.map { field in
+                WebhookNotificationField(
+                    id: field.path,
+                    path: field.path,
+                    label: WebhookNotificationField.defaultLabel(for: field.path),
+                    enabled: true
+                )
+            }
+        )
+
+        mapping.refreshUntouchedDefaults(from: fields)
+
+        #expect(mapping.amountUnit == "minor")
+        #expect(mapping.notificationFields.map(\.path) == [
+            "/buyer/email",
+            "/payment/amount_minor",
+            "/payment/id"
+        ])
+    }
+
+    @Test func improvedDefaultsDoNotReplaceAUsersCustomization() {
+        let fields = [
+            WebhookField(path: "/payment/id", value: .string("order_123"), valueType: "string"),
+            WebhookField(path: "/buyer/email", value: .string("buyer@example.com"), valueType: "string")
+        ]
+        var mapping = WebhookFieldMapping(
+            paymentIdPath: "/payment/id",
+            amountPath: "/payment/amount_minor",
+            amountUnit: "major",
+            currencyPath: "/payment/currency",
+            notificationFields: [
+                WebhookNotificationField(
+                    id: "/payment/id",
+                    path: "/payment/id",
+                    label: "Receipt",
+                    enabled: true
+                ),
+                WebhookNotificationField(
+                    id: "/buyer/email",
+                    path: "/buyer/email",
+                    label: "Buyer Email",
+                    enabled: true
+                )
+            ]
+        )
+
+        mapping.refreshUntouchedDefaults(from: fields)
+
+        #expect(mapping.notificationFields.map(\.label) == ["Receipt", "Buyer Email"])
     }
 
     @Test func businessFieldLabelsPreserveExpectedAcronymsAndMeaning() {

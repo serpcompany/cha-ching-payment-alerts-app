@@ -9,11 +9,14 @@ A signed-in user can connect any store or payment system that can send JSON to a
 1. Tap **Connect another payment source** and give it a recognizable name.
 2. Copy either the private webhook URL or the ready-made **AI agent / developer** prompt. The prompt includes the URL, security rules, request contract, setup steps, test expectations, retry check, and completion checklist.
 3. Send one test event, then tap **Check connection** in Cha-Ching.
-4. Match the observed fields to Payment ID, Amount, Currency, and optional Time, Product, Plan, and Sale type.
-5. Customize the notification. Every observed scalar field appears and starts on. The compact list shows its label, sample value, and source path. The user can search, filter by **All / Included / Hidden**, toggle a row directly, or tap it to rename, remap, and move it earlier or later. **Show all** and **Hide all** remain available.
-6. Review the exact notification body and activate the source.
+4. Match Payment ID, Amount, and Currency. Optional history mappings are available in a collapsed disclosure instead of crowding the required setup.
+5. Tap **Customize notifications** to move to a separate **Notification settings** screen. Connecting the payment source and designing its notification are intentionally separate jobs.
+6. Every observed scalar field appears once and starts on. The compact ordered list shows only the user-facing label, example value, and direct on/off switch. Tap a row to rename it, remap it, or move it; the technical source path appears only inside that detail screen.
+7. Tap **Preview notification** to review the exact multiline body, then activate the source from the preview.
 
 The sender owns the payload shape. Cha-Ching discovers every scalar value actually present in a valid sample payload up to 64 KiB and saves the user's mapping and notification design. A sample received during setup is never counted as revenue and never sends a notification. Changing a field toggle, label, mapping, or order invalidates the old preview, so activation always uses the design currently visible on screen.
+
+The selected UI is Variant A from the throwaway [notification-settings prototype](https://github.com/serpcompany/cha-ching/tree/prototype/notification-settings-variants/prototypes/notification-settings-prototype). The prototype branch records the design decision and is not merged into the product branch.
 
 ## Field vocabulary and notification contract
 
@@ -30,8 +33,6 @@ This vocabulary, the exact multiline renderer, and the ordered mapping are locke
 ## SERP Store working sample
 
 The current SERP Store test contract contains 17 observed scalar fields. All 17 appear in the designer and start included; the user may hide Payment ID, Currency, or any other field. The 15 business-facing fields are Buyer Email, Checkout Country (IP), Product, Entitlement, Purchase Type, Sale Event, Amount, Dub Affiliate ID, UTM Source, UTM Medium, UTM Campaign, UTM Term, UTM Content, Paid At, and Source Store.
-
-![SERP Store notification field selector](../images/custom-webhook-notification-designer.png)
 
 `Checkout Country (IP)` is derived from the checkout request's IP country. It is useful for context but is not a verified billing country; a future `Billing Country` must remain a separate field.
 
@@ -104,7 +105,10 @@ Because the developer prompt contains that private URL, it is also a secret. Sha
 - Setup samples expose selectable scalar paths and values without affecting history or notifications.
 - A valid mapping produces a preview before activation.
 - Every observed scalar field is present in the notification designer and starts enabled; the UI does not call this a catalog of every theoretically available sender field.
-- Each notification field can be searched, filtered, toggled, renamed, remapped, and moved; Show all and Hide all update every row.
+- Connection setup and notification customization are separate screens connected by a clear **Customize notifications** next step.
+- The main notification list contains every observed field once, shows its display label and example value without a technical source path, and provides a direct on/off switch.
+- Tapping a notification row opens rename, remap, and ordering controls. Edit mode also supports drag reordering.
+- The exact full notification preview is available behind one tap instead of being duplicated inline with the field list.
 - Changing any mapping, label, toggle, order, or amount-format choice invalidates the preview; activation requires the exact mapping that was previewed.
 - The title is `Cha-ching!`, and each enabled structured field occupies exactly one ordered `{label}: {value}` line without combining meanings.
 - The preview body exactly matches the configured body handed to APNs for a live event.
@@ -114,4 +118,4 @@ Because the developer prompt contains that private URL, it is also a secret. Sha
 
 ## Production status
 
-Migrations `0005` through `0009` and Worker version `928ba03e-19e8-40c1-99d9-5e187fa1be41` were deployed on 2026-08-11 JST. The live `serp.store` source remains in setup and its encrypted sample was safely replaced with the 17-field fake payload above; production stayed at 11 sales and 11 deliveries. Migration `0009` adds the normalized notification-field snapshot used for custom pushes. TestFlight build `6` (`f08e77af-a753-4867-913d-6579a9f43ad5`) is still valid but predates the refined search/filter/reorder screen and standardized multiline body; those iOS changes require the next TestFlight upload. Final acceptance requires opening the existing source on a signed iPhone, configuring and activating its sampled mapping, then replaying one real sender payment and observing one matching history item and notification.
+Migrations `0005` through `0009` and Worker version `928ba03e-19e8-40c1-99d9-5e187fa1be41` were deployed on 2026-08-11 JST. The live `serp.store` source remains in setup and its encrypted sample was safely replaced with the 17-field fake payload above; production stayed at 11 sales and 11 deliveries. Migration `0009` adds the normalized notification-field snapshot used for custom pushes. TestFlight build `6` (`f08e77af-a753-4867-913d-6579a9f43ad5`) is still valid but predates the separate Variant A Notification settings screen and standardized multiline body; those iOS changes require the next TestFlight upload. Final acceptance requires opening the existing source on a signed iPhone, configuring and activating its sampled mapping, then replaying one real sender payment and observing one matching history item and notification.

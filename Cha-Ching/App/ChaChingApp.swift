@@ -12,20 +12,6 @@ struct ChaChingApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                #if DEBUG
-                if ProcessInfo.processInfo.arguments.contains("--notification-designer-review") {
-                    WebhookNotificationDesignerReviewView()
-                } else if auth.isLoading {
-                    ZStack {
-                        Theme.canvas.ignoresSafeArea()
-                        ProgressView()
-                    }
-                } else if auth.isSignedIn {
-                    RootTabView()
-                } else {
-                    SignInView()
-                }
-                #else
                 if auth.isLoading {
                     ZStack {
                         Theme.canvas.ignoresSafeArea()
@@ -36,7 +22,6 @@ struct ChaChingApp: App {
                 } else {
                     SignInView()
                 }
-                #endif
             }
             .environmentObject(store)
             .environmentObject(auth)
