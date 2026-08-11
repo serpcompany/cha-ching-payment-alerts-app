@@ -66,6 +66,7 @@ interface CustomSourceRow {
 interface HistoricalNotificationFieldsRow {
   id: string;
   notification_fields_json: string;
+  notification_field_values_json: string | null;
 }
 
 type CustomSourceConnectionState = "waiting" | "event_received" | "active" | "paused";
@@ -264,7 +265,7 @@ async function updateNotificationFields(
 
   const mappingJSON = serializedMapping(updated);
   const history = await env.DB.prepare(
-    `SELECT id, notification_fields_json FROM sales
+    `SELECT id, notification_fields_json, notification_field_values_json FROM sales
      WHERE provider = 'custom' AND provider_account_id = ?1 AND user_id = ?2
        AND notification_fields_json IS NOT NULL`,
   ).bind(sourceId, user.id).all<HistoricalNotificationFieldsRow>();
@@ -275,12 +276,14 @@ async function updateNotificationFields(
     ...history.results.flatMap((sale) => {
       const fields = applyHistoricalNotificationPresentation(
         sale.notification_fields_json,
+        sale.notification_field_values_json,
         current.notificationFields ?? [],
         updated.notificationFields ?? [],
       );
       return fields === null ? [] : [env.DB.prepare(
-        "UPDATE sales SET notification_fields_json = ?1 WHERE id = ?2 AND user_id = ?3",
-      ).bind(fields, sale.id, user.id)];
+        `UPDATE sales SET notification_fields_json = ?1, notification_field_values_json = ?2
+         WHERE id = ?3 AND user_id = ?4`,
+      ).bind(fields.presentation, fields.archive, sale.id, user.id)];
     }),
   ];
   await env.DB.batch(statements);
@@ -289,9 +292,10 @@ async function updateNotificationFields(
 
 function applyHistoricalNotificationPresentation(
   value: string,
+  archivedValue: string | null,
   current: NotificationFieldMapping[],
   updated: NotificationFieldMapping[],
-): string | null {
+): { presentation: string; archive: string } | null {
   let stored: Array<{ label: string; value: string }>;
   try {
     const parsed = JSON.parse(value) as unknown;
@@ -306,23 +310,41 @@ function applyHistoricalNotificationPresentation(
     return null;
   }
 
-  const availableByLabel = new Map<string, NotificationFieldMapping[]>();
-  for (const field of current) {
-    const matches = availableByLabel.get(field.label) ?? [];
-    matches.push(field);
-    availableByLabel.set(field.label, matches);
-  }
   const valuesById = new Map<string, string>();
-  for (const field of stored) {
-    const matches = availableByLabel.get(field.label);
-    const mapped = matches?.shift();
-    if (mapped) valuesById.set(mapped.id, field.value);
+  if (archivedValue) {
+    try {
+      const archived = JSON.parse(archivedValue) as unknown;
+      if (!Array.isArray(archived)) return null;
+      for (const field of archived) {
+        if (!field || typeof field !== "object") return null;
+        const id = (field as Record<string, unknown>).id;
+        const fieldValue = (field as Record<string, unknown>).value;
+        if (typeof id !== "string" || typeof fieldValue !== "string") return null;
+        valuesById.set(id, fieldValue);
+      }
+    } catch {
+      return null;
+    }
+  } else {
+    const availableByLabel = new Map<string, NotificationFieldMapping[]>();
+    for (const field of current) {
+      const matches = availableByLabel.get(field.label) ?? [];
+      matches.push(field);
+      availableByLabel.set(field.label, matches);
+    }
+    for (const field of stored) {
+      const matches = availableByLabel.get(field.label);
+      const mapped = matches?.shift();
+      if (mapped) valuesById.set(mapped.id, field.value);
+    }
   }
   if (stored.length > 0 && valuesById.size === 0) return null;
-  return JSON.stringify(updated.flatMap((field) => {
+  const presentation = JSON.stringify(updated.flatMap((field) => {
     const fieldValue = valuesById.get(field.id);
     return field.enabled && fieldValue !== undefined ? [{ label: field.label, value: fieldValue }] : [];
   }));
+  const archive = JSON.stringify(Array.from(valuesById, ([id, fieldValue]) => ({ id, value: fieldValue })));
+  return { presentation, archive };
 }
 
 function notificationFieldValue(
@@ -524,21 +546,26 @@ async function testNotification(env: Env, auth: Auth, request: Request, sourceId
       return Response.json({ error: "Active notification fields can only be renamed, shown, hidden, or reordered" }, { status: 400 });
     }
     const latest = await env.DB.prepare(
-      `SELECT id, notification_fields_json FROM sales
+      `SELECT id, notification_fields_json, notification_field_values_json FROM sales
        WHERE provider = 'custom' AND provider_account_id = ?1 AND user_id = ?2
          AND notification_fields_json IS NOT NULL
        ORDER BY occurred_at DESC, created_at DESC LIMIT 1`,
-    ).bind(sourceId, user.id).first<{ id: string; notification_fields_json: string }>();
+    ).bind(sourceId, user.id).first<{
+      id: string;
+      notification_fields_json: string;
+      notification_field_values_json: string | null;
+    }>();
     linkedSaleId = latest?.id;
     const rendered = latest
       ? applyHistoricalNotificationPresentation(
         latest.notification_fields_json,
+        latest.notification_field_values_json,
         current.notificationFields ?? [],
         mapping.notificationFields ?? [],
       )
       : null;
     const fields = rendered
-      ? JSON.parse(rendered) as Array<{ label: string; value: string }>
+      ? JSON.parse(rendered.presentation) as Array<{ label: string; value: string }>
       : (mapping.notificationFields ?? [])
         .filter((field) => field.enabled)
         .map((field) => ({ label: field.label, value: "Example value" }));
@@ -669,8 +696,9 @@ async function captureWebhookSample(env: Env, request: Request, token: string): 
       `INSERT OR IGNORE INTO sales (
         id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
         amount_minor, currency, product_label, plan_label, sale_type_label,
-        country_code, is_subscription, occurred_at, notification_fields_json
-      ) VALUES (?1, ?2, 'custom', ?3, ?4, ?4, ?5, ?6, ?7, ?8, ?9, NULL, ?10, ?11, ?12)`,
+        country_code, is_subscription, occurred_at, notification_fields_json,
+        notification_field_values_json
+      ) VALUES (?1, ?2, 'custom', ?3, ?4, ?4, ?5, ?6, ?7, ?8, ?9, NULL, ?10, ?11, ?12, ?13)`,
     ).bind(
       saleId,
       source.user_id,
@@ -687,6 +715,11 @@ async function captureWebhookSample(env: Env, request: Request, token: string): 
         ? JSON.stringify(notificationFields
           .filter((field) => field.enabled)
           .map(({ label, value }) => ({ label, value })))
+        : null,
+      notificationFields
+        ? JSON.stringify(notificationFields
+          .filter((field) => field.enabled)
+          .map(({ id, value }) => ({ id, value })))
         : null,
     ).run();
     const queued = await enqueueSaleNotification(env, saleId);
