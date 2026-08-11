@@ -51,8 +51,14 @@ final class SalesStore: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
 
+    private struct RefreshOperation {
+        let id: UUID
+        let task: Task<[Sale], Error>
+    }
+
     private let client: SalesClient
     private var notificationObserver: NSObjectProtocol?
+    private var refreshOperation: RefreshOperation?
 
     convenience init() {
         self.init(client: .live)
@@ -70,17 +76,38 @@ final class SalesStore: ObservableObject {
     }
 
     func refresh() async {
-        isLoading = true
-        defer { isLoading = false }
+        let operation: RefreshOperation
+        if let existing = refreshOperation {
+            operation = existing
+        } else {
+            isLoading = true
+            errorMessage = nil
+            let created = RefreshOperation(
+                id: UUID(),
+                task: Task { try await client.load() }
+            )
+            refreshOperation = created
+            operation = created
+        }
+
         do {
-            sales = try await client.load()
+            let refreshedSales = try await operation.task.value
+            guard refreshOperation?.id == operation.id else { return }
+            sales = refreshedSales
             errorMessage = nil
         } catch is CancellationError {
-            return
+            // View lifecycle cancellation is not a failed server refresh.
+        } catch let error as URLError where error.code == .cancelled {
+            // URLSession can surface cancellation as URLError instead.
         } catch {
+            guard refreshOperation?.id == operation.id else { return }
             Self.logger.error("Sales refresh failed: \(error.localizedDescription, privacy: .public)")
             errorMessage = "Payments couldn't refresh."
         }
+
+        guard refreshOperation?.id == operation.id else { return }
+        refreshOperation = nil
+        isLoading = false
     }
 
     func dismissLoadError() {

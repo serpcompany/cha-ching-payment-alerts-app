@@ -22,6 +22,7 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 - The empty state says **No payments yet** and explains that a payment will appear when one arrives.
 - Payment rows and details continue to use the D1-backed sales API; this is a language and information-architecture change, not a second data source.
 - If Payments cannot refresh, already-loaded payments stay visible. A compact inline message says **Payments couldn't refresh.**, offers **Retry** and **Dismiss**, and clears automatically after a successful refresh.
+- Automatic foreground, notification-triggered, and pull-to-refresh callers share one in-flight Payments request. A canceled or superseded caller does not flash a false connectivity error while the shared request is still succeeding.
 
 ## Settings content
 
@@ -50,6 +51,7 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 - Dashboard contains no revenue hero or nonfunctional notification-bell toolbar item.
 - Dashboard contains a Payments section backed by the same payment list and detail route.
 - A Payments refresh failure is actionable and dismissible and does not erase previously loaded payments.
+- Pulling to refresh while another automatic refresh is active does not issue duplicate requests or briefly show a false failure card.
 - Settings contains a working Payment notifications toggle and Sign out, with no Plan access section.
 - A foreground sample push is a genuine Apple banner. Pressing either a foreground or lock-screen notification safely launches or resumes Cha-Ching and exposes every selected line in its scrollable detail presentation; a lock-screen test is queued only after the server accepts the delayed request.
 - The compiled app includes matching dollar-symbol app-icon and BrandMark assets.
