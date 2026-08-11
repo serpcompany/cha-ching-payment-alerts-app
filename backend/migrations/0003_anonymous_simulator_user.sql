@@ -1,0 +1,2 @@
+ALTER TABLE user
+ADD COLUMN is_anonymous INTEGER NOT NULL DEFAULT 0 CHECK(is_anonymous IN (0, 1));

@@ -1,0 +1,56 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cha-ching-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-08",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.05 }
+  },
+  "vars": {
+    "ENVIRONMENT": "production",
+    "PUBLIC_BASE_URL": "https://cha-ching-api.serpcompany.workers.dev",
+    "APPLE_APP_BUNDLE_ID": "com.serpcompany.chaching",
+    "APPLE_SERVICE_ID": "com.serpcompany.chaching.signin",
+    "APNS_BUNDLE_ID": "com.serpcompany.chaching",
+    "PAYPAL_ENVIRONMENT": "sandbox"
+  },
+  "secrets": {
+    "required": [
+      "BETTER_AUTH_SECRET",
+      "PROVIDER_TOKEN_ENCRYPTION_KEY",
+      "STRIPE_SECRET_KEY",
+      "STRIPE_APP_INSTALL_URL",
+      "STRIPE_APP_SIGNING_SECRET",
+      "STRIPE_WEBHOOK_SECRET"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cha-ching-prod",
+      "database_id": "8e600619-746f-440b-8a2f-d81274893082",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "NOTIFICATION_QUEUE",
+        "queue": "cha-ching-notifications"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "cha-ching-notifications",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 8,
+        "retry_delay": 60,
+        "dead_letter_queue": "cha-ching-notifications-dlq"
+      }
+    ]
+  }
+}

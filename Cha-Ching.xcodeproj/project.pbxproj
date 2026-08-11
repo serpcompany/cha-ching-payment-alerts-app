@@ -1,0 +1,615 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		02EA947E6037283AAFE280AD /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 6CE760319A49CDDBE80C1447 /* LaunchScreen.storyboard */; };
+		041BE9C54475ED31FA588CF2 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D115B8103FF1439A0C2E6D3D /* Theme.swift */; };
+		2081778642AD4EE2DB0FB871 /* HomeComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A58B251927E5F6F4FFFE6915 /* HomeComponents.swift */; };
+		210EF9A32A4E48EC67C203F8 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75CD9FC697BAB28269D3B464 /* APIClient.swift */; };
+		219D7A3BB6D0D9D4AA468F75 /* ChaChingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97EE9023C77A95B6CC382CC6 /* ChaChingApp.swift */; };
+		341ADFBA1811D51201522F8C /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DE4FF55125FA287FFF07BA9 /* SignInView.swift */; };
+		37517B775DDEFA20EE147AF2 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A78F14FB2FD3E9606C1258A1 /* NotificationManager.swift */; };
+		405010C6F04A7FEE07B40F66 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8764F36998B956216842955 /* AuthManager.swift */; };
+		44BD0E0C3503D2F05CDB52F8 /* Sale.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ECEEA344D12969329CC034A /* Sale.swift */; };
+		4500C3B0EEBBE88F08C7AD8A /* CustomPaymentSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 468DDF9F4DEF74FC897AF682 /* CustomPaymentSource.swift */; };
+		577767016C99FC718193832E /* CustomNotificationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F89BF279E44EEFE4CF4B7558 /* CustomNotificationSettingsView.swift */; };
+		63FF238A5F0308F390742C0F /* CustomWebhookDeveloperPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7996CF08A2EAA4E22A254C26 /* CustomWebhookDeveloperPromptTests.swift */; };
+		6887DC54A2B68216D2EFAE95 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA321C7A5BA4FBE69295C95C /* RootTabView.swift */; };
+		69948E549340E6EE519B3471 /* SaleRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30DF41A590E1799F2D791252 /* SaleRow.swift */; };
+		7336998C7ED8AB0D08878F80 /* CustomSourceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D1792A1F3D214B7B66527E1 /* CustomSourceSheet.swift */; };
+		7FF6A62D26FE5A1B2DEF4248 /* AppNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5BFDF9B844EE38D865B037E /* AppNavigationTests.swift */; };
+		80CEDB095F8C9808067CBFAC /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F544C6BA875EDD9ECF20E81B /* ConnectView.swift */; };
+		869FC8CAC123C3A8C732E633 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 14CD4631A44997104C853CB0 /* Assets.xcassets */; };
+		8DC3CF4F0C9989CBD83F8A36 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BEAE7900E64409AE45942B /* HomeView.swift */; };
+		991C548A38405CB88DC6704C /* ConnectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0867D67A73EEC4496B1399C /* ConnectStore.swift */; };
+		A0039B73D3CA4C97E635C7AA /* PaymentNotificationPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B698CD26E86058C88F518AE /* PaymentNotificationPresentationTests.swift */; };
+		A18C3C775864A1B0EB0A332C /* WebhookNotificationDesignerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */; };
+		AF01ED49D8033099991F6BBF /* CustomWebhookDeveloperPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = C702CA5FCE9B85FA055A62E1 /* CustomWebhookDeveloperPrompt.swift */; };
+		B15D512565372F588A4ED383 /* SalesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9ABCE1E07393E5E7E9E2C3 /* SalesStore.swift */; };
+		BE62FAE52D0FD8AA9A9CB0EF /* ProviderWebAuthenticationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6F6855FD89FDB53F76A4457 /* ProviderWebAuthenticationSession.swift */; };
+		E67C106D234520815AC76138 /* ConnectSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D8CF3A6096695D8F6D6B808 /* ConnectSheet.swift */; };
+		F2F5B71D883CD8AA37F12596 /* cash-register.caf in Resources */ = {isa = PBXBuildFile; fileRef = A6893DE2EB5BC9C89ABC8089 /* cash-register.caf */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		5A695B063587D71B3A020EB3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3DE7022738903EBA075AEBBC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 54000E0DE7F26575C9D09CB8;
+			remoteInfo = "Cha-Ching";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0B698CD26E86058C88F518AE /* PaymentNotificationPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentNotificationPresentationTests.swift; sourceTree = "<group>"; };
+		0ECEEA344D12969329CC034A /* Sale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sale.swift; sourceTree = "<group>"; };
+		14CD4631A44997104C853CB0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		1D1792A1F3D214B7B66527E1 /* CustomSourceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomSourceSheet.swift; sourceTree = "<group>"; };
+		2DE4FF55125FA287FFF07BA9 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
+		30DF41A590E1799F2D791252 /* SaleRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaleRow.swift; sourceTree = "<group>"; };
+		468DDF9F4DEF74FC897AF682 /* CustomPaymentSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomPaymentSource.swift; sourceTree = "<group>"; };
+		5C9ABCE1E07393E5E7E9E2C3 /* SalesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalesStore.swift; sourceTree = "<group>"; };
+		5D8CF3A6096695D8F6D6B808 /* ConnectSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectSheet.swift; sourceTree = "<group>"; };
+		75CD9FC697BAB28269D3B464 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		7996CF08A2EAA4E22A254C26 /* CustomWebhookDeveloperPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomWebhookDeveloperPromptTests.swift; sourceTree = "<group>"; };
+		97EE9023C77A95B6CC382CC6 /* ChaChingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChaChingApp.swift; sourceTree = "<group>"; };
+		9EEE0C714FD8BC27B6895BAE /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		A58B251927E5F6F4FFFE6915 /* HomeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeComponents.swift; sourceTree = "<group>"; };
+		A5BFDF9B844EE38D865B037E /* AppNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationTests.swift; sourceTree = "<group>"; };
+		A6893DE2EB5BC9C89ABC8089 /* cash-register.caf */ = {isa = PBXFileReference; path = "cash-register.caf"; sourceTree = "<group>"; };
+		A78F14FB2FD3E9606C1258A1 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
+		AA321C7A5BA4FBE69295C95C /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		B4B800513E0052C6450AFC2B /* Cha-Ching.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Cha-Ching.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0FD894F5B73CA31CF884DA9 /* ChaChing.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ChaChing.entitlements; sourceTree = "<group>"; };
+		C6F6855FD89FDB53F76A4457 /* ProviderWebAuthenticationSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderWebAuthenticationSession.swift; sourceTree = "<group>"; };
+		C702CA5FCE9B85FA055A62E1 /* CustomWebhookDeveloperPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomWebhookDeveloperPrompt.swift; sourceTree = "<group>"; };
+		C8764F36998B956216842955 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookNotificationDesignerTests.swift; sourceTree = "<group>"; };
+		D115B8103FF1439A0C2E6D3D /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		D5BEAE7900E64409AE45942B /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		E4843FB418816E521C2646A0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		EE2EC057FBB36035F143FC48 /* Cha-ChingTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = "Cha-ChingTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F0867D67A73EEC4496B1399C /* ConnectStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectStore.swift; sourceTree = "<group>"; };
+		F544C6BA875EDD9ECF20E81B /* ConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectView.swift; sourceTree = "<group>"; };
+		F89BF279E44EEFE4CF4B7558 /* CustomNotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomNotificationSettingsView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		42376B5C9DE0458979F16D7B /* Cha-Ching */ = {
+			isa = PBXGroup;
+			children = (
+				14CD4631A44997104C853CB0 /* Assets.xcassets */,
+				C0FD894F5B73CA31CF884DA9 /* ChaChing.entitlements */,
+				E4843FB418816E521C2646A0 /* Info.plist */,
+				6CE760319A49CDDBE80C1447 /* LaunchScreen.storyboard */,
+				CF1F3B1D927361AC31C94DEE /* App */,
+				F40C87D98C7109AD88211C0C /* Design */,
+				CBA791CA6365D6E5B901E196 /* Models */,
+				765D02B5175B2B97BC55ADBE /* Resources */,
+				F119CCC1013425178C6C59AF /* Services */,
+				4AE4521D40E25B9F0F77685C /* Views */,
+			);
+			path = "Cha-Ching";
+			sourceTree = "<group>";
+		};
+		4AE4521D40E25B9F0F77685C /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				AA321C7A5BA4FBE69295C95C /* RootTabView.swift */,
+				4F257519907AF954D022A86E /* Auth */,
+				579B4EBE194CE60F44BC3082 /* Connect */,
+				D09A217744D1A64A37966B30 /* Home */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		4F257519907AF954D022A86E /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				2DE4FF55125FA287FFF07BA9 /* SignInView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		579B4EBE194CE60F44BC3082 /* Connect */ = {
+			isa = PBXGroup;
+			children = (
+				5D8CF3A6096695D8F6D6B808 /* ConnectSheet.swift */,
+				F544C6BA875EDD9ECF20E81B /* ConnectView.swift */,
+				F89BF279E44EEFE4CF4B7558 /* CustomNotificationSettingsView.swift */,
+				1D1792A1F3D214B7B66527E1 /* CustomSourceSheet.swift */,
+			);
+			path = Connect;
+			sourceTree = "<group>";
+		};
+		765D02B5175B2B97BC55ADBE /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A6893DE2EB5BC9C89ABC8089 /* cash-register.caf */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		AD68785C2D1A4C9883DDFA4C /* Cha-ChingTests */ = {
+			isa = PBXGroup;
+			children = (
+				A5BFDF9B844EE38D865B037E /* AppNavigationTests.swift */,
+				7996CF08A2EAA4E22A254C26 /* CustomWebhookDeveloperPromptTests.swift */,
+				0B698CD26E86058C88F518AE /* PaymentNotificationPresentationTests.swift */,
+				CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */,
+			);
+			path = "Cha-ChingTests";
+			sourceTree = "<group>";
+		};
+		B304E8DE78529A07D0F53908 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B4B800513E0052C6450AFC2B /* Cha-Ching.app */,
+				EE2EC057FBB36035F143FC48 /* Cha-ChingTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		BA76193EB6D274350CD39E66 = {
+			isa = PBXGroup;
+			children = (
+				42376B5C9DE0458979F16D7B /* Cha-Ching */,
+				AD68785C2D1A4C9883DDFA4C /* Cha-ChingTests */,
+				B304E8DE78529A07D0F53908 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		CBA791CA6365D6E5B901E196 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				468DDF9F4DEF74FC897AF682 /* CustomPaymentSource.swift */,
+				C702CA5FCE9B85FA055A62E1 /* CustomWebhookDeveloperPrompt.swift */,
+				0ECEEA344D12969329CC034A /* Sale.swift */,
+				5C9ABCE1E07393E5E7E9E2C3 /* SalesStore.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		CF1F3B1D927361AC31C94DEE /* App */ = {
+			isa = PBXGroup;
+			children = (
+				97EE9023C77A95B6CC382CC6 /* ChaChingApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		D09A217744D1A64A37966B30 /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				A58B251927E5F6F4FFFE6915 /* HomeComponents.swift */,
+				D5BEAE7900E64409AE45942B /* HomeView.swift */,
+				30DF41A590E1799F2D791252 /* SaleRow.swift */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		F119CCC1013425178C6C59AF /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				75CD9FC697BAB28269D3B464 /* APIClient.swift */,
+				C8764F36998B956216842955 /* AuthManager.swift */,
+				F0867D67A73EEC4496B1399C /* ConnectStore.swift */,
+				A78F14FB2FD3E9606C1258A1 /* NotificationManager.swift */,
+				C6F6855FD89FDB53F76A4457 /* ProviderWebAuthenticationSession.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		F40C87D98C7109AD88211C0C /* Design */ = {
+			isa = PBXGroup;
+			children = (
+				D115B8103FF1439A0C2E6D3D /* Theme.swift */,
+			);
+			path = Design;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		4E9E7B1F734C36012A3278E1 /* Cha-ChingTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BDD012AAC6DC9D63F0FC012E /* Build configuration list for PBXNativeTarget "Cha-ChingTests" */;
+			buildPhases = (
+				400F350F843081D3FD5B2FBC /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DD767D0E3960823DE9073873 /* PBXTargetDependency */,
+			);
+			name = "Cha-ChingTests";
+			packageProductDependencies = (
+			);
+			productName = "Cha-ChingTests";
+			productReference = EE2EC057FBB36035F143FC48 /* Cha-ChingTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		54000E0DE7F26575C9D09CB8 /* Cha-Ching */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7ED2F7D15BB6FFDD3BC8559C /* Build configuration list for PBXNativeTarget "Cha-Ching" */;
+			buildPhases = (
+				D7C77E238D81006A0C2567CF /* Sources */,
+				EB43D767923EA9017BC9E369 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Cha-Ching";
+			packageProductDependencies = (
+			);
+			productName = "Cha-Ching";
+			productReference = B4B800513E0052C6450AFC2B /* Cha-Ching.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		3DE7022738903EBA075AEBBC /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					4E9E7B1F734C36012A3278E1 = {
+						DevelopmentTeam = 847HR8U8D9;
+						ProvisioningStyle = Automatic;
+					};
+					54000E0DE7F26575C9D09CB8 = {
+						DevelopmentTeam = 847HR8U8D9;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 1F167FFE3A1BF27CB6233E76 /* Build configuration list for PBXProject "Cha-Ching" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = BA76193EB6D274350CD39E66;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				54000E0DE7F26575C9D09CB8 /* Cha-Ching */,
+				4E9E7B1F734C36012A3278E1 /* Cha-ChingTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		EB43D767923EA9017BC9E369 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				869FC8CAC123C3A8C732E633 /* Assets.xcassets in Resources */,
+				02EA947E6037283AAFE280AD /* LaunchScreen.storyboard in Resources */,
+				F2F5B71D883CD8AA37F12596 /* cash-register.caf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		400F350F843081D3FD5B2FBC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7FF6A62D26FE5A1B2DEF4248 /* AppNavigationTests.swift in Sources */,
+				63FF238A5F0308F390742C0F /* CustomWebhookDeveloperPromptTests.swift in Sources */,
+				A0039B73D3CA4C97E635C7AA /* PaymentNotificationPresentationTests.swift in Sources */,
+				A18C3C775864A1B0EB0A332C /* WebhookNotificationDesignerTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D7C77E238D81006A0C2567CF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				210EF9A32A4E48EC67C203F8 /* APIClient.swift in Sources */,
+				405010C6F04A7FEE07B40F66 /* AuthManager.swift in Sources */,
+				219D7A3BB6D0D9D4AA468F75 /* ChaChingApp.swift in Sources */,
+				E67C106D234520815AC76138 /* ConnectSheet.swift in Sources */,
+				991C548A38405CB88DC6704C /* ConnectStore.swift in Sources */,
+				80CEDB095F8C9808067CBFAC /* ConnectView.swift in Sources */,
+				577767016C99FC718193832E /* CustomNotificationSettingsView.swift in Sources */,
+				4500C3B0EEBBE88F08C7AD8A /* CustomPaymentSource.swift in Sources */,
+				7336998C7ED8AB0D08878F80 /* CustomSourceSheet.swift in Sources */,
+				AF01ED49D8033099991F6BBF /* CustomWebhookDeveloperPrompt.swift in Sources */,
+				2081778642AD4EE2DB0FB871 /* HomeComponents.swift in Sources */,
+				8DC3CF4F0C9989CBD83F8A36 /* HomeView.swift in Sources */,
+				37517B775DDEFA20EE147AF2 /* NotificationManager.swift in Sources */,
+				BE62FAE52D0FD8AA9A9CB0EF /* ProviderWebAuthenticationSession.swift in Sources */,
+				6887DC54A2B68216D2EFAE95 /* RootTabView.swift in Sources */,
+				44BD0E0C3503D2F05CDB52F8 /* Sale.swift in Sources */,
+				69948E549340E6EE519B3471 /* SaleRow.swift in Sources */,
+				B15D512565372F588A4ED383 /* SalesStore.swift in Sources */,
+				341ADFBA1811D51201522F8C /* SignInView.swift in Sources */,
+				041BE9C54475ED31FA588CF2 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		DD767D0E3960823DE9073873 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 54000E0DE7F26575C9D09CB8 /* Cha-Ching */;
+			targetProxy = 5A695B063587D71B3A020EB3 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		6CE760319A49CDDBE80C1447 /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				9EEE0C714FD8BC27B6895BAE /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		4942D15277773F2C676D529E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = ChaChingDollarIcon;
+				CODE_SIGN_ENTITLEMENTS = "Cha-Ching/ChaChing.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = "Cha-Ching/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.serpcompany.chaching;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		52BCC976DC9EA0AB57C6277E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				API_BASE_URL = "https://cha-ching-api.serpcompany.workers.dev";
+				APS_ENVIRONMENT = production;
+				ASSETCATALOG_COMPILER_APPICON_NAME = ChaChingDollarIcon;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 11;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 847HR8U8D9;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "Cha-Ching";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		7EBAC3C2DD10951CAD3C8AA6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				API_BASE_URL = "http://127.0.0.1:8787";
+				APS_ENVIRONMENT = development;
+				ASSETCATALOG_COMPILER_APPICON_NAME = ChaChingDollarIcon;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 11;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 847HR8U8D9;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "Cha-Ching";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		B8A637B9684A0B79E5DFA845 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.serpcompany.Cha-ChingTests";
+				PRODUCT_MODULE_NAME = Cha_ChingTests;
+				PRODUCT_NAME = "Cha-ChingTests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Cha-Ching.app/Cha-Ching";
+			};
+			name = Debug;
+		};
+		C35B1D2AEB341680588A0ADC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.serpcompany.Cha-ChingTests";
+				PRODUCT_MODULE_NAME = Cha_ChingTests;
+				PRODUCT_NAME = "Cha-ChingTests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Cha-Ching.app/Cha-Ching";
+			};
+			name = Release;
+		};
+		D7D7530BA6189D0E5C3C9FBB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = ChaChingDollarIcon;
+				CODE_SIGN_ENTITLEMENTS = "Cha-Ching/ChaChing.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = "Cha-Ching/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.serpcompany.chaching;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1F167FFE3A1BF27CB6233E76 /* Build configuration list for PBXProject "Cha-Ching" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7EBAC3C2DD10951CAD3C8AA6 /* Debug */,
+				52BCC976DC9EA0AB57C6277E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7ED2F7D15BB6FFDD3BC8559C /* Build configuration list for PBXNativeTarget "Cha-Ching" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4942D15277773F2C676D529E /* Debug */,
+				D7D7530BA6189D0E5C3C9FBB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BDD012AAC6DC9D63F0FC012E /* Build configuration list for PBXNativeTarget "Cha-ChingTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B8A637B9684A0B79E5DFA845 /* Debug */,
+				C35B1D2AEB341680588A0ADC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 3DE7022738903EBA075AEBBC /* Project object */;
+}

@@ -1,0 +1,23 @@
+# Local-only values. Copy this file to `.dev.vars`; Wrangler never uploads it.
+# Generate both values independently with: openssl rand -base64 32
+BETTER_AUTH_SECRET=replace-with-a-local-random-value
+PROVIDER_TOKEN_ENCRYPTION_KEY=replace-with-a-different-base64-encoded-32-byte-value
+
+# Apple credentials are intentionally absent. The Debug Simulator path does
+# not use them. Real Sign in with Apple remains required outside local dev.
+# APPLE_TEAM_ID=YOUR_TEAM_ID
+# APPLE_KEY_ID=YOUR_KEY_ID
+# APPLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY\n-----END PRIVATE KEY-----"
+
+# Optional provider sandbox credentials for local OAuth work. Never copy live
+# production keys into this file.
+STRIPE_APP_INSTALL_URL=
+STRIPE_APP_SIGNING_SECRET=
+STRIPE_WEBHOOK_SECRET=
+# Use a test key only for local Stripe sandbox work. Production uses the
+# separately managed Worker secret and never stores it in this file.
+STRIPE_SECRET_KEY=
+PAYPAL_CLIENT_ID=
+PAYPAL_CLIENT_SECRET=
+APNS_KEY_ID=
+APNS_PRIVATE_KEY=

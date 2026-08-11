@@ -14,6 +14,7 @@
 *~.nib
 DerivedData/
 build/
+.xcodebuildmcp/
 *.pbxuser
 *.mode1v3
 *.mode2v3
@@ -27,13 +28,10 @@ yarn-error.log
 yarn.lock
 package-lock.json
 
-# Expo
-.expo/
-.expo-shared/
-dist/
-web-build/
-
 # Misc
 *.log
 .env
 .env.local
+.dev.vars
+.wrangler/
+.asc/

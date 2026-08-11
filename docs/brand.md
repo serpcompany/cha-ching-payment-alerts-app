@@ -1,0 +1,30 @@
+# Cha-Ching Brand
+
+## Positioning
+
+Cha-Ching gives indie founders an immediate, satisfying signal when money reaches the payment accounts they already use. The product should feel celebratory and fast, not like banking software.
+
+## Naming
+
+- Product and installed app name: **Cha-Ching**
+- Spoken form: “cha-ching”
+- Repository and infrastructure slug: `cha-ching`
+- Bundle and URL-safe identifier: `chaching`
+- Primary line: **Know the moment you get paid.**
+- Celebration line: **Get paid. Hear the cha-ching.**
+
+Do not revive “Sales Ping,” “SalesPing,” or `sales-ping` in active product naming.
+
+## Visual system
+
+- **Midnight** `#071522`: primary ground; confident and premium.
+- **Electric mint** `#39E6A3`: success, live connections, and primary actions.
+- **Coin gold** `#F5B942`: payment moments and celebratory emphasis.
+- **Cloud** `#F4F9F6`: light canvas.
+- **Deep card** `#0D1D2A`: dark surfaces.
+
+Use rounded, heavy system typography and generous continuous corners. The recurring visual motif is a bold gold dollar symbol with compact radiating chime arcs. Avoid checkmarks as the primary brand mark, bank-building imagery, cash bills, and generic blue-fintech styling.
+
+## App icon
+
+`Cha-Ching/Assets.xcassets/ChaChingDollarIcon.appiconset/ChaChingDollarAppIcon.png` is the canonical 1024px icon. The distinct asset-catalog name ensures new TestFlight builds advertise the dollar icon rather than inheriting stale `AppIcon` metadata. `BrandMark.imageset` carries the same mark for in-app use. Both use the same text-free dollar-symbol composition; preserve its proportions and colors.

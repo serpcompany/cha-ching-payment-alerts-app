@@ -1,43 +1,52 @@
-name: Sales Ping
+name: Cha-Ching
 options:
-  bundleIdPrefix: com.superapp
+  bundleIdPrefix: com.serpcompany
   developmentLanguage: en
 
 settings:
   base:
-    PRODUCT_NAME: Sales Ping
+    PRODUCT_NAME: Cha-Ching
+    DEVELOPMENT_TEAM: 847HR8U8D9
+    CODE_SIGN_STYLE: Automatic
     SWIFT_VERSION: 6.0
     MARKETING_VERSION: 1.0
-    CURRENT_PROJECT_VERSION: 1
+    CURRENT_PROJECT_VERSION: 11
     SUPPORTED_PLATFORMS: iphoneos iphonesimulator
     TARGETED_DEVICE_FAMILY: '1'
     SUPPORTS_MACCATALYST: NO
     ALWAYS_SEARCH_USER_PATHS: NO
-    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    ASSETCATALOG_COMPILER_APPICON_NAME: ChaChingDollarIcon
   configs:
+    Debug:
+      API_BASE_URL: http://127.0.0.1:8787
+      APS_ENVIRONMENT: development
     Release:
+      API_BASE_URL: https://cha-ching-api.serpcompany.workers.dev
+      APS_ENVIRONMENT: production
       SWIFT_OPTIMIZATION_LEVEL: '-O'
       SWIFT_COMPILATION_MODE: wholemodule
       ENABLE_NS_ASSERTIONS: NO
 
 targets:
-  Sales Ping:
+  Cha-Ching:
     type: application
     platform: iOS
     deploymentTarget: '17.0'
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.superapp.salesping
-        CODE_SIGN_ENTITLEMENTS: Sales Ping/SalesPing.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.serpcompany.chaching
+        CODE_SIGN_ENTITLEMENTS: Cha-Ching/ChaChing.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: ChaChingDollarIcon
     entitlements:
-      path: Sales Ping/SalesPing.entitlements
+      path: Cha-Ching/ChaChing.entitlements
       properties:
+        aps-environment: $(APS_ENVIRONMENT)
         com.apple.developer.applesignin:
           - Default
     sources:
-      - path: Sales Ping
+      - path: Cha-Ching
     info:
-      path: Sales Ping/Info.plist
+      path: Cha-Ching/Info.plist
       properties:
         CFBundleDevelopmentRegion: $(DEVELOPMENT_LANGUAGE)
         CFBundleDisplayName: $(PRODUCT_NAME)
@@ -48,12 +57,20 @@ targets:
         CFBundlePackageType: $(PRODUCT_BUNDLE_PACKAGE_TYPE)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        CFBundleIconName: AppIcon
+        CFBundleIconName: ChaChingDollarIcon
         ITSAppUsesNonExemptEncryption: false
         LSRequiresIPhoneOS: true
         UIApplicationSupportsIndirectInputEvents: true
         UILaunchStoryboardName: LaunchScreen
         UIRequiredDeviceCapabilities: [ arm64 ]
+        API_BASE_URL: $(API_BASE_URL)
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Editor
+            CFBundleURLName: com.serpcompany.chaching.oauth
+            CFBundleURLSchemes:
+              - chaching
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
@@ -63,20 +80,31 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+
+  Cha-ChingTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: '17.0'
+    sources:
+      - path: Cha-ChingTests
     dependencies:
-      - package: supabase-swift
-        product: Supabase
+      - target: Cha-Ching
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_MODULE_NAME: Cha_ChingTests
+        PRODUCT_NAME: Cha-ChingTests
 
 schemes:
-  Sales Ping:
+  Cha-Ching:
     build:
       targets:
-        Sales Ping: all
+        Cha-Ching: all
     run:
       config: Debug
     archive:
       config: Release
-packages:
-  supabase-swift:
-    url: https://github.com/supabase/supabase-swift
-    from: 2.0.0
+    test:
+      config: Debug
+      targets:
+        - Cha-ChingTests
