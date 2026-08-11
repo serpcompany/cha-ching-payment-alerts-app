@@ -38,7 +38,7 @@ describe("custom payment source HTTP API", () => {
       d1Databases: ["DB"],
     });
     const db = await miniflare.getD1Database("DB");
-    for (const migration of ["0001_initial.sql", "0002_sales_and_notifications.sql", "0003_anonymous_simulator_user.sql", "0004_nullable_provider_access_token.sql", "0005_custom_payment_sources.sql", "0006_provider_connection_activity.sql", "0007_provider_event_disposition.sql", "0008_notification_queue_claims.sql", "0009_custom_notification_fields.sql", "0010_reconcile_custom_payment_history_presentation.sql", "0011_retain_custom_payment_field_values.sql", "0012_custom_source_health.sql"]) {
+    for (const migration of ["0001_initial.sql", "0002_sales_and_notifications.sql", "0003_anonymous_simulator_user.sql", "0004_nullable_provider_access_token.sql", "0005_custom_payment_sources.sql", "0006_provider_connection_activity.sql", "0007_provider_event_disposition.sql", "0008_notification_queue_claims.sql", "0009_custom_notification_fields.sql", "0010_reconcile_custom_payment_history_presentation.sql", "0011_retain_custom_payment_field_values.sql", "0012_custom_source_health.sql", "0013_product_entitlements.sql"]) {
       const statements = (await readFile(join(process.cwd(), "migrations", migration), "utf8"))
         .replace(/--.*$/gm, "")
         .split(";")
@@ -52,6 +52,16 @@ describe("custom payment source HTTP API", () => {
     await db.prepare(
       "INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?4)",
     ).bind("user-two", "User Two", "two@example.test", Date.now()).run();
+    await db.prepare(
+      `INSERT INTO product_entitlements
+       (user_id, app_account_token, provider_product_id, access_expires_at)
+       VALUES (?1, ?2, 'com.serpcompany.chaching.annual', ?3)`,
+    ).bind("user-one", "11111111-1111-4111-8111-111111111111", Date.now() + 86_400_000).run();
+    await db.prepare(
+      `INSERT INTO product_entitlements
+       (user_id, app_account_token, provider_product_id, access_expires_at)
+       VALUES (?1, ?2, 'com.serpcompany.chaching.annual', ?3)`,
+    ).bind("user-two", "22222222-2222-4222-8222-222222222222", Date.now() + 86_400_000).run();
     sent.length = 0;
     queueSends.length = 0;
     env = {
@@ -1386,6 +1396,55 @@ describe("custom payment source HTTP API", () => {
     const history = await listSales(env, authFor("user-one"), new Request("https://api.cha-ching.test/v1/sales"));
     expect((await history.json<{ sales: unknown[] }>()).sales).toHaveLength(2);
     expect(sent).toHaveLength(2);
+  });
+
+  it("ignores new custom payments after product access expires", async () => {
+    const create = await handleCustomSourceRequest(env, authFor("user-one"), new Request(
+      "https://api.cha-ching.test/v1/custom-sources",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Expiring source" }),
+      },
+    ));
+    const created = await create.json<{ source: { id: string; webhookUrl: string } }>();
+    const sample = { payment: { id: "setup", amount: "9.00", currency: "USD" } };
+    const mapping = {
+      paymentIdPath: "/payment/id",
+      amountPath: "/payment/amount",
+      amountUnit: "major",
+      currencyPath: "/payment/currency",
+    };
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify(sample),
+    }));
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(
+      `https://api.cha-ching.test/v1/custom-sources/${created.source.id}/mapping`,
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(mapping) },
+    ));
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(
+      `https://api.cha-ching.test/v1/custom-sources/${created.source.id}/activate`,
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(mapping) },
+    ));
+    await env.DB.prepare(
+      "UPDATE product_entitlements SET access_expires_at = ?1 WHERE user_id = 'user-one'",
+    ).bind(Date.now() - 1).run();
+
+    const response = await handleCustomSourceRequest(env, authFor("user-one"), new Request(
+      created.source.webhookUrl,
+      { method: "POST", body: JSON.stringify({ payment: { id: "after-expiry", amount: "9.00", currency: "USD" } }) },
+    ));
+    const history = await listSales(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/sales"),
+    );
+
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ received: true, ignored: "subscription_required" });
+    expect((await history.json<{ sales: unknown[] }>()).sales).toEqual([]);
+    expect(sent).toEqual([]);
   });
 
   it("pauses new payments without losing the source, then resumes it", async () => {

@@ -1,4 +1,5 @@
 import type { Provider } from "./env";
+import { requireProductAccess } from "./subscriptions";
 
 export const featureForProvider = (provider: Provider) => `connect_${provider}` as const;
 
@@ -31,6 +32,7 @@ export async function requireProviderEntitlement(
   userId: string,
   provider: Provider,
 ): Promise<void> {
+  await requireProductAccess(db, userId);
   const entitlements = await getUserEntitlements(db, userId);
   if (!entitlements.some((item) => item.feature === featureForProvider(provider) && item.enabled)) {
     throw new Response(JSON.stringify({ error: `${provider} connections are not included in your plan` }), {
@@ -41,6 +43,7 @@ export async function requireProviderEntitlement(
 }
 
 export async function requireCustomSourceEntitlement(db: D1Database, userId: string): Promise<void> {
+  await requireProductAccess(db, userId);
   const entitlements = await getUserEntitlements(db, userId);
   if (!entitlements.some((item) => item.feature === "connect_custom" && item.enabled)) {
     throw new Response(JSON.stringify({ error: "Custom payment sources are not included in your plan" }), {

@@ -45,6 +45,8 @@ describe("connected provider activity", () => {
       "0009_custom_notification_fields.sql",
       "0010_reconcile_custom_payment_history_presentation.sql",
       "0011_retain_custom_payment_field_values.sql",
+      "0012_custom_source_health.sql",
+      "0013_product_entitlements.sql",
     ]) {
       const statements = (await readFile(join(process.cwd(), "migrations", migration), "utf8"))
         .replace(/--.*$/gm, "")
@@ -56,6 +58,12 @@ describe("connected provider activity", () => {
     await db.prepare(
       "INSERT INTO user (id, name, email, created_at, updated_at) VALUES ('owner', 'Owner', 'owner@example.test', 1, 1)",
     ).run();
+    await db.prepare(
+      `INSERT INTO product_entitlements
+       (user_id, app_account_token, provider_product_id, access_expires_at)
+       VALUES ('owner', '11111111-1111-4111-8111-111111111111',
+         'com.serpcompany.chaching.annual', ?1)`,
+    ).bind(Date.now() + 86_400_000).run();
     await db.prepare(
       `INSERT INTO provider_connections (
         id, user_id, provider, status, provider_account_id, account_label
@@ -176,6 +184,41 @@ describe("connected provider activity", () => {
     const resumedHistory = await listSales(env, authFor("owner"), new Request("https://api.cha-ching.test/v1/sales"));
     expect((await resumedHistory.json<{ sales: unknown[] }>()).sales).toHaveLength(2);
     expect(queued).toHaveLength(1);
+  });
+
+  it("durably ignores new Stripe payments after product access expires", async () => {
+    await env.DB.prepare(
+      "UPDATE product_entitlements SET access_expires_at = ?1 WHERE user_id = 'owner'",
+    ).bind(Date.now() - 1).run();
+    const event = JSON.stringify({
+      id: "evt_after_subscription_expiry",
+      type: "charge.succeeded",
+      account: "acct_owner",
+      livemode: true,
+      data: { object: { id: "ch_after_subscription_expiry", amount: 2700, currency: "usd", created: 2 } },
+    });
+    const timestamp = Math.floor(Date.now() / 1_000);
+    const signature = await stripeSignature(event, timestamp, env.STRIPE_WEBHOOK_SECRET);
+
+    const response = await handleStripeWebhook(env, new Request(
+      "https://api.cha-ching.test/v1/webhooks/stripe",
+      {
+        method: "POST",
+        headers: { "stripe-signature": `t=${timestamp},v1=${signature}` },
+        body: event,
+      },
+    ));
+
+    expect(response.status).toBe(200);
+    expect((await listSales(
+      env,
+      authFor("owner"),
+      new Request("https://api.cha-ching.test/v1/sales"),
+    ).then((history) => history.json<{ sales: unknown[] }>())).sales).toHaveLength(1);
+    expect(queued).toEqual([]);
+    expect(await env.DB.prepare(
+      "SELECT disposition FROM provider_events WHERE provider_event_id = 'evt_after_subscription_expiry'",
+    ).first()).toEqual({ disposition: "ignored" });
   });
 
   it("clears only the owner's Stripe payments while preserving the paused connection", async () => {

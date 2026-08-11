@@ -2,6 +2,7 @@ import type { Auth } from "./auth";
 import { requireUser } from "./auth";
 import { decryptSecret, encryptSecret, randomToken, sha256 } from "./crypto";
 import { requireCustomSourceEntitlement } from "./entitlements";
+import { hasProductAccess } from "./subscriptions";
 import type { Env } from "./env";
 import { classifyCustomSourceHealth } from "./custom-source-health";
 import { enqueueSaleNotification } from "./notification-queue";
@@ -688,6 +689,14 @@ async function captureWebhookSample(env: Env, request: Request, token: string): 
   if (contentLength > MAX_CUSTOM_WEBHOOK_BYTES) {
     if (source.status === "active") await recordActiveWebhookRejection(env, source.id, "Payload too large");
     return Response.json({ error: "Payload too large" }, { status: 413 });
+  }
+  if (!(await hasProductAccess(env.DB, source.user_id))) {
+    await env.DB.prepare(
+      `UPDATE custom_payment_sources SET last_event_received_at = CURRENT_TIMESTAMP,
+       last_event_status = 'ignored', last_event_error = NULL,
+       health_alerted_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?1`,
+    ).bind(source.id).run();
+    return Response.json({ received: true, ignored: "subscription_required" }, { status: 202 });
   }
   const raw = await request.text();
   if (new TextEncoder().encode(raw).byteLength > MAX_CUSTOM_WEBHOOK_BYTES) {

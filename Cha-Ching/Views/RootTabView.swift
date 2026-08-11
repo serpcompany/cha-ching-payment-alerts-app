@@ -71,10 +71,21 @@ struct RootTabView: View {
 private struct SettingsView: View {
     @EnvironmentObject private var auth: AuthManager
     @EnvironmentObject private var notifications: NotificationManager
+    @EnvironmentObject private var subscription: SubscriptionStore
 
     var body: some View {
         NavigationStack {
             Form {
+                Section("Subscription") {
+                    Text("Full access")
+                    Button("Restore Purchases") {
+                        Task { await subscription.restore() }
+                    }
+                    Link(
+                        "Manage Subscription",
+                        destination: URL(string: "https://apps.apple.com/account/subscriptions")!
+                    )
+                }
                 Section("Notifications") {
                     Toggle(
                         "Payment notifications",
@@ -161,4 +172,5 @@ private struct ForegroundPaymentNotificationView: View {
         .environmentObject(AuthManager())
         .environmentObject(ConnectStore())
         .environmentObject(NotificationManager.shared)
+        .environmentObject(SubscriptionStore())
 }

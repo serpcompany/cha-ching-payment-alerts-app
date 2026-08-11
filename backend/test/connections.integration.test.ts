@@ -17,6 +17,14 @@ class ConnectionCallbackDatabase {
       },
       async first() {
         if (sql.includes("DELETE FROM oauth_states")) return { user_id: "user_live" };
+        if (sql.includes("FROM product_entitlements WHERE user_id")) {
+          return {
+            app_account_token: "11111111-1111-4111-8111-111111111111",
+            provider_product_id: "com.serpcompany.chaching.annual",
+            access_expires_at: Date.now() + 86_400_000,
+            revoked_at: null,
+          };
+        }
         return null;
       },
       async all() {

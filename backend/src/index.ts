@@ -26,6 +26,11 @@ import type { NotificationMessage } from "./notifications";
 import { monitorCustomSourceHealth } from "./custom-source-health";
 import { listSales } from "./sales";
 import { handleStripeWebhook } from "./stripe-webhooks";
+import {
+  handleAppleSubscriptionNotification,
+  handleSubscriptionRequest,
+  requireProductAccess,
+} from "./subscriptions";
 
 function jsonError(error: unknown): Response {
   if (error instanceof Response) return error;
@@ -58,6 +63,9 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (request.method === "POST" && url.pathname === "/v1/webhooks/stripe") {
     return handleStripeWebhook(env, request);
   }
+  if (request.method === "POST" && url.pathname === "/v1/webhooks/apple") {
+    return handleAppleSubscriptionNotification(env, request);
+  }
   if (
     url.pathname === "/api/auth/sign-in/anonymous"
     && !isSimulatorAuthRequestAllowed(env, request.url)
@@ -71,18 +79,36 @@ async function route(request: Request, env: Env): Promise<Response> {
   const auth = createAuth(env);
 
   if (
-    url.pathname === "/v1/custom-sources"
-    || url.pathname.startsWith("/v1/custom-sources/")
-    || url.pathname.startsWith("/v1/webhooks/custom/")
+    url.pathname.startsWith("/v1/webhooks/custom/")
   ) {
     return handleCustomSourceRequest(env, auth, request);
   }
 
   if (url.pathname.startsWith("/api/auth/")) return auth.handler(request);
+  if (
+    url.pathname === "/v1/subscription"
+    || url.pathname === "/v1/subscription/sync"
+  ) {
+    return handleSubscriptionRequest(env, auth, request);
+  }
   if (request.method === "GET" && url.pathname === "/v1/me") {
     const user = await requireUser(auth, request);
     const entitlements = await getUserEntitlements(env.DB, user.id);
     return Response.json({ user, entitlements, providerConnections: providerCapabilities(env) });
+  }
+  const callbackMatch = url.pathname.match(/^\/v1\/oauth\/([^/]+)\/callback$/);
+  if (request.method === "GET" && callbackMatch) {
+    return completeConnection(env, request, callbackMatch[1]);
+  }
+  if (url.pathname.startsWith("/v1/")) {
+    const user = await requireUser(auth, request);
+    await requireProductAccess(env.DB, user.id);
+  }
+  if (
+    url.pathname === "/v1/custom-sources"
+    || url.pathname.startsWith("/v1/custom-sources/")
+  ) {
+    return handleCustomSourceRequest(env, auth, request);
   }
   if (request.method === "GET" && url.pathname === "/v1/connections") {
     return listConnections(env, auth, request);
@@ -97,10 +123,6 @@ async function route(request: Request, env: Env): Promise<Response> {
   const authorizeMatch = url.pathname.match(/^\/v1\/connections\/([^/]+)\/authorize$/);
   if (request.method === "POST" && authorizeMatch) {
     return beginConnection(env, auth, request, authorizeMatch[1]);
-  }
-  const callbackMatch = url.pathname.match(/^\/v1\/oauth\/([^/]+)\/callback$/);
-  if (request.method === "GET" && callbackMatch) {
-    return completeConnection(env, request, callbackMatch[1]);
   }
   const deviceMatch = url.pathname.match(/^\/v1\/devices\/([^/]+)$/);
   if (request.method === "DELETE" && deviceMatch) {
