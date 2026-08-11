@@ -12,7 +12,7 @@ struct HeroCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
+                Image(systemName: "dollarsign.circle.fill")
                 Text("Revenue today")
                     .font(.subheadline.weight(.semibold))
                 Spacer()
@@ -26,11 +26,11 @@ struct HeroCard: View {
                 .contentTransition(.numericText())
 
             HStack {
-                Text("\(count) sale\(count == 1 ? "" : "s")")
+                Text("\(count) payment\(count == 1 ? "" : "s")")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.white.opacity(0.85))
                 Spacer()
-                Label(notificationsEnabled ? "Pings on" : "Pings off",
+                Label(notificationsEnabled ? "Notifications on" : "Notifications off",
                       systemImage: notificationsEnabled ? "bell.fill" : "bell.slash.fill")
                     .font(.footnote.weight(.semibold))
                     .padding(.horizontal, 12)
@@ -138,47 +138,13 @@ struct WeeklyChartCard: View {
     }
 }
 
-struct ConnectionsStrip: View {
-    let connections: [ConnectionState]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Connected processors")
-                .font(.headline)
-                .foregroundStyle(Theme.ink)
-            HStack(spacing: 10) {
-                ForEach(connections) { c in
-                    VStack(spacing: 8) {
-                        Image(systemName: c.provider.symbol)
-                            .font(.title3)
-                            .foregroundStyle(c.isConnected ? c.provider.color : Theme.ink.opacity(0.35))
-                        Text(c.provider.title)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Theme.ink.opacity(0.8))
-                        Text(c.isConnected ? (c.isActive ? "Live" : "Paused") : "Connect")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(c.isActive ? Theme.accent : c.isConnected ? Theme.gold : Theme.ink.opacity(0.4))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(c.isConnected ? c.provider.color.opacity(0.10) : Theme.ink.opacity(0.05))
-                    )
-                }
-            }
-        }
-        .cardStyle(padding: 18)
-    }
-}
-
 struct NoSalesYetView: View {
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: "cart.badge.questionmark")
                 .font(.system(size: 40))
                 .foregroundStyle(Theme.accent.opacity(0.7))
-            Text("No pings yet today")
+            Text("No payments yet")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.ink)
             Text("Keep the app connected — the moment someone buys, you'll hear the cha-ching.")

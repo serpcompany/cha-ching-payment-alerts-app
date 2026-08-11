@@ -61,6 +61,7 @@ describe("custom payment source HTTP API", () => {
   });
 
   afterEach(async () => {
+    vi.unstubAllGlobals();
     await miniflare.dispose();
   });
 
@@ -232,6 +233,93 @@ describe("custom payment source HTTP API", () => {
       new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
     );
     expect((await check.json<{ sample: unknown }>()).sample).toBeNull();
+  });
+
+  it("sends the exact setup preview to the owner's registered iPhone without creating a payment", async () => {
+    const { privateKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
+    Object.assign(env, {
+      APNS_KEY_ID: "TESTKEY",
+      APPLE_TEAM_ID: "TESTTEAM",
+      APNS_BUNDLE_ID: "com.example.chaching",
+      APNS_PRIVATE_KEY: privateKey.export({ format: "pem", type: "pkcs8" }).toString(),
+    });
+    await env.DB.prepare(
+      `INSERT INTO device_tokens (id, user_id, device_id, token, environment, status)
+       VALUES ('device-preview', 'user-one', 'iphone-preview', 'preview-token', 'production', 'active')`,
+    ).run();
+    const create = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/custom-sources", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "My checkout" }),
+      }),
+    );
+    const created = await create.json<{ source: { id: string; webhookUrl: string } }>();
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify({
+        payment: { id: "txn_test", total: "27.00", currency: "USD" },
+        item: { name: "Download Pro" },
+      }),
+    }));
+    const mapping = {
+      paymentIdPath: "/payment/id",
+      amountPath: "/payment/total",
+      amountUnit: "major",
+      currencyPath: "/payment/currency",
+      productPath: "/item/name",
+      notificationFields: [
+        { id: "product", path: "/item/name", label: "Product", enabled: true },
+        { id: "amount", path: "/payment/total", label: "Amount", enabled: true },
+      ],
+    };
+    await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}/mapping`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(mapping),
+      }),
+    );
+    const requests: Array<{ url: string; body: unknown }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requests.push({ url: String(input), body: JSON.parse(String(init?.body)) });
+      return new Response(null, { status: 200 });
+    }));
+
+    const response = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}/test-notification`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(mapping),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ sent: 1 });
+    expect(requests).toEqual([{
+      url: "https://api.push.apple.com/3/device/preview-token",
+      body: {
+        aps: {
+          alert: { title: "Cha-ching!", body: "Product: Download Pro\nAmount: $27.00" },
+          sound: "cash-register.caf",
+          badge: 1,
+        },
+        testNotification: true,
+      },
+    }]);
+    const history = await listSales(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/sales"),
+    );
+    expect(await history.json()).toEqual({ sales: [] });
+    expect(sent).toEqual([]);
   });
 
   it("previews the ordered SERP Store business fields as one structured line each", async () => {
@@ -470,6 +558,7 @@ describe("custom payment source HTTP API", () => {
               "Source Store: serp.store",
             ].join("\n"),
           },
+          sound: "cash-register.caf",
         }),
       }),
     ]);

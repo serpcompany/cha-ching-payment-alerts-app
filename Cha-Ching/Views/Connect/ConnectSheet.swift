@@ -74,7 +74,7 @@ struct ConnectSheet: View {
                                 Task { await connectStore.setProviderActivity(provider: provider, active: active) }
                             }
                         ))
-                        Text("Turn this off to stop new history and notifications without disconnecting \(provider.title).")
+                        Text("Turn this off to stop new payments and notifications without disconnecting \(provider.title).")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }

@@ -43,6 +43,10 @@ The session persists in that Simulator's Keychain. Sign in again only after
 signing out, erasing that Simulator, clearing its app data, or deleting the local
 Wrangler state that contains the matching session.
 
+The native API client uses Better Auth's bearer token and deliberately does not
+persist auth cookies. This prevents an old local Worker cookie from blocking a
+fresh Simulator session after local state changes.
+
 ## What this does and does not test
 
 | Check | Local account | Real device/TestFlight |

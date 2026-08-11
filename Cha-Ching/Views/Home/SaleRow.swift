@@ -74,7 +74,7 @@ struct SaleDetailView: View {
                 .padding(.bottom, 24)
             }
         }
-        .navigationTitle("Sale")
+        .navigationTitle("Payment")
         .navigationBarTitleDisplayMode(.inline)
     }
 

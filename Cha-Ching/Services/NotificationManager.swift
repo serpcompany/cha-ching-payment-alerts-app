@@ -40,7 +40,7 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     var registrationHelpText: String? {
         guard isAuthorized, !hasRegisteredDevice, registrationError == nil else { return nil }
         #if targetEnvironment(simulator)
-        return "Notification permission is on, but remote payment pings require a signed build on your iPhone."
+        return "Notification permission is on, but remote payment notifications require a signed build on your iPhone."
         #else
         return "Notification permission is on. Tap Retry registration to finish connecting this iPhone."
         #endif

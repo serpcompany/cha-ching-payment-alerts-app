@@ -4,7 +4,7 @@ import { decryptSecret, encryptSecret, randomToken, sha256 } from "./crypto";
 import { requireCustomSourceEntitlement } from "./entitlements";
 import type { Env } from "./env";
 import { enqueueSaleNotification } from "./notification-queue";
-import { formatMinorAmount, notificationFieldsBody } from "./notifications";
+import { formatMinorAmount, notificationFieldsBody, sendTestNotification } from "./notifications";
 
 export interface DiscoveredWebhookField {
   path: string;
@@ -343,6 +343,53 @@ async function activateSource(env: Env, auth: Auth, request: Request, sourceId: 
   return Response.json({ source: await publicSource(env, updated) });
 }
 
+async function testNotification(env: Env, auth: Auth, request: Request, sourceId: string): Promise<Response> {
+  const user = await requireUser(auth, request);
+  let mapping: WebhookFieldMapping | null = null;
+  try {
+    mapping = parseMapping(await request.json());
+  } catch {
+    // The response below covers missing and malformed JSON uniformly.
+  }
+  if (!mapping) return Response.json({ error: "Preview the current notification before testing it" }, { status: 400 });
+  const mappingJSON = serializedMapping(mapping);
+  const row = await env.DB.prepare(
+    `SELECT name, sample_payload_ciphertext, mapping_json
+     FROM custom_payment_sources WHERE id = ?1 AND user_id = ?2 AND status = 'setup'`,
+  ).bind(sourceId, user.id).first<{
+    name: string;
+    sample_payload_ciphertext: string | null;
+    mapping_json: string | null;
+  }>();
+  if (!row) return Response.json({ error: "Payment source not found or already active" }, { status: 404 });
+  if (!row.sample_payload_ciphertext) {
+    return Response.json({ error: "Send a sample payment before testing notifications" }, { status: 409 });
+  }
+  if (row.mapping_json !== mappingJSON) {
+    return Response.json({ error: "Your choices changed. Preview the current notification before testing it." }, { status: 409 });
+  }
+  const payload = JSON.parse(await decryptSecret(
+    row.sample_payload_ciphertext,
+    env.PROVIDER_TOKEN_ENCRYPTION_KEY,
+  ));
+  let body: string;
+  try {
+    const normalized = normalizeCustomPayment(payload, mapping, row.name);
+    const fields = previewNotificationFields(payload, mapping, normalized);
+    body = notificationFieldsBody(fields.filter((field) => field.enabled)) || "Payment received.";
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "Notification could not be tested" }, { status: 422 });
+  }
+  const result = await sendTestNotification(env, user.id, body);
+  if (result.registered === 0) {
+    return Response.json({ error: "No registered iPhone is ready for notifications" }, { status: 409 });
+  }
+  if (result.sent === 0) {
+    return Response.json({ error: "Apple did not accept the test notification" }, { status: 502 });
+  }
+  return Response.json({ sent: result.sent });
+}
+
 async function setSourceStatus(
   env: Env,
   auth: Auth,
@@ -501,6 +548,10 @@ export async function handleCustomSourceRequest(
   const activateMatch = url.pathname.match(/^\/v1\/custom-sources\/([^/]+)\/activate$/);
   if (request.method === "POST" && activateMatch) {
     return activateSource(env, auth, request, decodeURIComponent(activateMatch[1]));
+  }
+  const testNotificationMatch = url.pathname.match(/^\/v1\/custom-sources\/([^/]+)\/test-notification$/);
+  if (request.method === "POST" && testNotificationMatch) {
+    return testNotification(env, auth, request, decodeURIComponent(testNotificationMatch[1]));
   }
   const pauseMatch = url.pathname.match(/^\/v1\/custom-sources\/([^/]+)\/pause$/);
   if (request.method === "POST" && pauseMatch) {

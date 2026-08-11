@@ -2,7 +2,6 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject private var store: SalesStore
-    @EnvironmentObject private var connectStore: ConnectStore
     @EnvironmentObject private var notifications: NotificationManager
 
     var body: some View {
@@ -24,24 +23,19 @@ struct HomeView: View {
                         }
                         statRow
                         WeeklyChartCard(data: store.weeklyTotals, weekTotal: store.last7DaysTotal)
-                        ConnectionsStrip(connections: connectStore.connections)
                         recentSection
                     }
                     .padding(.horizontal, 18)
                     .padding(.bottom, 28)
                 }
                 .refreshable {
-                    async let sales: Void = store.refresh()
-                    async let connections: Void = connectStore.refresh()
-                    _ = await (sales, connections)
+                    await store.refresh()
                 }
             }
             .task {
-                async let sales: Void = store.refresh()
-                async let connections: Void = connectStore.refresh()
-                _ = await (sales, connections)
+                await store.refresh()
             }
-            .navigationTitle("Today")
+            .navigationTitle("Dashboard")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Image(systemName: notifications.canDeliverNotifications ? "bell.badge.fill" : "bell.slash.fill")
@@ -68,7 +62,7 @@ struct HomeView: View {
     private var recentSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Recent pings")
+                Text("Payments")
                     .font(.headline)
                     .foregroundStyle(Theme.ink)
                 Spacer()

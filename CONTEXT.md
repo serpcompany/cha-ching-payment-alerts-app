@@ -4,7 +4,7 @@
 
 Cha-Ching is an iPhone app for indie founders and small software businesses. A user links the payment accounts they already own and receives a recognizable payment notification when a supported source reports a successful payment.
 
-The live MVP proves secure identity, plan access, provider-account linking, Stripe sale ingestion, real sales history, and APNs delivery. PayPal sale ingestion is not part of the first alert path.
+The live MVP proves secure identity, entitlement enforcement, payment-source linking, Stripe payment ingestion, a real Payments feed, and APNs delivery. PayPal payment ingestion is not part of the first notification path.
 
 ## Domain vocabulary
 

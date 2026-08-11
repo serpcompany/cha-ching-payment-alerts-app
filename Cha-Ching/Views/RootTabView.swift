@@ -1,54 +1,49 @@
 import SwiftUI
 
-struct RootTabView: View {
-    var body: some View {
-        TabView {
-            HomeView()
-                .tabItem { Label("Today", systemImage: "bolt.horizontal.fill") }
-            SalesHistoryView()
-                .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
-            ConnectView()
-                .tabItem { Label("Connect", systemImage: "link") }
-            SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+enum AppTab: String, CaseIterable {
+    case dashboard
+    case connect
+    case settings
+
+    var title: String {
+        switch self {
+        case .dashboard: "Dashboard"
+        case .connect: "Connect"
+        case .settings: "Settings"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .dashboard: "chart.bar.fill"
+        case .connect: "link"
+        case .settings: "gearshape.fill"
+        }
+    }
+
+    @MainActor @ViewBuilder
+    var content: some View {
+        switch self {
+        case .dashboard: HomeView()
+        case .connect: ConnectView()
+        case .settings: SettingsView()
         }
     }
 }
 
-private struct SalesHistoryView: View {
-    @EnvironmentObject private var store: SalesStore
-
+struct RootTabView: View {
     var body: some View {
-        NavigationStack {
-            Group {
-                if store.isLoading && store.sales.isEmpty {
-                    ProgressView("Loading sales…")
-                } else if store.sales.isEmpty {
-                    ContentUnavailableView(
-                        "No sales yet",
-                        systemImage: "creditcard",
-                        description: Text("Connect Stripe and complete a payment to see it here.")
-                    )
-                } else {
-                    List(store.sales) { sale in
-                        NavigationLink(value: sale) { SaleRow(sale: sale) }
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                    }
-                    .listStyle(.plain)
-                    .refreshable { await store.refresh() }
-                }
+        TabView {
+            ForEach(AppTab.allCases, id: \.self) { tab in
+                tab.content
+                    .tabItem { Label(tab.title, systemImage: tab.systemImage) }
             }
-            .navigationTitle("Sales History")
-            .navigationDestination(for: Sale.self) { SaleDetailView(sale: $0) }
-            .task { await store.refresh() }
         }
     }
 }
 
 private struct SettingsView: View {
     @EnvironmentObject private var auth: AuthManager
-    @EnvironmentObject private var connectStore: ConnectStore
     @EnvironmentObject private var notifications: NotificationManager
 
     var body: some View {
@@ -56,7 +51,7 @@ private struct SettingsView: View {
             Form {
                 Section("Notifications") {
                     HStack {
-                        Text("Payment pings")
+                        Text("Payment notifications")
                         Spacer()
                         Text(notifications.statusText)
                             .foregroundStyle(notifications.canDeliverNotifications ? Theme.accent : .secondary)
@@ -77,29 +72,14 @@ private struct SettingsView: View {
                         Text(error).font(.footnote).foregroundStyle(.red)
                     }
                 }
-                Section("Plan access") {
-                    entitlementRow("Stripe connection", enabled: connectStore.isEntitled(to: .stripe))
-                    entitlementRow("PayPal connection", enabled: connectStore.isEntitled(to: .paypal))
-                    entitlementRow("Custom payment sources", enabled: connectStore.hasCustomSourceEntitlement)
-                }
                 Section {
                     Button("Sign out", role: .destructive) { auth.signOut() }
                 }
             }
             .navigationTitle("Settings")
             .task {
-                await connectStore.refresh()
                 await notifications.refreshAuthorizationStatus()
             }
-        }
-    }
-
-    private func entitlementRow(_ title: String, enabled: Bool) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
-            Image(systemName: enabled ? "checkmark.circle.fill" : "lock.fill")
-                .foregroundStyle(enabled ? Theme.accent : .secondary)
         }
     }
 }

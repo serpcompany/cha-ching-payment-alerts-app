@@ -111,27 +111,6 @@ struct CustomSourceSheet: View {
         }
 
         if !fields.isEmpty {
-            Section("3. Match the payment") {
-                WebhookFieldPicker(title: "Payment ID", fields: fields, selection: $mapping.paymentIdPath)
-                WebhookFieldPicker(title: "Amount", fields: fields, selection: $mapping.amountPath)
-                Picker("Amount format", selection: $mapping.amountUnit) {
-                    Text("27.00").tag("major")
-                    Text("2700 cents").tag("minor")
-                }
-                WebhookFieldPicker(
-                    title: "Currency",
-                    fields: fields,
-                    selection: requiredBinding($mapping.currencyPath)
-                )
-
-                DisclosureGroup("Optional history fields") {
-                    WebhookFieldPicker(title: "Time", fields: fields, selection: optionalBinding($mapping.occurredAtPath), allowsNone: true)
-                    WebhookFieldPicker(title: "Product", fields: fields, selection: optionalBinding($mapping.productPath), allowsNone: true)
-                    WebhookFieldPicker(title: "Plan", fields: fields, selection: optionalBinding($mapping.planPath), allowsNone: true)
-                    WebhookFieldPicker(title: "Sale type", fields: fields, selection: optionalBinding($mapping.saleTypePath), allowsNone: true)
-                }
-            }
-
             Section("Next") {
                 NavigationLink {
                     CustomNotificationSettingsView(
@@ -156,13 +135,6 @@ struct CustomSourceSheet: View {
                             .foregroundStyle(Theme.accent)
                     }
                 }
-                .disabled(!paymentMappingIsComplete)
-
-                if !paymentMappingIsComplete {
-                    Text("Choose Payment ID, Amount, and Currency to continue.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
             }
         }
     }
@@ -175,8 +147,8 @@ struct CustomSourceSheet: View {
                 set: { active in Task { await setActive(active) } }
             ))
             Text(source.status == .active
-                 ? "New payments create history and notifications."
-                 : "Paused. Your setup and history are kept, but new events are ignored.")
+                 ? "New payments appear on your Dashboard and send notifications."
+                 : "Paused. Your setup and existing payments are kept, but new events are ignored.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -187,7 +159,7 @@ struct CustomSourceSheet: View {
                 .textSelection(.enabled)
             copyURLButton(source)
             copyDeveloperPromptButton(source)
-            Text("The developer prompt contains this private URL. Share it only with someone you trust to configure the payment sender.")
+            Text("The developer instructions contain this private URL. Share them only with someone you trust to configure the payment sender.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Button("Regenerate URL", role: .destructive) { confirmRegenerate = true }
@@ -207,7 +179,7 @@ struct CustomSourceSheet: View {
 
     private func copyDeveloperPromptButton(_ source: CustomPaymentSource) -> some View {
         Button(
-            copiedItem == .developerPrompt ? "Developer prompt copied" : "Copy prompt for AI agent / developer",
+            copiedItem == .developerPrompt ? "Developer instructions copied" : "Copy instructions for developer",
             systemImage: copiedItem == .developerPrompt ? "checkmark" : "text.badge.plus"
         ) {
             UIPasteboard.general.string = CustomWebhookDeveloperPrompt.make(
@@ -220,12 +192,6 @@ struct CustomSourceSheet: View {
         .accessibilityHint("Copies setup instructions and the private webhook URL to the clipboard.")
     }
 
-    private var paymentMappingIsComplete: Bool {
-        !mapping.paymentIdPath.isEmpty
-            && !mapping.amountPath.isEmpty
-            && !(mapping.currencyPath ?? "").isEmpty
-    }
-
     private func actionButton(
         _ title: String,
         systemImage: String,
@@ -233,14 +199,6 @@ struct CustomSourceSheet: View {
     ) -> some View {
         Button(title, systemImage: systemImage) { Task { await action() } }
             .fontWeight(.semibold)
-    }
-
-    private func requiredBinding(_ value: Binding<String?>) -> Binding<String> {
-        Binding(get: { value.wrappedValue ?? "" }, set: { value.wrappedValue = $0 })
-    }
-
-    private func optionalBinding(_ value: Binding<String?>) -> Binding<String> {
-        Binding(get: { value.wrappedValue ?? "" }, set: { value.wrappedValue = $0.isEmpty ? nil : $0 })
     }
 
     private func run(_ operation: () async throws -> Void) async {
@@ -313,22 +271,4 @@ struct CustomSourceSheet: View {
 private enum CopiedItem {
     case webhookURL
     case developerPrompt
-}
-
-private struct WebhookFieldPicker: View {
-    let title: String
-    let fields: [WebhookField]
-    @Binding var selection: String
-    var allowsNone = false
-
-    var body: some View {
-        Picker(title, selection: $selection) {
-            if allowsNone { Text("Don't save").tag("") }
-            if !allowsNone && selection.isEmpty { Text("Choose a field").tag("") }
-            ForEach(fields) { field in
-                Text("\(field.label): \(field.value.displayValue.prefix(30))")
-                    .tag(field.path)
-            }
-        }
-    }
 }

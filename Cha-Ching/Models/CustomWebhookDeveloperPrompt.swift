@@ -72,8 +72,8 @@ enum CustomWebhookDeveloperPrompt {
         1. Add the private URL to the sender's outgoing webhook configuration for successful payments.
         2. Send one representative test JSON event. During setup this becomes an encrypted field-mapping sample only; it does not create revenue or notify the phone.
         3. Tell the Cha-Ching owner the sample is ready. They will tap Check connection, map Payment ID/Amount/Currency and any optional fields, preview the notification, and activate the source.
-        4. After the owner confirms activation, coordinate one clearly identifiable active test payment. It should create one Cha-Ching history item and one phone notification.
-        5. Send the exact same active payload again with the same Payment ID. It must not create a second history item or notification.
+        4. After the owner confirms activation, coordinate one clearly identifiable active test payment. It should create one payment on the Cha-Ching Dashboard and one phone notification.
+        5. Send the exact same active payload again with the same Payment ID. It must not create a second payment or notification.
         6. Retry network errors and non-2xx responses with the same Payment ID. Never generate a new ID for a retry.
 
         EXPECTED RESPONSES

@@ -45,7 +45,7 @@ struct SignInView: View {
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.7))
 #endif
-                    Text("Your account keeps provider connections and sale history in sync securely.")
+                    Text("Your account keeps payment sources and payments in sync securely.")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.75))
                         .multilineTextAlignment(.center)

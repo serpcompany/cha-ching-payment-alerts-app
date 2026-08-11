@@ -22,6 +22,7 @@
 		6887DC54A2B68216D2EFAE95 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA321C7A5BA4FBE69295C95C /* RootTabView.swift */; };
 		69948E549340E6EE519B3471 /* SaleRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30DF41A590E1799F2D791252 /* SaleRow.swift */; };
 		7336998C7ED8AB0D08878F80 /* CustomSourceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D1792A1F3D214B7B66527E1 /* CustomSourceSheet.swift */; };
+		7FF6A62D26FE5A1B2DEF4248 /* AppNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5BFDF9B844EE38D865B037E /* AppNavigationTests.swift */; };
 		80CEDB095F8C9808067CBFAC /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F544C6BA875EDD9ECF20E81B /* ConnectView.swift */; };
 		869FC8CAC123C3A8C732E633 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 14CD4631A44997104C853CB0 /* Assets.xcassets */; };
 		8DC3CF4F0C9989CBD83F8A36 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BEAE7900E64409AE45942B /* HomeView.swift */; };
@@ -31,6 +32,7 @@
 		B15D512565372F588A4ED383 /* SalesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9ABCE1E07393E5E7E9E2C3 /* SalesStore.swift */; };
 		BE62FAE52D0FD8AA9A9CB0EF /* ProviderWebAuthenticationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6F6855FD89FDB53F76A4457 /* ProviderWebAuthenticationSession.swift */; };
 		E67C106D234520815AC76138 /* ConnectSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D8CF3A6096695D8F6D6B808 /* ConnectSheet.swift */; };
+		F2F5B71D883CD8AA37F12596 /* cash-register.caf in Resources */ = {isa = PBXBuildFile; fileRef = A6893DE2EB5BC9C89ABC8089 /* cash-register.caf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +59,8 @@
 		97EE9023C77A95B6CC382CC6 /* ChaChingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChaChingApp.swift; sourceTree = "<group>"; };
 		9EEE0C714FD8BC27B6895BAE /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		A58B251927E5F6F4FFFE6915 /* HomeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeComponents.swift; sourceTree = "<group>"; };
+		A5BFDF9B844EE38D865B037E /* AppNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationTests.swift; sourceTree = "<group>"; };
+		A6893DE2EB5BC9C89ABC8089 /* cash-register.caf */ = {isa = PBXFileReference; path = "cash-register.caf"; sourceTree = "<group>"; };
 		A78F14FB2FD3E9606C1258A1 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		AA321C7A5BA4FBE69295C95C /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		B4B800513E0052C6450AFC2B /* Cha-Ching.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Cha-Ching.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -85,6 +89,7 @@
 				CF1F3B1D927361AC31C94DEE /* App */,
 				F40C87D98C7109AD88211C0C /* Design */,
 				CBA791CA6365D6E5B901E196 /* Models */,
+				765D02B5175B2B97BC55ADBE /* Resources */,
 				F119CCC1013425178C6C59AF /* Services */,
 				4AE4521D40E25B9F0F77685C /* Views */,
 			);
@@ -121,9 +126,18 @@
 			path = Connect;
 			sourceTree = "<group>";
 		};
+		765D02B5175B2B97BC55ADBE /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A6893DE2EB5BC9C89ABC8089 /* cash-register.caf */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		AD68785C2D1A4C9883DDFA4C /* Cha-ChingTests */ = {
 			isa = PBXGroup;
 			children = (
+				A5BFDF9B844EE38D865B037E /* AppNavigationTests.swift */,
 				7996CF08A2EAA4E22A254C26 /* CustomWebhookDeveloperPromptTests.swift */,
 				CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */,
 			);
@@ -282,6 +296,7 @@
 			files = (
 				869FC8CAC123C3A8C732E633 /* Assets.xcassets in Resources */,
 				02EA947E6037283AAFE280AD /* LaunchScreen.storyboard in Resources */,
+				F2F5B71D883CD8AA37F12596 /* cash-register.caf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -292,6 +307,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7FF6A62D26FE5A1B2DEF4248 /* AppNavigationTests.swift in Sources */,
 				63FF238A5F0308F390742C0F /* CustomWebhookDeveloperPromptTests.swift in Sources */,
 				A18C3C775864A1B0EB0A332C /* WebhookNotificationDesignerTests.swift in Sources */,
 			);
@@ -402,7 +418,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 847HR8U8D9;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -467,7 +483,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 847HR8U8D9;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

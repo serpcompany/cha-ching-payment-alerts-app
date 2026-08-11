@@ -7,6 +7,8 @@ export interface NotificationMessage {
   saleId: string;
 }
 
+export const PAYMENT_NOTIFICATION_SOUND = "cash-register.caf";
+
 interface NotificationSale {
   amount_minor: number;
   currency: string;
@@ -26,6 +28,11 @@ interface DeviceRow {
   id: string;
   token: string;
   environment: "development" | "production";
+}
+
+export interface TestNotificationResult {
+  registered: number;
+  sent: number;
 }
 
 interface DeliveryStatusRow {
@@ -97,6 +104,53 @@ async function apnsProviderToken(env: Env): Promise<string> {
     .sign(key);
 }
 
+export async function sendTestNotification(
+  env: Env,
+  userId: string,
+  body: string,
+): Promise<TestNotificationResult> {
+  const devices = await env.DB.prepare(
+    "SELECT id, token, environment FROM device_tokens WHERE user_id = ?1 AND status = 'active'",
+  ).bind(userId).all<DeviceRow>();
+  if (devices.results.length === 0) return { registered: 0, sent: 0 };
+  if (!env.APNS_KEY_ID || !env.APNS_PRIVATE_KEY) throw new Error("APNs is not configured");
+  const providerToken = await apnsProviderToken(env);
+  let sent = 0;
+  for (const device of devices.results) {
+    const host = device.environment === "production" ? "api.push.apple.com" : "api.sandbox.push.apple.com";
+    const response = await fetch(`https://${host}/3/device/${device.token}`, {
+      method: "POST",
+      headers: {
+        authorization: `bearer ${providerToken}`,
+        "apns-topic": env.APNS_BUNDLE_ID,
+        "apns-push-type": "alert",
+        "apns-priority": "10",
+        "apns-id": crypto.randomUUID(),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        aps: {
+          alert: { title: "Cha-ching!", body },
+          sound: PAYMENT_NOTIFICATION_SOUND,
+          badge: 1,
+        },
+        testNotification: true,
+      }),
+    });
+    if (response.ok) {
+      sent += 1;
+      continue;
+    }
+    const payload = (await response.json().catch(() => null)) as { reason?: string } | null;
+    if (invalidToken(response.status, payload?.reason ?? null)) {
+      await env.DB.prepare(
+        "UPDATE device_tokens SET status = 'invalid', updated_at = CURRENT_TIMESTAMP WHERE id = ?1",
+      ).bind(device.id).run();
+    }
+  }
+  return { registered: devices.results.length, sent };
+}
+
 function retryable(status: number, reason: string | null): boolean {
   return status === 429 || status >= 500 || reason === "TooManyRequests";
 }
@@ -134,7 +188,7 @@ async function sendToDevice(
           title: "Cha-ching!",
           body: notificationBody(sale),
         },
-        sound: "default",
+        sound: PAYMENT_NOTIFICATION_SOUND,
         badge: 1,
       },
       saleId: sale.id,

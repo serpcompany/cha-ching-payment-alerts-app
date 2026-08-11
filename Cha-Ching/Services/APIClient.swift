@@ -160,6 +160,9 @@ actor APIClient {
         let relativePath = path.hasPrefix("/") ? String(path.dropFirst()) : path
         var request = URLRequest(url: try baseURL.appendingPathComponent(relativePath))
         request.httpMethod = method
+        // Better Auth returns a bearer token for the native client. Do not let
+        // URLSession attach a stale browser-style cookie to a later sign-in.
+        request.httpShouldHandleCookies = false
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if authorized, let token = KeychainToken.load() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
