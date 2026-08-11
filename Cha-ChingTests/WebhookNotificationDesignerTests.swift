@@ -239,4 +239,28 @@ struct WebhookNotificationDesignerTests {
         #expect(rows[0]["enabled"] as? Bool == true)
         #expect(rows[1]["enabled"] as? Bool == false)
     }
+
+    @Test func activationIsAlwaysVisibleButOnlyReadyForTheExactPreviewedChoices() {
+        let mapping = WebhookFieldMapping(
+            paymentIdPath: "/payment/id",
+            amountPath: "/payment/amount_minor",
+            amountUnit: "minor",
+            currencyPath: "/payment/currency",
+            notificationFields: [
+                WebhookNotificationField(
+                    id: "email",
+                    path: "/buyer/email",
+                    label: "Buyer Email",
+                    enabled: true
+                )
+            ]
+        )
+        var changed = mapping
+        changed.notificationFields[0].label = "Customer"
+
+        #expect(mapping.isCompleteForNotification)
+        #expect(!mapping.isReadyForActivation(after: nil))
+        #expect(mapping.isReadyForActivation(after: mapping))
+        #expect(!changed.isReadyForActivation(after: mapping))
+    }
 }

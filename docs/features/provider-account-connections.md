@@ -35,6 +35,7 @@ Reference: [PayPal Log in integration](https://developer.paypal.com/log-in/build
 - A provider/account ID pair is unique across Cha-Ching users.
 - `/v1/me` reports server-side provider availability separately from entitlement state, so the app disables connection actions until required credentials exist.
 - Each connected provider has a **Receive payments** switch. Pausing keeps the provider authorization, account label, and existing history but ignores new sale events. Disconnect remains a separate destructive action.
+- A connected Stripe source has a separate **Clear payment history** action. After explicit destructive confirmation, it removes only that user's normalized Stripe payments and their delivery records from Cha-Ching. It preserves the Stripe connection, account label, authorization, and current active/paused setting; it does not change anything in Stripe or remove custom-webhook payments. Minimal provider-event audit rows remain for replay protection.
 
 ## Acceptance criteria
 
@@ -46,3 +47,4 @@ Reference: [PayPal Log in integration](https://developer.paypal.com/log-in/build
 - Stripe's permission screen lists only event and charge read access and contains no create, update, refund, or other write capability.
 - A signed production callback for a Stripe sandbox returns an error and cannot replace a live connection.
 - Pausing and resuming a connection changes only payment intake; it does not replace or disconnect the provider account.
+- Clearing Stripe payment history is owner-scoped, requires confirmation, preserves the connection and paused setting, and cannot delete custom-source payments.

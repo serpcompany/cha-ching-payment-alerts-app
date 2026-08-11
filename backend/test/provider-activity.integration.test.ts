@@ -5,7 +5,7 @@ import { Miniflare } from "miniflare";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Auth } from "../src/auth";
-import { listConnections, setConnectionActivity } from "../src/connections";
+import { clearProviderPayments, listConnections, setConnectionActivity } from "../src/connections";
 import type { Env } from "../src/env";
 import { listSales } from "../src/sales";
 import { handleStripeWebhook, stripeSignature } from "../src/stripe-webhooks";
@@ -174,6 +174,84 @@ describe("connected provider activity", () => {
     const resumedHistory = await listSales(env, authFor("owner"), new Request("https://api.cha-ching.test/v1/sales"));
     expect((await resumedHistory.json<{ sales: unknown[] }>()).sales).toHaveLength(2);
     expect(queued).toHaveLength(1);
+  });
+
+  it("clears only the owner's Stripe payments while preserving the paused connection", async () => {
+    await setConnectionActivity(
+      env,
+      authFor("owner"),
+      new Request("https://api.cha-ching.test/v1/connections/stripe/pause", { method: "POST" }),
+      "stripe",
+      false,
+    );
+    await env.DB.prepare(
+      `INSERT INTO sales (
+        id, user_id, provider, provider_account_id, provider_event_id,
+        provider_payment_id, amount_minor, currency, product_label, is_subscription, occurred_at
+      ) VALUES ('custom-existing', 'owner', 'custom', 'custom-source', 'custom:event',
+        'custom:payment', 900, 'USD', 'Custom sale', 0, 2)`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO device_tokens (id, user_id, device_id, token, environment)
+       VALUES ('device', 'owner', 'device', 'token', 'production')`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO notification_deliveries (id, sale_id, device_token_id, status)
+       VALUES ('delivery', 'existing', 'device', 'sent')`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO provider_events (
+        id, provider, provider_event_id, user_id, provider_account_id,
+        event_type, livemode, disposition
+      ) VALUES ('event-audit', 'stripe', 'evt_existing', 'owner', 'acct_owner',
+        'charge.succeeded', 1, 'processed')`,
+    ).run();
+
+    const notOwner = await clearProviderPayments(
+      env,
+      authFor("someone-else"),
+      new Request("https://api.cha-ching.test/v1/connections/stripe/payments", { method: "DELETE" }),
+      "stripe",
+    );
+    expect(notOwner.status).toBe(404);
+
+    const clear = await clearProviderPayments(
+      env,
+      authFor("owner"),
+      new Request("https://api.cha-ching.test/v1/connections/stripe/payments", { method: "DELETE" }),
+      "stripe",
+    );
+    expect(clear.status).toBe(200);
+    expect(await clear.json()).toEqual({ clearedPayments: 1 });
+
+    const history = await listSales(env, authFor("owner"), new Request("https://api.cha-ching.test/v1/sales"));
+    expect(await history.json()).toEqual({
+      sales: [expect.objectContaining({ id: "custom-existing", provider: "custom" })],
+    });
+    const connections = await listConnections(
+      env,
+      authFor("owner"),
+      new Request("https://api.cha-ching.test/v1/connections"),
+    );
+    expect(await connections.json()).toEqual({
+      connections: [expect.objectContaining({ provider: "stripe", isActive: false })],
+    });
+    const deliveries = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM notification_deliveries WHERE sale_id = 'existing'",
+    ).first<{ count: number }>();
+    expect(deliveries?.count).toBe(0);
+    const eventAudit = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM provider_events WHERE id = 'event-audit'",
+    ).first<{ count: number }>();
+    expect(eventAudit?.count).toBe(1);
+
+    const clearAgain = await clearProviderPayments(
+      env,
+      authFor("owner"),
+      new Request("https://api.cha-ching.test/v1/connections/stripe/payments", { method: "DELETE" }),
+      "stripe",
+    );
+    expect(await clearAgain.json()).toEqual({ clearedPayments: 0 });
   });
 
   it("recovers one notification when the first queue send fails and Stripe retries the exact event", async () => {

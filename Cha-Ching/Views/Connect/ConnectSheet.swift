@@ -6,7 +6,10 @@ struct ConnectSheet: View {
     let isActive: Bool
 
     @EnvironmentObject private var connectStore: ConnectStore
+    @EnvironmentObject private var salesStore: SalesStore
     @Environment(\.dismiss) private var dismiss
+    @State private var confirmingClearHistory = false
+    @State private var clearResultMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -77,6 +80,20 @@ struct ConnectSheet: View {
                         Text("Turn this off to stop new payments and notifications without disconnecting \(provider.title).")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
+                        if provider == .stripe {
+                            Button("Clear payment history", role: .destructive) {
+                                confirmingClearHistory = true
+                            }
+                            .disabled(connectStore.isBusy)
+                            Text("Removes Stripe payments from Cha-Ching. Your Stripe connection stays in place.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        if let clearResultMessage {
+                            Text(clearResultMessage)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     Section {
                         Button("Disconnect \(provider.title)", role: .destructive) {
@@ -102,12 +119,26 @@ struct ConnectSheet: View {
                     Button("Close") { dismiss() }
                 }
             }
+            .alert("Clear Stripe payment history?", isPresented: $confirmingClearHistory) {
+                Button("Cancel", role: .cancel) {}
+                Button("Clear history", role: .destructive) {
+                    Task { await clearPaymentHistory() }
+                }
+            } message: {
+                Text("Remove all Stripe payments from your Dashboard? This can't be undone. Your Stripe connection and paused setting will stay unchanged.")
+            }
         }
     }
 
     private func connect() async {
         let success = await connectStore.connect(provider: provider)
         if success { dismiss() }
+    }
+
+    private func clearPaymentHistory() async {
+        guard let cleared = await connectStore.clearPayments(provider: provider) else { return }
+        await salesStore.refresh()
+        clearResultMessage = cleared == 1 ? "1 payment removed." : "\(cleared) payments removed."
     }
 
     private var connectionPrivacyCopy: String {

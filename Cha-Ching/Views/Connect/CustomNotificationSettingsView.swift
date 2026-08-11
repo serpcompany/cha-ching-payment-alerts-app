@@ -89,10 +89,7 @@ struct CustomNotificationSettingsView: View {
             if let preview {
                 CustomNotificationPreviewSheet(
                     sourceName: source.name,
-                    notificationBody: preview.notificationBody ?? legacyPreviewBody(preview),
-                    isActivating: isBusy,
-                    errorMessage: errorMessage,
-                    onActivate: { Task { await activate() } }
+                    notificationBody: preview.notificationBody ?? legacyPreviewBody(preview)
                 )
             }
         }
@@ -100,6 +97,9 @@ struct CustomNotificationSettingsView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(testResultMessage ?? "The test notification was sent.")
+        }
+        .safeAreaInset(edge: .bottom) {
+            activationBar
         }
     }
 
@@ -285,20 +285,49 @@ struct CustomNotificationSettingsView: View {
     }
 
     private var mappingIsComplete: Bool {
-        paymentMappingIsComplete
-            && mapping.notificationFields.contains(where: \.enabled)
-            && mapping.notificationFields.allSatisfy {
-                !$0.enabled || (
-                    !$0.path.isEmpty
-                        && !$0.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                )
-            }
+        mapping.isCompleteForNotification
     }
 
     private var paymentMappingIsComplete: Bool {
         !mapping.paymentIdPath.isEmpty
             && !mapping.amountPath.isEmpty
             && !(mapping.currencyPath ?? "").isEmpty
+    }
+
+    private var activationBar: some View {
+        VStack(spacing: 6) {
+            Button {
+                Task { await activate() }
+            } label: {
+                HStack {
+                    Spacer()
+                    if isBusy { ProgressView().tint(.white) }
+                    Text(isBusy ? "Activating…" : "Activate payment source")
+                        .fontWeight(.semibold)
+                    Spacer()
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!mapping.isReadyForActivation(after: previewedMapping) || isBusy)
+
+            Text(activationGuidance)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(.bar)
+    }
+
+    private var activationGuidance: String {
+        if mapping.isReadyForActivation(after: previewedMapping) {
+            return "Ready. New webhook events will become Dashboard payments and notifications."
+        }
+        if mappingIsComplete {
+            return "Preview the current notification above to enable activation."
+        }
+        return "Finish payment matching and keep at least one notification detail on."
     }
 
     private func requiredBinding(_ value: Binding<String?>) -> Binding<String> {
@@ -541,9 +570,6 @@ private struct CustomNotificationPreviewSheet: View {
     @Environment(\.dismiss) private var dismiss
     let sourceName: String
     let notificationBody: String
-    let isActivating: Bool
-    let errorMessage: String?
-    let onActivate: () -> Void
 
     var body: some View {
         NavigationStack {
@@ -574,23 +600,9 @@ private struct CustomNotificationPreviewSheet: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
-
-                    Button(action: onActivate) {
-                        HStack {
-                            Spacer()
-                            if isActivating { ProgressView().tint(.white) }
-                            Text(isActivating ? "Activating…" : "Activate payment source")
-                                .fontWeight(.semibold)
-                            Spacer()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isActivating)
+                    Text("When this looks right, tap Done, then activate the payment source from the always-visible button.")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Theme.accent)
                 }
                 .padding()
             }
@@ -598,7 +610,7 @@ private struct CustomNotificationPreviewSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Back") { dismiss() }
+                    Button("Done") { dismiss() }
                 }
             }
         }

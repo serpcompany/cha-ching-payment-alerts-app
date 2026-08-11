@@ -210,6 +210,23 @@ struct WebhookFieldMapping: Codable, Equatable {
         }
     }
 
+    var isCompleteForNotification: Bool {
+        !paymentIdPath.isEmpty
+            && !amountPath.isEmpty
+            && !(currencyPath ?? "").isEmpty
+            && notificationFields.contains(where: \.enabled)
+            && notificationFields.allSatisfy {
+                !$0.enabled || (
+                    !$0.path.isEmpty
+                        && !$0.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                )
+            }
+    }
+
+    func isReadyForActivation(after previewedMapping: WebhookFieldMapping?) -> Bool {
+        isCompleteForNotification && previewedMapping == self
+    }
+
     private enum CodingKeys: String, CodingKey {
         case paymentIdPath, amountPath, amountUnit, currencyPath, fixedCurrency
         case occurredAtPath, productPath, planPath, saleTypePath, notificationFields

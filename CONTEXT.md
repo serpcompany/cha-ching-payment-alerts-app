@@ -30,7 +30,7 @@ The live MVP proves secure identity, entitlement enforcement, payment-source lin
 - Sample data must not appear as production revenue.
 - Production custom-webhook setup never preloads fabricated data. Its user-visible lifecycle is **Waiting for first event** → **Event received** → **Active**, driven by sender traffic and explicit activation.
 - A custom webhook URL remains stable across app and backend releases. Only the source owner's explicit regeneration invalidates it.
-- A paused payment source retains its URL, mapping, and existing payments while ignoring new events.
+- Pausing a payment source retains its URL, mapping, and existing payments while ignoring new events. A separate, explicitly confirmed clear-history action may remove that source's normalized payments without changing its connection or paused setting.
 - Custom webhook samples are encrypted at rest and removed after activation.
 - Custom-webhook payments are reported by whoever possesses the private URL; Cha-Ching does not represent them as provider-verified.
 - Custom notification previews and APNs bodies use the fixed title `Cha-ching!` and one ordered `{label}: {value}` line per enabled field. Different semantic fields are never combined into generated prose.
@@ -38,7 +38,7 @@ The live MVP proves secure identity, entitlement enforcement, payment-source lin
 - Payment notifications do not invent an unread-count badge. Cha-Ching clears any existing app-icon badge when the app opens, becomes active, or a notification is pressed.
 - Payment notifications are an explicit per-device user preference. Off removes the backend device registration and blocks automatic re-registration; on registers again when system permission allows it.
 - A lock-screen sample test is delayed by the server-side Queue after acceptance so the user can lock the phone without suspending the send.
-- Connected Stripe and PayPal accounts can be paused without disconnecting; paused connections retain authorization and existing payments while ignoring new payment events.
+- Connected Stripe and PayPal accounts can be paused without disconnecting; paused connections retain authorization and existing payments while ignoring new payment events. Clearing Stripe payment history is a distinct user action that affects only Cha-Ching's stored Stripe payments, not Stripe itself.
 - A provider may be entitled but unavailable when its production credentials are not configured.
 - A provider connection does not imply that provider's payment-webhook path is supported.
 - Stripe authorization must never include a write permission; the MVP reads only event and charge data.
@@ -47,4 +47,4 @@ The live MVP proves secure identity, entitlement enforcement, payment-source lin
 
 ## MVP success
 
-A signed-in user can view live provider availability, connect or disconnect one Stripe account and one PayPal account when configured, pause or resume payment intake, and see D1-backed state after relaunch. Entitlements remain a server-side access-control mechanism and are not presented as a “plan” in Settings. A connected active Stripe user receives one persisted payment and one payment-notification attempt for each verified successful charge. An active custom source can create sender-reported payments through its mapped private webhook.
+A signed-in user can view live provider availability, connect or disconnect one Stripe account and one PayPal account when configured, pause or resume payment intake, clear Cha-Ching's stored Stripe payment history without disconnecting, and see D1-backed state after relaunch. Entitlements remain a server-side access-control mechanism and are not presented as a “plan” in Settings. A connected active Stripe user receives one persisted payment and one payment-notification attempt for each verified successful charge. An active custom source can create sender-reported payments through its mapped private webhook.

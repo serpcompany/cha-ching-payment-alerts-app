@@ -50,6 +50,10 @@ private struct CustomPreviewResponse: Decodable {
     let preview: CustomPaymentPreview
 }
 
+private struct ClearProviderPaymentsResponse: Decodable {
+    let clearedPayments: Int
+}
+
 struct TestNotificationResponse: Decodable {
     let sent: Int?
     let scheduled: Bool?
@@ -241,6 +245,21 @@ final class ConnectStore: ObservableObject {
             await refresh()
         } catch {
             errorMessage = "Couldn't disconnect \(provider.title)."
+        }
+    }
+
+    func clearPayments(provider: Provider) async -> Int? {
+        isBusy = true
+        errorMessage = nil
+        defer { isBusy = false }
+        do {
+            let response: ClearProviderPaymentsResponse = try await APIClient.shared.deleteResponse(
+                "/v1/connections/\(provider.rawValue)/payments"
+            )
+            return response.clearedPayments
+        } catch {
+            errorMessage = "Couldn't clear \(provider.title) payment history."
+            return nil
         }
     }
 

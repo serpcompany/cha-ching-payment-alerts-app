@@ -6,7 +6,7 @@ struct AppNavigationTests {
         #expect(AppTab.allCases.map(\.title) == ["Dashboard", "Connect", "Settings"])
     }
 
-    @Test func dashboardContainsOnlyTheMVPRevenueSummaryAndPayments() {
-        #expect(DashboardSection.allCases == [.revenueToday, .payments])
+    @Test func dashboardContainsOnlyTheMVPPaymentsSection() {
+        #expect(DashboardSection.allCases == [.payments])
     }
 }
