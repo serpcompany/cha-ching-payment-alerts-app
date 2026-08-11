@@ -156,3 +156,5 @@ On 2026-08-12 JST, migration `0010` reconciled all 11 retained custom-payment de
 Worker version `c52144ab-a5f2-44ba-bdfb-91913c75d2e0` was deployed on 2026-08-12 JST. Active-source test notifications now carry the latest retained payment ID, so pressing one follows the normal Dashboard payment drill-down. Setup tests remain standalone previews because no payment exists yet.
 
 TestFlight `1.0 (19)` (`f976c0ef-9fa6-40b1-8a38-8e82f8f9bd8f`) is `VALID` and `IN_BETA_TESTING` in **Cha-Ching Internal**. It contains the approved replacement money sound, immediate nonmodal lock-screen countdown guidance, active-test Dashboard routing, and relevant configurable custom-payment row subtitles.
+
+Migration `0011` and Worker version `7017202c-0764-459b-b8cf-d2cce5479e27` were deployed on 2026-08-12 JST. All 11 retained production custom payments now have stable ID-keyed value archives with 9–10 recoverable fields and no missing archive. Presentation saves no longer destroy a hidden value, so later re-enabling reliably restores it when the payment retained that value at arrival.
