@@ -38,7 +38,7 @@ describe("custom payment source HTTP API", () => {
       d1Databases: ["DB"],
     });
     const db = await miniflare.getD1Database("DB");
-    for (const migration of ["0001_initial.sql", "0002_sales_and_notifications.sql", "0003_anonymous_simulator_user.sql", "0004_nullable_provider_access_token.sql", "0005_custom_payment_sources.sql", "0006_provider_connection_activity.sql", "0007_provider_event_disposition.sql", "0008_notification_queue_claims.sql", "0009_custom_notification_fields.sql", "0010_reconcile_custom_payment_history_presentation.sql"]) {
+    for (const migration of ["0001_initial.sql", "0002_sales_and_notifications.sql", "0003_anonymous_simulator_user.sql", "0004_nullable_provider_access_token.sql", "0005_custom_payment_sources.sql", "0006_provider_connection_activity.sql", "0007_provider_event_disposition.sql", "0008_notification_queue_claims.sql", "0009_custom_notification_fields.sql", "0010_reconcile_custom_payment_history_presentation.sql", "0011_retain_custom_payment_field_values.sql"]) {
       const statements = (await readFile(join(process.cwd(), "migrations", migration), "utf8"))
         .replace(/--.*$/gm, "")
         .split(";")
@@ -242,6 +242,35 @@ describe("custom payment source HTTP API", () => {
       })],
     });
 
+    const reenabledFields = [
+      { id: "amount", path: "/payment/amount_minor", label: "Total paid", enabled: true },
+      { id: "buyer", path: "/buyer/email", label: "Customer email", enabled: true },
+      { id: "utm", path: "/attribution/utm_source", label: "UTM Source", enabled: true },
+    ];
+    const reenable = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}/notification-fields`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ notificationFields: reenabledFields }),
+      }),
+    );
+    expect(reenable.status).toBe(200);
+    const reenabledHistory = await listSales(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/sales"),
+    );
+    expect(await reenabledHistory.json()).toEqual({
+      sales: [expect.objectContaining({
+        notificationFields: [
+          { label: "Total paid", value: "$8.00" },
+          { label: "Customer email", value: "historical@example.com" },
+        ],
+      })],
+    });
+
     await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
       method: "POST",
       body: JSON.stringify({
@@ -257,10 +286,16 @@ describe("custom payment source HTTP API", () => {
     expect(await history.json()).toEqual({
       sales: expect.arrayContaining([
         expect.objectContaining({
-          notificationFields: [{ label: "Customer email", value: "future@example.com" }],
+          notificationFields: [
+            { label: "Total paid", value: "$9.00" },
+            { label: "Customer email", value: "future@example.com" },
+          ],
         }),
         expect.objectContaining({
-          notificationFields: [{ label: "Customer email", value: "historical@example.com" }],
+          notificationFields: [
+            { label: "Total paid", value: "$8.00" },
+            { label: "Customer email", value: "historical@example.com" },
+          ],
         }),
       ]),
     });

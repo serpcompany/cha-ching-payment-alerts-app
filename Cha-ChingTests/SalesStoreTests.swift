@@ -127,4 +127,40 @@ struct SalesStoreTests {
         await automaticRefresh.value
         await pullToRefresh.value
     }
+
+    @Test @MainActor func paymentDetailReadsTheLatestRefreshedPayment() async throws {
+        let stale = Sale(
+            id: "sale",
+            product: "Download",
+            amountMinor: 800,
+            currency: "USD",
+            source: .custom,
+            date: Date(timeIntervalSince1970: 1),
+            isSubscription: false,
+            countryCode: nil,
+            details: [SaleDetail(label: "Buyer", value: "old@example.com")]
+        )
+        let updated = Sale(
+            id: "sale",
+            product: "Download",
+            amountMinor: 800,
+            currency: "USD",
+            source: .custom,
+            date: Date(timeIntervalSince1970: 1),
+            isSubscription: false,
+            countryCode: nil,
+            details: [
+                SaleDetail(label: "Total paid", value: "$8.00"),
+                SaleDetail(label: "Customer email", value: "old@example.com")
+            ]
+        )
+        let loader = ScriptedSalesLoader(results: [.success([stale]), .success([updated])])
+        let store = SalesStore(client: SalesClient(load: { try loader.load() }))
+
+        await store.refresh()
+        #expect(try #require(store.sale(id: "sale")).details == stale.details)
+
+        await store.refresh()
+        #expect(try #require(store.sale(id: "sale")).details == updated.details)
+    }
 }

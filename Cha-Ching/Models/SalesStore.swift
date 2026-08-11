@@ -123,4 +123,8 @@ final class SalesStore: ObservableObject {
     func dismissLoadError() {
         errorMessage = nil
     }
+
+    func sale(id: String) -> Sale? {
+        sales.first { $0.id == id }
+    }
 }

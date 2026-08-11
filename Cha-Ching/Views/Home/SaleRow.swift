@@ -38,7 +38,16 @@ struct SaleRow: View {
 }
 
 struct SaleDetailView: View {
-    let sale: Sale
+    @EnvironmentObject private var store: SalesStore
+    let initialSale: Sale
+
+    init(sale: Sale) {
+        initialSale = sale
+    }
+
+    private var sale: Sale {
+        store.sale(id: initialSale.id) ?? initialSale
+    }
 
     var body: some View {
         ZStack {
@@ -79,6 +88,9 @@ struct SaleDetailView: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.bottom, 24)
+            }
+            .refreshable {
+                await store.refresh()
             }
         }
         .navigationTitle("Payment")

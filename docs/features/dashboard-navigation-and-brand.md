@@ -20,7 +20,8 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 - **Connected processors** is removed; connection status belongs in **Connect**.
 - **Recent pings** becomes **Payments**.
 - The empty state says **No payments yet** and explains that a payment will appear when one arrives.
-- Payment rows and details continue to use the D1-backed sales API. A historical custom payment retains its normalized values, while accepted presentation edits rename, hide, and reorder those retained values so Dashboard details stay consistent with the source's current configuration. Newly shown fields appear on an older payment only when the value was retained when it arrived; Stripe payments retain the normalized fallback details.
+- Payment rows and details continue to use the D1-backed sales API. A historical custom payment retains the values that were enabled when it arrived in a stable field-ID archive, while accepted presentation edits rename, hide, reorder, and re-enable those values so Dashboard details stay consistent with the source's current configuration. Newly shown fields appear on an older payment only when the value was retained when it arrived; Stripe payments retain the normalized fallback details.
+- Pulling down on an individual payment detail refreshes the shared Payments feed and redraws that open detail from the latest server-accepted presentation instead of preserving the navigation-time snapshot.
 - A custom-payment row uses the product title, a dollar-payment symbol, and the first enabled configured detail as its subtitle. It does not substitute a generic globe or “Reported by” attribution. Changing the enabled fields, labels, or order therefore changes the most prominent supporting detail on retained custom payments after the accepted presentation is applied.
 - If Payments cannot refresh, already-loaded payments stay visible. A compact inline message says **Payments couldn't refresh.**, offers **Retry** and **Dismiss**, and clears automatically after a successful refresh.
 - Automatic foreground, notification-triggered, and pull-to-refresh callers share one in-flight Payments request. A canceled or superseded caller does not flash a false connectivity error while the shared request is still succeeding.
@@ -51,6 +52,7 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 - Dashboard contains no Top seller, This week, or Last 7 days widget or implementation.
 - Dashboard contains no revenue hero or nonfunctional notification-bell toolbar item.
 - Dashboard contains a Payments section backed by the same payment list and detail route.
+- An open payment detail supports pull-to-refresh and displays the refreshed server copy of that payment.
 - A custom-payment row uses a payment symbol and its first enabled configured detail; it never shows the generic globe or “Reported by” fallback.
 - A Payments refresh failure is actionable and dismissible and does not erase previously loaded payments.
 - Pulling to refresh while another automatic refresh is active does not issue duplicate requests or briefly show a false failure card.
