@@ -51,11 +51,9 @@ struct CustomNotificationSettingsView: View {
         List {
             Section {
                 sourceSummary
-                if !isEditingActiveSource {
-                    previewButton
-                    testNotificationButton
-                    testLockScreenButton
-                }
+                previewButton
+                testNotificationButton
+                testLockScreenButton
             } footer: {
                 Text("iPhone shows a shortened two-to-four-line preview. Press the notification to see every selected detail in Cha-Ching.")
             }
@@ -76,7 +74,7 @@ struct CustomNotificationSettingsView: View {
                 }
             } footer: {
                 Text(isEditingActiveSource
-                     ? "Changes apply to future payments. Existing Dashboard details stay unchanged."
+                     ? "Changes update existing Dashboard details and future payments."
                      : "All details found in the test payment are listed. Each enabled detail appears on its own “Label: Value” line.")
             }
 
@@ -121,10 +119,10 @@ struct CustomNotificationSettingsView: View {
             )
         }
         .sheet(isPresented: $showingPreview) {
-            if let preview {
+            if let previewBody {
                 CustomNotificationPreviewSheet(
                     sourceName: source.name,
-                    notificationBody: preview.notificationBody ?? legacyPreviewBody(preview)
+                    notificationBody: previewBody
                 )
             }
         }
@@ -319,8 +317,14 @@ struct CustomNotificationSettingsView: View {
         notificationFields.count(where: \.enabled)
     }
 
+    private var currentMapping: WebhookFieldMapping {
+        var current = mapping
+        current.notificationFields = notificationFields
+        return current
+    }
+
     private var mappingIsComplete: Bool {
-        mapping.isCompleteForNotification
+        currentMapping.isCompleteForNotification
     }
 
     private var paymentMappingIsComplete: Bool {
@@ -440,6 +444,12 @@ struct CustomNotificationSettingsView: View {
             return
         }
 
+        if isEditingActiveSource {
+            preview = nil
+            showingPreview = true
+            return
+        }
+
         await run {
             preview = try await store.previewCustomSource(id: source.id, mapping: mapping)
             previewedMapping = mapping
@@ -454,9 +464,11 @@ struct CustomNotificationSettingsView: View {
         }
         await NotificationManager.shared.requestPermissionAndRegister()
         await run {
-            preview = try await store.previewCustomSource(id: source.id, mapping: mapping)
-            previewedMapping = mapping
-            let result = try await store.testCustomSourceNotification(id: source.id, mapping: mapping)
+            if !isEditingActiveSource {
+                preview = try await store.previewCustomSource(id: source.id, mapping: mapping)
+                previewedMapping = mapping
+            }
+            let result = try await store.testCustomSourceNotification(id: source.id, mapping: currentMapping)
             if result.sent != 1 {
                 testResultMessage = "Sent to \(result.sent ?? 0) registered iPhones."
                 showingTestResult = true
@@ -471,11 +483,13 @@ struct CustomNotificationSettingsView: View {
         }
         await NotificationManager.shared.requestPermissionAndRegister()
         await run {
-            preview = try await store.previewCustomSource(id: source.id, mapping: mapping)
-            previewedMapping = mapping
+            if !isEditingActiveSource {
+                preview = try await store.previewCustomSource(id: source.id, mapping: mapping)
+                previewedMapping = mapping
+            }
             let result = try await store.testCustomSourceNotification(
                 id: source.id,
-                mapping: mapping,
+                mapping: currentMapping,
                 delaySeconds: 10
             )
             guard result.scheduled == true else { throw APIError.invalidResponse }
@@ -514,7 +528,7 @@ struct CustomNotificationSettingsView: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(includedFieldCount == 0 || isBusy)
-            Text("Applies to future payments only.")
+            Text("Updates existing payment details and future payments.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -538,6 +552,13 @@ struct CustomNotificationSettingsView: View {
             onSaved(activeDraft.saveConfirmation ?? "Notification settings saved.")
             dismiss()
         }
+    }
+
+    private var previewBody: String? {
+        if let preview {
+            return preview.notificationBody ?? legacyPreviewBody(preview)
+        }
+        return isEditingActiveSource ? activeDraft.previewBody : nil
     }
 }
 

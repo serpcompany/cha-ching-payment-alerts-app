@@ -293,4 +293,19 @@ struct WebhookNotificationDesignerTests {
         #expect(editor.notificationFields == accepted.notificationFields)
         #expect(editor.saveConfirmation == "Notification settings saved.")
     }
+
+    @Test func activeNotificationDraftAlwaysHasAPreview() {
+        let mapping = WebhookFieldMapping(
+            paymentIdPath: "/payment/id",
+            amountPath: "/payment/amount_minor",
+            amountUnit: "minor",
+            currencyPath: "/payment/currency",
+            notificationFields: [
+                WebhookNotificationField(id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: false),
+                WebhookNotificationField(id: "email", path: "/buyer/email", label: "Customer email", enabled: true)
+            ]
+        )
+
+        #expect(ActiveNotificationSettingsDraft(mapping: mapping).previewBody == "Customer email: Example value")
+    }
 }

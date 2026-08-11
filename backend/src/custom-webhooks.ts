@@ -63,6 +63,11 @@ interface CustomSourceRow {
   updated_at: string;
 }
 
+interface HistoricalNotificationFieldsRow {
+  id: string;
+  notification_fields_json: string;
+}
+
 type CustomSourceConnectionState = "waiting" | "event_received" | "active" | "paused";
 
 const MAX_CUSTOM_WEBHOOK_BYTES = 64 * 1024;
@@ -258,10 +263,66 @@ async function updateNotificationFields(
   }
 
   const mappingJSON = serializedMapping(updated);
-  await env.DB.prepare(
-    "UPDATE custom_payment_sources SET mapping_json = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2 AND user_id = ?3",
-  ).bind(mappingJSON, sourceId, user.id).run();
+  const history = await env.DB.prepare(
+    `SELECT id, notification_fields_json FROM sales
+     WHERE provider = 'custom' AND provider_account_id = ?1 AND user_id = ?2
+       AND notification_fields_json IS NOT NULL`,
+  ).bind(sourceId, user.id).all<HistoricalNotificationFieldsRow>();
+  const statements = [
+    env.DB.prepare(
+      "UPDATE custom_payment_sources SET mapping_json = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2 AND user_id = ?3",
+    ).bind(mappingJSON, sourceId, user.id),
+    ...history.results.flatMap((sale) => {
+      const fields = applyHistoricalNotificationPresentation(
+        sale.notification_fields_json,
+        current.notificationFields ?? [],
+        updated.notificationFields ?? [],
+      );
+      return fields === null ? [] : [env.DB.prepare(
+        "UPDATE sales SET notification_fields_json = ?1 WHERE id = ?2 AND user_id = ?3",
+      ).bind(fields, sale.id, user.id)];
+    }),
+  ];
+  await env.DB.batch(statements);
   return Response.json({ mapping: JSON.parse(mappingJSON) });
+}
+
+function applyHistoricalNotificationPresentation(
+  value: string,
+  current: NotificationFieldMapping[],
+  updated: NotificationFieldMapping[],
+): string | null {
+  let stored: Array<{ label: string; value: string }>;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) return null;
+    stored = parsed.filter((field): field is { label: string; value: string } => Boolean(
+      field && typeof field === "object"
+      && typeof (field as Record<string, unknown>).label === "string"
+      && typeof (field as Record<string, unknown>).value === "string"
+    ));
+    if (stored.length !== parsed.length) return null;
+  } catch {
+    return null;
+  }
+
+  const availableByLabel = new Map<string, NotificationFieldMapping[]>();
+  for (const field of current) {
+    const matches = availableByLabel.get(field.label) ?? [];
+    matches.push(field);
+    availableByLabel.set(field.label, matches);
+  }
+  const valuesById = new Map<string, string>();
+  for (const field of stored) {
+    const matches = availableByLabel.get(field.label);
+    const mapped = matches?.shift();
+    if (mapped) valuesById.set(mapped.id, field.value);
+  }
+  if (stored.length > 0 && valuesById.size === 0) return null;
+  return JSON.stringify(updated.flatMap((field) => {
+    const fieldValue = valuesById.get(field.id);
+    return field.enabled && fieldValue !== undefined ? [{ label: field.label, value: fieldValue }] : [];
+  }));
 }
 
 function notificationFieldValue(
@@ -423,31 +484,63 @@ async function testNotification(env: Env, auth: Auth, request: Request, sourceId
   if (!mapping) return Response.json({ error: "Preview the current notification before testing it" }, { status: 400 });
   const mappingJSON = serializedMapping(mapping);
   const row = await env.DB.prepare(
-    `SELECT name, sample_payload_ciphertext, mapping_json
-     FROM custom_payment_sources WHERE id = ?1 AND user_id = ?2 AND status = 'setup'`,
+    `SELECT name, status, sample_payload_ciphertext, mapping_json
+     FROM custom_payment_sources
+     WHERE id = ?1 AND user_id = ?2 AND status IN ('setup', 'active', 'paused')`,
   ).bind(sourceId, user.id).first<{
     name: string;
+    status: "setup" | "active" | "paused";
     sample_payload_ciphertext: string | null;
     mapping_json: string | null;
   }>();
-  if (!row) return Response.json({ error: "Payment source not found or already active" }, { status: 404 });
-  if (!row.sample_payload_ciphertext) {
-    return Response.json({ error: "Send a sample payment before testing notifications" }, { status: 409 });
-  }
-  if (row.mapping_json !== mappingJSON) {
-    return Response.json({ error: "Your choices changed. Preview the current notification before testing it." }, { status: 409 });
-  }
-  const payload = JSON.parse(await decryptSecret(
-    row.sample_payload_ciphertext,
-    env.PROVIDER_TOKEN_ENCRYPTION_KEY,
-  ));
+  if (!row) return Response.json({ error: "Payment source not found" }, { status: 404 });
   let body: string;
-  try {
-    const normalized = normalizeCustomPayment(payload, mapping, row.name);
-    const fields = previewNotificationFields(payload, mapping, normalized);
-    body = notificationFieldsBody(fields.filter((field) => field.enabled)) || "Payment received.";
-  } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Notification could not be tested" }, { status: 422 });
+  if (row.status === "setup") {
+    if (!row.sample_payload_ciphertext) {
+      return Response.json({ error: "Send a sample payment before testing notifications" }, { status: 409 });
+    }
+    if (row.mapping_json !== mappingJSON) {
+      return Response.json({ error: "Your choices changed. Preview the current notification before testing it." }, { status: 409 });
+    }
+    const payload = JSON.parse(await decryptSecret(
+      row.sample_payload_ciphertext,
+      env.PROVIDER_TOKEN_ENCRYPTION_KEY,
+    ));
+    try {
+      const normalized = normalizeCustomPayment(payload, mapping, row.name);
+      const fields = previewNotificationFields(payload, mapping, normalized);
+      body = notificationFieldsBody(fields.filter((field) => field.enabled)) || "Payment received.";
+    } catch (error) {
+      return Response.json({ error: error instanceof Error ? error.message : "Notification could not be tested" }, { status: 422 });
+    }
+  } else {
+    const current = row.mapping_json ? parseMapping(JSON.parse(row.mapping_json)) : null;
+    const currentPaths = new Map((current?.notificationFields ?? []).map((field) => [field.id, field.path]));
+    const changesPresentationOnly = current
+      && mapping.notificationFields?.length === currentPaths.size
+      && mapping.notificationFields.every((field) => currentPaths.get(field.id) === field.path);
+    if (!changesPresentationOnly) {
+      return Response.json({ error: "Active notification fields can only be renamed, shown, hidden, or reordered" }, { status: 400 });
+    }
+    const latest = await env.DB.prepare(
+      `SELECT notification_fields_json FROM sales
+       WHERE provider = 'custom' AND provider_account_id = ?1 AND user_id = ?2
+         AND notification_fields_json IS NOT NULL
+       ORDER BY occurred_at DESC, created_at DESC LIMIT 1`,
+    ).bind(sourceId, user.id).first<{ notification_fields_json: string }>();
+    const rendered = latest
+      ? applyHistoricalNotificationPresentation(
+        latest.notification_fields_json,
+        current.notificationFields ?? [],
+        mapping.notificationFields ?? [],
+      )
+      : null;
+    const fields = rendered
+      ? JSON.parse(rendered) as Array<{ label: string; value: string }>
+      : (mapping.notificationFields ?? [])
+        .filter((field) => field.enabled)
+        .map((field) => ({ label: field.label, value: "Example value" }));
+    body = notificationFieldsBody(fields) || "Payment received.";
   }
   if (delaySeconds > 0) {
     const devices = await env.DB.prepare(

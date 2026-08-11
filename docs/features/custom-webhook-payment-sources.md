@@ -29,7 +29,7 @@ The MVP keeps payment-source connection and notification design as two distinct 
 4. **Field row** — shows only the display label, sample value, disclosure indicator, and a direct on/off switch. The section header shows the current included count, such as **15 of 17 on**.
 5. **Edit detail** — tapping a row opens its focused editor. The user can show or hide the line, rename its display label, remap it to any observed payload field, inspect the example and technical path, move it earlier or later, and see that line's preview. The main list also supports drag reordering through **Edit**.
 6. **Notification preview and device test** — Preview notification shows an iPhone-style preview containing the exact title, line order, labels, and sample values that will be sent. The adjacent Test notification action sends that design through APNs using the cash-register sound and reports whether a registered device accepted it. **Activate payment source** remains an explicit confirmation of the previewed design.
-7. **Active-source management** — reopening an activated source provides pause/resume, URL copy, developer-prompt copy, explicit URL regeneration, and notification presentation editing. The MVP permits renaming, showing, hiding, and reordering the already-mapped fields for future payments. Active edits remain a local draft until the Worker accepts them; returning to management then shows **Notification settings saved.** Remapping remains a setup-only action because the raw setup sample is deleted at activation.
+7. **Active-source management** — reopening an activated source provides pause/resume, URL copy, developer-prompt copy, explicit URL regeneration, and notification presentation editing. The MVP applies renaming, hiding, and reordering to retained Dashboard values as well as future payments. A newly shown field appears on an older payment only when that value was retained when the payment arrived; Cha-Ching never invents or recovers discarded raw values. Preview, immediate test, and lock-screen test remain available after activation; tests use the latest saved payment values when available and safe example values otherwise. Active edits remain a local draft until the Worker accepts them; returning to management then shows **Notification settings saved.** Remapping remains a setup-only action because the raw setup sample is deleted at activation.
 
 The Notification settings screen always pins **Activate payment source** above the bottom edge. It is visibly disabled with guidance until payment matching is complete and the current choices have been previewed. Previewing never hides activation inside the preview sheet: the user closes the preview, sees the enabled activation action in the same place, and explicitly puts the source live. Once active, new unique webhook events create Dashboard payments and notifications.
 
@@ -108,7 +108,7 @@ Because the copied developer instructions contain that private URL, they are als
 - Payload limit: 64 KiB.
 - Setup samples use the existing versioned AES-256-GCM Worker encryption key.
 - The sample is deleted when the source is activated.
-- After activation, authenticated presentation-only edits preserve the fixed field IDs and payload paths. They affect future payments and notifications; existing history keeps its saved ordered label/value snapshot.
+- After activation, authenticated presentation-only edits preserve the fixed field IDs and payload paths. Renaming, hiding, and reordering also update the retained presentation of existing payment details; newly shown fields appear on an older payment only when their value was retained. Future payments and notifications use the same accepted presentation.
 - Active raw payloads are never persisted.
 - Only normalized sale fields and the enabled notification label/value pairs enter history.
 - Enabled fields can appear on the iPhone lock screen. The designer warns the user to hide private fields before activation.
@@ -133,12 +133,12 @@ Because the copied developer instructions contain that private URL, they are als
 - Changing any mapping, label, toggle, order, or amount-format choice invalidates the preview; activation requires the exact mapping that was previewed.
 - The title is `Cha-ching!`, and each enabled structured field occupies exactly one ordered `{label}: {value}` line without combining meanings.
 - The preview body exactly matches the configured body handed to APNs for a live event.
-- An owner-authenticated test action sends the exact current preview to active registered devices, uses the bundled cash-register sound, and creates no payment or payment-history row.
+- An owner-authenticated test action is available during setup and after activation. It sends the exact current presentation to active registered devices, uses the latest saved payment values when available (or safe example values otherwise), uses the bundled cash-register sound, and creates no payment or payment-history row.
 - A real payment may omit display-only fields that appeared in the setup sample, such as UTM attribution. Cha-Ching still accepts the payment and preserves the selected order while leaving those absent rows out of that notification. Required Payment ID, Amount, and Currency mapping failures still reject the event.
 - Rejected active events emit a safe `custom.webhook.rejected` Worker log containing the source ID and mapping reason, never the raw payload or field values.
 - Active retries are idempotent by the source-scoped mapped Payment ID.
 - Pausing and resuming does not replace the URL or erase history.
-- An active or paused source can rename, show, hide, and reorder its mapped notification fields without another sample; it cannot remap payload paths after activation.
+- An active or paused source can preview, test, rename, show, hide, and reorder its mapped notification fields without another sample; it cannot remap payload paths after activation.
 - Cancelling or failing an active-source save leaves the persisted configuration unchanged. A successful authenticated save reads back the accepted mapping and shows an explicit confirmation on the source-management screen.
 - Setup cannot dead-end after customization: **Activate payment source** remains visible, explains what is missing, and enables only for the exact mapping the user previewed.
 - Oversized, malformed, or unmappable payloads do not create sales.

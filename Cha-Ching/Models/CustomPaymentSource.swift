@@ -268,6 +268,14 @@ struct ActiveNotificationSettingsDraft: Equatable {
         notificationFields = mapping.notificationFields
     }
 
+    var previewBody: String {
+        let body = notificationFields
+            .filter(\.enabled)
+            .map { "\($0.label): Example value" }
+            .joined(separator: "\n")
+        return body.isEmpty ? "Payment received." : body
+    }
+
     mutating func accept(_ mapping: WebhookFieldMapping) {
         persistedMapping = mapping
         notificationFields = mapping.notificationFields
