@@ -2,7 +2,7 @@
 
 App Store Connect app ID: `6800029282`. Version `1.0` exists in `PREPARE_FOR_SUBMISSION`; it must not be submitted until the production authentication/provider flows and Apple readiness checks pass.
 
-TestFlight build `6` (`f08e77af-a753-4867-913d-6579a9f43ad5`) is valid and attached to the internal group `Cha-Ching Internal` (`483e4a13-43c0-4658-9c1b-8238e7b9a773`). It includes production APNs, universal custom webhook sources, a copyable AI-agent/developer handoff, and an all-fields notification designer with per-field visibility, editable labels, remapping, and exact preview. Builds `1` through `5` are superseded.
+TestFlight build `6` (`f08e77af-a753-4867-913d-6579a9f43ad5`) is valid and attached to the internal group `Cha-Ching Internal` (`483e4a13-43c0-4658-9c1b-8238e7b9a773`). It includes production APNs, universal custom webhook sources, a copyable AI-agent/developer handoff, and the first all-fields notification designer. The refined search/filter/reorder UI and one-field-per-line notification contract are implemented and verified locally but require the next TestFlight upload. Builds `1` through `5` are superseded.
 
 The external group `Cha-Ching Beta` (`e95c8fca-3141-4ccb-917f-e7910bc37e0d`) contains `farleythecoder@gmail.com`, and build 6 is attached. The English What to Test notes and privacy URL are configured. External availability still requires Apple's beta review; required beta-review contact details, including the phone number, must be supplied before review can be submitted. Apple does not send the usable external invitation until that review is approved.
 

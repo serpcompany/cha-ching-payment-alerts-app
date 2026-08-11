@@ -12,7 +12,9 @@ The live MVP proves secure identity, plan access, provider-account linking, Stri
 - **Provider**: an external payment system supported by Cha-Ching. The MVP providers are Stripe and PayPal.
 - **Payment source**: any connected origin that can report payment data to Cha-Ching. A provider account is one kind of payment source; a custom webhook is another.
 - **Custom webhook**: a user-named payment source with a durable private URL. During setup it captures one encrypted sample so the user can map fields; after activation it creates normalized sales.
-- **Field mapping**: the user's saved choices for locating Payment ID, Amount, Currency, and optional display fields in a custom webhook payload.
+- **Observed field**: a scalar path/value present in the current custom-webhook setup sample. It is not a claim about every field the sender could theoretically provide.
+- **Field catalog**: a future sender-declared list of available fields. It is not implemented in the MVP.
+- **Field mapping**: the user's ordered, saved choices for locating Payment ID, Amount, Currency, and notification display fields in a custom webhook payload.
 - **Provider account**: the user's account at a provider. It is linked through provider-hosted authorization, never by pasting credentials into the app.
 - **Connection**: Cha-Ching's revocable, least-privilege authorization to identify and read events for one provider account.
 - **Entitlement**: server-owned permission enabling a feature for a user. UI presentation never grants access.
@@ -30,6 +32,7 @@ The live MVP proves secure identity, plan access, provider-account linking, Stri
 - A paused payment source retains its URL, mapping, and history while ignoring new events.
 - Custom webhook samples are encrypted at rest and removed after activation.
 - Custom webhook sales are reported by whoever possesses the private URL; Cha-Ching does not represent them as provider-verified.
+- Custom notification previews and APNs bodies use the fixed title `Cha-ching!` and one ordered `{label}: {value}` line per enabled field. Different semantic fields are never combined into generated prose.
 - Connected Stripe and PayPal accounts can be paused without disconnecting; paused connections retain authorization and history while ignoring new payment events.
 - A provider may be entitled but unavailable when its production credentials are not configured.
 - A provider connection does not imply that provider's sale-webhook path is supported.

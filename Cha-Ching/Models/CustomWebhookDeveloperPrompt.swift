@@ -25,20 +25,46 @@ enum CustomWebhookDeveloperPrompt {
         - Trigger only for a completed/successful payment, not carts, authorizations, failures, refunds, or unrelated events.
         - Include a stable, unique Payment ID. Send IDs as JSON strings, especially long numeric IDs, so every character remains exact.
         - Include Amount and a three-letter ISO currency code such as USD or JPY.
-        - Recommended optional fields: payment time, product, plan, and sale type.
+        - For this source, send the agreed business fields when known: buyer email, checkout country derived from IP, product, entitlement, purchase type, sale event, Dub affiliate ID, all five standard UTM values, payment time, and source store.
+        - Keep Purchase Type (one-time/subscription) separate from Sale Event (new sale/rebill).
+        - Label IP-derived geography as checkout_country_ip. Do not represent it as a verified billing country.
         - Keep field names and nesting stable after setup.
-        - Avoid customer names, emails, addresses, card data, or other personal data Cha-Ching does not need.
+        - Send only customer data the store owner is authorized to use. Never send card data, passwords, or secrets.
+
+        NOTIFICATION FORMAT
+        - The iPhone owner chooses which observed fields appear, their display labels, source mappings, and order.
+        - Every structured field is rendered on its own line as: Display Label: Formatted Value.
+        - Never combine separate fields into an invented sentence.
+        - Example lines include “Purchase Type: Subscription” and “Sale Event: New sale”.
 
         EXAMPLE JSON
         {
           "payment": {
-            "id": "pay_example_001",
-            "amount": "27.00",
+            "id": "cs_live_123",
+            "amount_minor": 900,
             "currency": "USD",
-            "occurred_at": "2026-08-11T00:00:00Z",
-            "product": "Example product",
-            "plan": "Example plan",
-            "sale_type": "one_time"
+            "occurred_at": "2026-08-11T08:27:14Z"
+          },
+          "buyer": {
+            "email": "buyer@example.com",
+            "checkout_country_ip": "JP"
+          },
+          "purchase": {
+            "product": "Circle Video Downloader",
+            "entitlement": "circle-video-downloader",
+            "purchase_type": "subscription",
+            "sale_event": "new_sale"
+          },
+          "attribution": {
+            "dub_affiliate_id": "pn_hasanul",
+            "utm_source": "dub",
+            "utm_medium": "affiliate",
+            "utm_campaign": "summer-launch",
+            "utm_term": "video downloader",
+            "utm_content": "pricing-page"
+          },
+          "source": {
+            "store": "serp.store"
           }
         }
 
@@ -60,7 +86,7 @@ enum CustomWebhookDeveloperPrompt {
         COMPLETION CHECKLIST
         - Confirm the successful-payment trigger and the server-side location where the URL is stored.
         - Confirm the test request reached Cha-Ching with HTTP status and response body.
-        - Confirm the field names supplied for Payment ID, Amount, Currency, Time, Product, Plan, and Sale type.
+        - Confirm the field names supplied for Payment ID, Amount, Currency, Paid At, Buyer Email, Checkout Country (IP), Product, Entitlement, Purchase Type, Sale Event, Dub Affiliate ID, all five UTM values, and Source Store.
         - Confirm retry behavior preserves the original Payment ID.
         - Ask the Cha-Ching owner to confirm exactly one active test item and notification after the duplicate test.
         - Report the result without printing the private URL or unnecessary customer data.

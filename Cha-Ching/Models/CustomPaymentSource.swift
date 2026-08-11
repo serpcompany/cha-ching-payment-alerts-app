@@ -70,9 +70,26 @@ struct WebhookNotificationField: Identifiable, Codable, Equatable {
         }
     }
 
-    private static func defaultLabel(for path: String) -> String {
+    static func defaultLabel(for path: String) -> String {
         let leaf = path.split(separator: "/").last.map(String.init) ?? path
-        return leaf
+        let normalized = leaf.lowercased()
+        let knownLabels = [
+            "id": "ID",
+            "email": "Buyer Email",
+            "amount_minor": "Amount",
+            "store": "Source Store",
+            "buyer_email": "Buyer Email",
+            "checkout_country_ip": "Checkout Country (IP)",
+            "dub_affiliate_id": "Dub Affiliate ID",
+            "utm_source": "UTM Source",
+            "utm_medium": "UTM Medium",
+            "utm_campaign": "UTM Campaign",
+            "utm_term": "UTM Term",
+            "utm_content": "UTM Content",
+            "occurred_at": "Paid At"
+        ]
+        if let knownLabel = knownLabels[normalized] { return knownLabel }
+        return normalized
             .replacingOccurrences(of: "_", with: " ")
             .replacingOccurrences(of: "-", with: " ")
             .localizedCapitalized
@@ -135,6 +152,14 @@ struct WebhookFieldMapping: Codable, Equatable {
             [WebhookNotificationField].self,
             forKey: .notificationFields
         ) ?? []
+    }
+
+    mutating func moveNotificationField(id: String, by offset: Int) {
+        guard let oldIndex = notificationFields.firstIndex(where: { $0.id == id }) else { return }
+        let newIndex = min(max(oldIndex + offset, notificationFields.startIndex), notificationFields.index(before: notificationFields.endIndex))
+        guard oldIndex != newIndex else { return }
+        let field = notificationFields.remove(at: oldIndex)
+        notificationFields.insert(field, at: newIndex)
     }
 }
 

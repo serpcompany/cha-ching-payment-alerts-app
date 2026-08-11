@@ -234,7 +234,13 @@ function notificationFieldValue(
     if (field.enabled) throw new Error(`Notification field ${field.label} is missing`);
     return "";
   }
-  return String(value).trim().slice(0, 200);
+  const displayValue = String(value).trim().slice(0, 200);
+  const fieldName = decodedPointerSegment(field.path.split("/").at(-1) ?? "").toLowerCase();
+  if (typeof value === "string" && ["purchase_type", "sale_event"].includes(fieldName)) {
+    const words = displayValue.replace(/[_-]+/g, " ").trim().toLowerCase();
+    return words ? words[0].toUpperCase() + words.slice(1) : words;
+  }
+  return displayValue;
 }
 
 function previewNotificationFields(

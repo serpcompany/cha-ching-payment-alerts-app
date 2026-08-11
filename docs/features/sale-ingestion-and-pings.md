@@ -6,6 +6,8 @@ A user with a connected Stripe account or active custom webhook source sees succ
 
 Custom webhook ingestion is documented separately in `custom-webhook-payment-sources.md`. It trusts possession of the source's private URL rather than claiming provider verification, never stores the active raw payload, and retains only normalized sale data plus the enabled notification label/value pairs.
 
+Custom notifications have a fixed `Cha-ching!` title. Their body is deterministic: every enabled structured field appears on its own ordered `{Display label}: {Formatted value}` line. Product, Purchase Type, Sale Event, and every other semantic field remain separate rather than being combined into prose. Missing optional values are omitted, and the preview endpoint is tested against the exact APNs body.
+
 ## Stripe ingestion
 
 - The Stripe App manifest grants `event_read` and `charge_read`; no write permission is requested.

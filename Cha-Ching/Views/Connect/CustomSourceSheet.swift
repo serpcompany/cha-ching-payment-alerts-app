@@ -21,6 +21,9 @@ struct CustomSourceSheet: View {
     @State private var errorMessage: String?
     @State private var copiedItem: CopiedItem?
     @State private var confirmRegenerate = false
+    @State private var notificationFilter = NotificationFieldFilter.all
+    @State private var notificationSearch = ""
+    @State private var editingNotificationField: WebhookNotificationField?
 
     var body: some View {
         NavigationStack {
@@ -68,6 +71,16 @@ struct CustomSourceSheet: View {
             } message: {
                 Text("The current URL will stop working immediately. You'll need to replace it wherever payments are sent from.")
             }
+            .sheet(item: $editingNotificationField) { field in
+                WebhookNotificationFieldDetailEditor(
+                    field: field,
+                    fields: fields,
+                    canMoveEarlier: notificationFieldIndex(id: field.id) != 0,
+                    canMoveLater: notificationFieldIndex(id: field.id).map { $0 < mapping.notificationFields.count - 1 } ?? false,
+                    onSave: updateNotificationField,
+                    onMove: moveNotificationField
+                )
+            }
         }
     }
 
@@ -90,7 +103,7 @@ struct CustomSourceSheet: View {
         Section("2. Send one test payment") {
             Text(fields.isEmpty
                  ? "Use your store's Send test button, then come back here. A real event received during setup is treated only as a sample."
-                 : "Connected — Cha-Ching found \(fields.count) available fields.")
+                 : "Connected — Cha-Ching found \(fields.count) fields in this sample.")
                 .font(.footnote)
                 .foregroundStyle(fields.isEmpty ? .secondary : Theme.accent)
             actionButton(fields.isEmpty ? "Check connection" : "Check again", systemImage: "arrow.clockwise") {
@@ -114,9 +127,34 @@ struct CustomSourceSheet: View {
             }
 
             Section("4. Choose notification fields") {
-                Text("Every field is shown by default. Turn off anything you don't want on your lock screen, rename its label, or choose a different data field.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(includedNotificationFieldCount) of \(mapping.notificationFields.count) included")
+                        .font(.headline)
+                    Text("Every field in the test sample starts on. Tap a row to rename it, remap it, or change its order.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Picker("Fields", selection: $notificationFilter) {
+                    ForEach(NotificationFieldFilter.allCases) { filter in
+                        Text(filter.title).tag(filter)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Find a field", text: $notificationSearch)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    if !notificationSearch.isEmpty {
+                        Button("Clear", systemImage: "xmark.circle.fill") { notificationSearch = "" }
+                            .labelStyle(.iconOnly)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 HStack {
                     Button("Show all") { setAllNotificationFields(enabled: true) }
                         .buttonStyle(.borderless)
@@ -124,13 +162,36 @@ struct CustomSourceSheet: View {
                     Button("Hide all") { setAllNotificationFields(enabled: false) }
                         .buttonStyle(.borderless)
                 }
-                ForEach($mapping.notificationFields) { $notificationField in
-                    WebhookNotificationFieldEditor(
-                        field: $notificationField,
-                        fields: fields
+
+                if visibleNotificationFields.isEmpty {
+                    ContentUnavailableView(
+                        "No matching fields",
+                        systemImage: "line.3.horizontal.decrease.circle",
+                        description: Text("Try another filter or search.")
                     )
+                } else {
+                    ForEach(visibleNotificationFields) { notificationField in
+                        HStack(spacing: 12) {
+                            Toggle(
+                                "Include \(notificationField.label)",
+                                isOn: notificationFieldEnabledBinding(id: notificationField.id)
+                            )
+                            .labelsHidden()
+
+                            Button {
+                                editingNotificationField = notificationField
+                            } label: {
+                                WebhookNotificationFieldRow(
+                                    field: notificationField,
+                                    sample: sampleField(path: notificationField.path)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
-                Text("Enabled values are saved with the payment and may appear on the lock screen. Avoid customer, card, or other private fields.")
+
+                Text("Included values are saved with the payment and may appear on the lock screen. Each one is shown on its own “Label: Value” line, in this order.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -141,13 +202,15 @@ struct CustomSourceSheet: View {
                 }
                 .disabled(!mappingIsComplete)
                 if let preview {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("Cha-ching!")
                             .font(.headline)
                         Text(preview.notificationBody ?? legacyPreviewBody(preview))
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 6)
                     Button("Activate payment source") { Task { await activate() } }
                         .fontWeight(.semibold)
                 }
@@ -222,11 +285,64 @@ struct CustomSourceSheet: View {
         }
     }
 
+    private var includedNotificationFieldCount: Int {
+        mapping.notificationFields.count(where: \.enabled)
+    }
+
+    private var visibleNotificationFields: [WebhookNotificationField] {
+        let query = notificationSearch.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return mapping.notificationFields.filter { field in
+            let matchesFilter = switch notificationFilter {
+            case .all: true
+            case .included: field.enabled
+            case .hidden: !field.enabled
+            }
+            guard matchesFilter else { return false }
+            guard !query.isEmpty else { return true }
+            let sample = sampleField(path: field.path)?.value.displayValue ?? ""
+            return field.label.lowercased().contains(query)
+                || field.path.lowercased().contains(query)
+                || sample.lowercased().contains(query)
+        }
+    }
+
+    private func sampleField(path: String) -> WebhookField? {
+        fields.first { $0.path == path }
+    }
+
+    private func notificationFieldIndex(id: String) -> Int? {
+        mapping.notificationFields.firstIndex { $0.id == id }
+    }
+
+    private func notificationFieldEnabledBinding(id: String) -> Binding<Bool> {
+        Binding(
+            get: { mapping.notificationFields.first(where: { $0.id == id })?.enabled ?? false },
+            set: { enabled in
+                guard let index = notificationFieldIndex(id: id) else { return }
+                mapping.notificationFields[index].enabled = enabled
+            }
+        )
+    }
+
+    private func updateNotificationField(_ field: WebhookNotificationField) {
+        guard let index = notificationFieldIndex(id: field.id) else { return }
+        mapping.notificationFields[index] = field
+    }
+
+    private func moveNotificationField(_ field: WebhookNotificationField, by offset: Int) {
+        updateNotificationField(field)
+        mapping.moveNotificationField(id: field.id, by: offset)
+    }
+
     private func legacyPreviewBody(_ preview: CustomPaymentPreview) -> String {
-        let details = [preview.productLabel, preview.plan, preview.saleType]
-            .compactMap { $0 }
-            .joined(separator: " · ")
-        return "You received \(preview.formattedAmount)\(details.isEmpty ? "." : " for \(details).")"
+        [
+            "Amount: \(preview.formattedAmount)",
+            "Product: \(preview.productLabel)",
+            preview.plan.map { "Plan: \($0)" },
+            preview.saleType.map { "Sale Event: \($0)" }
+        ]
+        .compactMap { $0 }
+        .joined(separator: "\n")
     }
 
     private func actionButton(_ title: String, systemImage: String, action: @escaping () async -> Void) -> some View {
@@ -324,38 +440,312 @@ struct CustomSourceSheet: View {
     }
 }
 
-private struct WebhookNotificationFieldEditor: View {
-    @Binding var field: WebhookNotificationField
+private struct WebhookNotificationFieldRow: View {
+    let field: WebhookNotificationField
+    let sample: WebhookField?
+
+    var body: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(field.label.isEmpty ? "Unnamed field" : field.label)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.primary)
+                if let sample {
+                    Text(sample.value.displayValue)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Text(field.path)
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .contentShape(Rectangle())
+    }
+}
+
+private struct WebhookNotificationFieldDetailEditor: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var draft: WebhookNotificationField
     let fields: [WebhookField]
+    let canMoveEarlier: Bool
+    let canMoveLater: Bool
+    let onSave: (WebhookNotificationField) -> Void
+    let onMove: (WebhookNotificationField, Int) -> Void
+
+    init(
+        field: WebhookNotificationField,
+        fields: [WebhookField],
+        canMoveEarlier: Bool,
+        canMoveLater: Bool,
+        onSave: @escaping (WebhookNotificationField) -> Void,
+        onMove: @escaping (WebhookNotificationField, Int) -> Void
+    ) {
+        _draft = State(initialValue: field)
+        self.fields = fields
+        self.canMoveEarlier = canMoveEarlier
+        self.canMoveLater = canMoveLater
+        self.onSave = onSave
+        self.onMove = onMove
+    }
 
     private var selectedSample: WebhookField? {
-        fields.first { $0.path == field.path }
+        fields.first { $0.path == draft.path }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Toggle(isOn: $field.enabled) {
-                Text(field.label.isEmpty ? "Unnamed field" : field.label)
-                    .fontWeight(.semibold)
-            }
-            TextField("Display name", text: $field.label)
-            Picker("Data field", selection: $field.path) {
-                ForEach(fields) { option in
-                    Text("\(option.label): \(option.value.displayValue.prefix(30))")
-                        .tag(option.path)
+        NavigationStack {
+            Form {
+                Section("Notification line") {
+                    Toggle("Include in notification", isOn: $draft.enabled)
+                    TextField("Display name", text: $draft.label)
+                        .textInputAutocapitalization(.words)
+                }
+
+                Section("Data source") {
+                    Picker("Field", selection: $draft.path) {
+                        ForEach(fields) { option in
+                            Text("\(option.label): \(option.value.displayValue.prefix(30))")
+                                .tag(option.path)
+                        }
+                    }
+                    if let selectedSample {
+                        LabeledContent("Example", value: selectedSample.value.displayValue)
+                        Text(selectedSample.path)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Section("Display order") {
+                    Button("Move earlier", systemImage: "arrow.up") {
+                        onMove(draft, -1)
+                        dismiss()
+                    }
+                    .disabled(!canMoveEarlier)
+                    Button("Move later", systemImage: "arrow.down") {
+                        onMove(draft, 1)
+                        dismiss()
+                    }
+                    .disabled(!canMoveLater)
+                    Text("Notification lines appear from top to bottom in this order.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Preview") {
+                    Text("\(draft.label.isEmpty ? "Unnamed field" : draft.label): \(selectedSample?.value.displayValue ?? "—")")
                 }
             }
-            if let selectedSample {
-                Text("Sample: \(selectedSample.value.displayValue)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+            .navigationTitle("Edit field")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        onSave(draft)
+                        dismiss()
+                    }
+                    .disabled(draft.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
             }
         }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .contain)
     }
 }
+
+private enum NotificationFieldFilter: String, CaseIterable, Identifiable {
+    case all, included, hidden
+
+    var id: Self { self }
+    var title: String {
+        switch self {
+        case .all: "All"
+        case .included: "Included"
+        case .hidden: "Hidden"
+        }
+    }
+}
+
+#if DEBUG
+struct WebhookNotificationDesignerReviewView: View {
+    private let fields: [WebhookField]
+    @State private var notificationFields: [WebhookNotificationField]
+    @State private var filter = NotificationFieldFilter.all
+    @State private var search = ""
+    @State private var editingField: WebhookNotificationField?
+
+    init() {
+        let sample = Self.sampleFields
+        fields = sample
+        _notificationFields = State(initialValue: WebhookNotificationField.defaults(from: sample))
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Choose notification fields") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(notificationFields.count(where: \.enabled)) of \(notificationFields.count) included")
+                            .font(.headline)
+                        Text("Every field in the test sample starts on. Tap a row to rename it, remap it, or change its order.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Picker("Fields", selection: $filter) {
+                        ForEach(NotificationFieldFilter.allCases) { option in
+                            Text(option.title).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                        TextField("Find a field", text: $search)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
+
+                    HStack {
+                        Button("Show all") { setAll(true) }
+                            .buttonStyle(.borderless)
+                        Spacer()
+                        Button("Hide all") { setAll(false) }
+                            .buttonStyle(.borderless)
+                    }
+
+                    ForEach(visibleFields) { field in
+                        HStack(spacing: 12) {
+                            Toggle("Include \(field.label)", isOn: enabledBinding(id: field.id))
+                                .labelsHidden()
+                            Button {
+                                editingField = field
+                            } label: {
+                                WebhookNotificationFieldRow(
+                                    field: field,
+                                    sample: fields.first { $0.path == field.path }
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
+                Section("Notification preview") {
+                    Text("Cha-ching!")
+                        .font(.headline)
+                    Text(previewBody)
+                        .font(.subheadline)
+                }
+            }
+            .navigationTitle("SERP Store")
+            .navigationBarTitleDisplayMode(.inline)
+            .sheet(item: $editingField) { field in
+                WebhookNotificationFieldDetailEditor(
+                    field: field,
+                    fields: fields,
+                    canMoveEarlier: index(id: field.id) != 0,
+                    canMoveLater: index(id: field.id).map { $0 < notificationFields.count - 1 } ?? false,
+                    onSave: update,
+                    onMove: move
+                )
+            }
+        }
+        .tint(Theme.accent)
+    }
+
+    private var visibleFields: [WebhookNotificationField] {
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return notificationFields.filter { field in
+            let filterMatches = switch filter {
+            case .all: true
+            case .included: field.enabled
+            case .hidden: !field.enabled
+            }
+            guard filterMatches else { return false }
+            guard !query.isEmpty else { return true }
+            let value = fields.first { $0.path == field.path }?.value.displayValue ?? ""
+            return field.label.lowercased().contains(query)
+                || field.path.lowercased().contains(query)
+                || value.lowercased().contains(query)
+        }
+    }
+
+    private var previewBody: String {
+        notificationFields.compactMap { field in
+            guard field.enabled,
+                  let value = fields.first(where: { $0.path == field.path })?.value.displayValue
+            else { return nil }
+            return "\(field.label): \(value)"
+        }.joined(separator: "\n")
+    }
+
+    private func index(id: String) -> Int? {
+        notificationFields.firstIndex { $0.id == id }
+    }
+
+    private func enabledBinding(id: String) -> Binding<Bool> {
+        Binding(
+            get: { notificationFields.first(where: { $0.id == id })?.enabled ?? false },
+            set: { enabled in
+                guard let index = index(id: id) else { return }
+                notificationFields[index].enabled = enabled
+            }
+        )
+    }
+
+    private func setAll(_ enabled: Bool) {
+        for index in notificationFields.indices { notificationFields[index].enabled = enabled }
+    }
+
+    private func update(_ field: WebhookNotificationField) {
+        guard let index = index(id: field.id) else { return }
+        notificationFields[index] = field
+    }
+
+    private func move(_ field: WebhookNotificationField, by offset: Int) {
+        update(field)
+        var mapping = WebhookFieldMapping(
+            paymentIdPath: "/payment/id",
+            amountPath: "/payment/amount_minor",
+            amountUnit: "minor",
+            currencyPath: "/payment/currency",
+            notificationFields: notificationFields
+        )
+        mapping.moveNotificationField(id: field.id, by: offset)
+        notificationFields = mapping.notificationFields
+    }
+
+    private static let sampleFields = [
+        WebhookField(path: "/buyer/email", value: .string("buyer@example.com"), valueType: "string"),
+        WebhookField(path: "/buyer/checkout_country_ip", value: .string("JP"), valueType: "string"),
+        WebhookField(path: "/purchase/product", value: .string("Circle Video Downloader"), valueType: "string"),
+        WebhookField(path: "/purchase/entitlement", value: .string("circle-video-downloader"), valueType: "string"),
+        WebhookField(path: "/purchase/purchase_type", value: .string("subscription"), valueType: "string"),
+        WebhookField(path: "/purchase/sale_event", value: .string("new_sale"), valueType: "string"),
+        WebhookField(path: "/payment/amount_minor", value: .number(900), valueType: "number"),
+        WebhookField(path: "/attribution/dub_affiliate_id", value: .string("pn_hasanul"), valueType: "string"),
+        WebhookField(path: "/attribution/utm_source", value: .string("dub"), valueType: "string"),
+        WebhookField(path: "/attribution/utm_medium", value: .string("affiliate"), valueType: "string"),
+        WebhookField(path: "/attribution/utm_campaign", value: .string("summer-launch"), valueType: "string"),
+        WebhookField(path: "/attribution/utm_term", value: .string("video downloader"), valueType: "string"),
+        WebhookField(path: "/attribution/utm_content", value: .string("pricing-page"), valueType: "string"),
+        WebhookField(path: "/payment/occurred_at", value: .string("2026-08-11T08:27:14Z"), valueType: "string"),
+        WebhookField(path: "/source/store", value: .string("serp.store"), valueType: "string"),
+        WebhookField(path: "/payment/id", value: .string("cs_live_123"), valueType: "string"),
+        WebhookField(path: "/payment/currency", value: .string("USD"), valueType: "string")
+    ]
+}
+#endif
 
 private enum CopiedItem {
     case webhookURL

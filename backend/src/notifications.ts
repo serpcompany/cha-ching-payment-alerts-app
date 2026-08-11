@@ -61,7 +61,7 @@ export interface NotificationDisplayField {
 }
 
 export function notificationFieldsBody(fields: NotificationDisplayField[]): string {
-  return fields.map((field) => `${field.label}: ${field.value}`).join(" · ");
+  return fields.map((field) => `${field.label}: ${field.value}`).join("\n");
 }
 
 export function notificationBody(sale: NotificationSale): string {

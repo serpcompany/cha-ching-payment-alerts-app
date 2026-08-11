@@ -234,7 +234,7 @@ describe("custom payment source HTTP API", () => {
     expect((await check.json<{ sample: unknown }>()).sample).toBeNull();
   });
 
-  it("previews every configured notification field with its label, visibility, and remapped value", async () => {
+  it("previews the ordered SERP Store business fields as one structured line each", async () => {
     const create = await handleCustomSourceRequest(
       env,
       authFor("user-one"),
@@ -254,9 +254,22 @@ describe("custom payment source HTTP API", () => {
           currency: "USD",
           occurred_at: "2026-08-11T08:27:14Z",
         },
-        product: { name: "SERP App Plan", intended_product: "Video Downloader" },
-        sale_type: "new_buy",
-        source_store: "serp.store",
+        buyer: { email: "buyer@example.com", checkout_country_ip: "JP" },
+        purchase: {
+          product: "Circle Video Downloader",
+          entitlement: "circle-video-downloader",
+          purchase_type: "subscription",
+          sale_event: "new_sale",
+        },
+        attribution: {
+          dub_affiliate_id: "pn_hasanul",
+          utm_source: "dub",
+          utm_medium: "affiliate",
+          utm_campaign: "summer-launch",
+          utm_term: "video downloader",
+          utm_content: "pricing-page",
+        },
+        source: { store: "serp.store" },
       }),
     }));
     const mapping = {
@@ -265,14 +278,24 @@ describe("custom payment source HTTP API", () => {
       amountUnit: "minor",
       currencyPath: "/payment/currency",
       occurredAtPath: "/payment/occurred_at",
-      productPath: "/product/intended_product",
-      planPath: "/product/name",
-      saleTypePath: "/sale_type",
+      productPath: "/purchase/product",
+      saleTypePath: "/purchase/sale_event",
       notificationFields: [
-        { id: "paid", path: "/payment/amount_minor", label: "Paid", enabled: true },
-        { id: "currency".repeat(30), path: "/payment/currency", label: "", enabled: false },
-        { id: "product", path: "/product/intended_product", label: "App", enabled: true },
-        { id: "store", path: "/source_store", label: "Store", enabled: true },
+        { id: "buyer-email", path: "/buyer/email", label: "Buyer Email", enabled: true },
+        { id: "country", path: "/buyer/checkout_country_ip", label: "Checkout Country (IP)", enabled: true },
+        { id: "product", path: "/purchase/product", label: "Product", enabled: true },
+        { id: "entitlement", path: "/purchase/entitlement", label: "Entitlement", enabled: true },
+        { id: "purchase-type", path: "/purchase/purchase_type", label: "Purchase Type", enabled: true },
+        { id: "sale-event", path: "/purchase/sale_event", label: "Sale Event", enabled: true },
+        { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: true },
+        { id: "dub", path: "/attribution/dub_affiliate_id", label: "Dub Affiliate ID", enabled: true },
+        { id: "utm-source", path: "/attribution/utm_source", label: "UTM Source", enabled: true },
+        { id: "utm-medium", path: "/attribution/utm_medium", label: "UTM Medium", enabled: true },
+        { id: "utm-campaign", path: "/attribution/utm_campaign", label: "UTM Campaign", enabled: true },
+        { id: "utm-term", path: "/attribution/utm_term", label: "UTM Term", enabled: true },
+        { id: "utm-content", path: "/attribution/utm_content", label: "UTM Content", enabled: true },
+        { id: "paid-at", path: "/payment/occurred_at", label: "Paid At", enabled: true },
+        { id: "store", path: "/source/store", label: "Source Store", enabled: true },
       ],
     };
 
@@ -289,16 +312,43 @@ describe("custom payment source HTTP API", () => {
     expect(preview.status).toBe(200);
     expect((await preview.json<{ preview: unknown }>()).preview).toEqual(expect.objectContaining({
       notificationFields: [
-        { id: "paid", path: "/payment/amount_minor", label: "Paid", enabled: true, value: "$9.00" },
-        { id: "currency".repeat(30), path: "/payment/currency", label: "", enabled: false, value: "USD" },
-        { id: "product", path: "/product/intended_product", label: "App", enabled: true, value: "Video Downloader" },
-        { id: "store", path: "/source_store", label: "Store", enabled: true, value: "serp.store" },
+        { id: "buyer-email", path: "/buyer/email", label: "Buyer Email", enabled: true, value: "buyer@example.com" },
+        { id: "country", path: "/buyer/checkout_country_ip", label: "Checkout Country (IP)", enabled: true, value: "JP" },
+        { id: "product", path: "/purchase/product", label: "Product", enabled: true, value: "Circle Video Downloader" },
+        { id: "entitlement", path: "/purchase/entitlement", label: "Entitlement", enabled: true, value: "circle-video-downloader" },
+        { id: "purchase-type", path: "/purchase/purchase_type", label: "Purchase Type", enabled: true, value: "Subscription" },
+        { id: "sale-event", path: "/purchase/sale_event", label: "Sale Event", enabled: true, value: "New sale" },
+        { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: true, value: "$9.00" },
+        { id: "dub", path: "/attribution/dub_affiliate_id", label: "Dub Affiliate ID", enabled: true, value: "pn_hasanul" },
+        { id: "utm-source", path: "/attribution/utm_source", label: "UTM Source", enabled: true, value: "dub" },
+        { id: "utm-medium", path: "/attribution/utm_medium", label: "UTM Medium", enabled: true, value: "affiliate" },
+        { id: "utm-campaign", path: "/attribution/utm_campaign", label: "UTM Campaign", enabled: true, value: "summer-launch" },
+        { id: "utm-term", path: "/attribution/utm_term", label: "UTM Term", enabled: true, value: "video downloader" },
+        { id: "utm-content", path: "/attribution/utm_content", label: "UTM Content", enabled: true, value: "pricing-page" },
+        { id: "paid-at", path: "/payment/occurred_at", label: "Paid At", enabled: true, value: "2026-08-11T08:27:14.000Z" },
+        { id: "store", path: "/source/store", label: "Source Store", enabled: true, value: "serp.store" },
       ],
-      notificationBody: "Paid: $9.00 · App: Video Downloader · Store: serp.store",
+      notificationBody: [
+        "Buyer Email: buyer@example.com",
+        "Checkout Country (IP): JP",
+        "Product: Circle Video Downloader",
+        "Entitlement: circle-video-downloader",
+        "Purchase Type: Subscription",
+        "Sale Event: New sale",
+        "Amount: $9.00",
+        "Dub Affiliate ID: pn_hasanul",
+        "UTM Source: dub",
+        "UTM Medium: affiliate",
+        "UTM Campaign: summer-launch",
+        "UTM Term: video downloader",
+        "UTM Content: pricing-page",
+        "Paid At: 2026-08-11T08:27:14.000Z",
+        "Source Store: serp.store",
+      ].join("\n"),
     }));
   });
 
-  it("delivers a live custom payment using only the activated labels and visible fields", async () => {
+  it("delivers the activated SERP Store business fields to APNs as separate ordered lines", async () => {
     const { privateKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
     Object.assign(env, {
       APNS_KEY_ID: "TESTKEY",
@@ -320,24 +370,53 @@ describe("custom payment source HTTP API", () => {
     ));
     const created = await create.json<{ source: { id: string; webhookUrl: string } }>();
     const payment = {
-      payment: { id: "serp-order-123", amount_minor: 900, currency: "USD" },
-      product: { name: "SERP App Plan", intended_product: "Video Downloader" },
-      sale_type: "new_buy",
-      source_store: "serp.store",
+      payment: {
+        id: "serp-order-123",
+        amount_minor: 900,
+        currency: "USD",
+        occurred_at: "2026-08-11T08:27:14Z",
+      },
+      buyer: { email: "buyer@example.com", checkout_country_ip: "JP" },
+      purchase: {
+        product: "Circle Video Downloader",
+        entitlement: "circle-video-downloader",
+        purchase_type: "subscription",
+        sale_event: "new_sale",
+      },
+      attribution: {
+        dub_affiliate_id: "pn_hasanul",
+        utm_source: "dub",
+        utm_medium: "affiliate",
+        utm_campaign: "summer-launch",
+        utm_term: "video downloader",
+        utm_content: "pricing-page",
+      },
+      source: { store: "serp.store" },
     };
     const mapping = {
       paymentIdPath: "/payment/id",
       amountPath: "/payment/amount_minor",
       amountUnit: "minor",
       currencyPath: "/payment/currency",
-      productPath: "/product/intended_product",
-      planPath: "/product/name",
-      saleTypePath: "/sale_type",
+      occurredAtPath: "/payment/occurred_at",
+      productPath: "/purchase/product",
+      saleTypePath: "/purchase/sale_event",
       notificationFields: [
-        { id: "paid", path: "/payment/amount_minor", label: "Paid", enabled: true },
-        { id: "currency", path: "/payment/currency", label: "Currency", enabled: false },
-        { id: "product", path: "/product/intended_product", label: "App", enabled: true },
-        { id: "store", path: "/source_store", label: "Store", enabled: true },
+        { id: "buyer-email", path: "/buyer/email", label: "Buyer Email", enabled: true },
+        { id: "country", path: "/buyer/checkout_country_ip", label: "Checkout Country (IP)", enabled: true },
+        { id: "product", path: "/purchase/product", label: "Product", enabled: true },
+        { id: "entitlement", path: "/purchase/entitlement", label: "Entitlement", enabled: true },
+        { id: "purchase-type", path: "/purchase/purchase_type", label: "Purchase Type", enabled: true },
+        { id: "sale-event", path: "/purchase/sale_event", label: "Sale Event", enabled: true },
+        { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: true },
+        { id: "dub", path: "/attribution/dub_affiliate_id", label: "Dub Affiliate ID", enabled: true },
+        { id: "utm-source", path: "/attribution/utm_source", label: "UTM Source", enabled: true },
+        { id: "utm-medium", path: "/attribution/utm_medium", label: "UTM Medium", enabled: true },
+        { id: "utm-campaign", path: "/attribution/utm_campaign", label: "UTM Campaign", enabled: true },
+        { id: "utm-term", path: "/attribution/utm_term", label: "UTM Term", enabled: true },
+        { id: "utm-content", path: "/attribution/utm_content", label: "UTM Content", enabled: true },
+        { id: "paid-at", path: "/payment/occurred_at", label: "Paid At", enabled: true },
+        { id: "store", path: "/source/store", label: "Source Store", enabled: true },
       ],
     };
     await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
@@ -373,7 +452,23 @@ describe("custom payment source HTTP API", () => {
         aps: expect.objectContaining({
           alert: {
             title: "Cha-ching!",
-            body: "Paid: $9.00 · App: Video Downloader · Store: serp.store",
+            body: [
+              "Buyer Email: buyer@example.com",
+              "Checkout Country (IP): JP",
+              "Product: Circle Video Downloader",
+              "Entitlement: circle-video-downloader",
+              "Purchase Type: Subscription",
+              "Sale Event: New sale",
+              "Amount: $9.00",
+              "Dub Affiliate ID: pn_hasanul",
+              "UTM Source: dub",
+              "UTM Medium: affiliate",
+              "UTM Campaign: summer-launch",
+              "UTM Term: video downloader",
+              "UTM Content: pricing-page",
+              "Paid At: 2026-08-11T08:27:14.000Z",
+              "Source Store: serp.store",
+            ].join("\n"),
           },
         }),
       }),
