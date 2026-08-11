@@ -258,6 +258,23 @@ struct WebhookFieldMapping: Codable, Equatable {
     }
 }
 
+struct ActiveNotificationSettingsDraft: Equatable {
+    private(set) var persistedMapping: WebhookFieldMapping
+    var notificationFields: [WebhookNotificationField]
+    private(set) var saveConfirmation: String?
+
+    init(mapping: WebhookFieldMapping) {
+        persistedMapping = mapping
+        notificationFields = mapping.notificationFields
+    }
+
+    mutating func accept(_ mapping: WebhookFieldMapping) {
+        persistedMapping = mapping
+        notificationFields = mapping.notificationFields
+        saveConfirmation = "Notification settings saved."
+    }
+}
+
 struct WebhookMappingSuggestions: Decodable {
     let paymentIdPath: String?
     let amountPath: String?

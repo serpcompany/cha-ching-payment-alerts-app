@@ -212,6 +212,15 @@ describe("custom payment source HTTP API", () => {
     expect(update.status).toBe(200);
     expect(await update.json()).toEqual({ mapping: { ...mapping, notificationFields: updatedFields } });
 
+    const detail = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
+    );
+    expect(await detail.json()).toEqual(expect.objectContaining({
+      mapping: { ...mapping, notificationFields: updatedFields },
+    }));
+
     await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
       method: "POST",
       body: JSON.stringify({
@@ -219,12 +228,16 @@ describe("custom payment source HTTP API", () => {
         buyer: { email: "future@example.com" },
       }),
     }));
-    const saved = await env.DB.prepare(
-      "SELECT notification_fields_json FROM sales WHERE provider = 'custom' ORDER BY created_at DESC LIMIT 1",
-    ).first<{ notification_fields_json: string }>();
-    expect(JSON.parse(saved!.notification_fields_json)).toEqual([
-      { label: "Customer email", value: "future@example.com" },
-    ]);
+    const history = await listSales(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/sales"),
+    );
+    expect(await history.json()).toEqual({
+      sales: [expect.objectContaining({
+        notificationFields: [{ label: "Customer email", value: "future@example.com" }],
+      })],
+    });
   });
 
   it("previews a user's field mapping and activates the source without retaining the sample", async () => {

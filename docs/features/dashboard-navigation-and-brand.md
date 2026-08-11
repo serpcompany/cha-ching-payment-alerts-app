@@ -20,7 +20,7 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 - **Connected processors** is removed; connection status belongs in **Connect**.
 - **Recent pings** becomes **Payments**.
 - The empty state says **No payments yet** and explains that a payment will appear when one arrives.
-- Payment rows and details continue to use the D1-backed sales API. A custom payment detail shows the saved enabled label/value fields in their configured order; Stripe payments retain the normalized fallback details.
+- Payment rows and details continue to use the D1-backed sales API. A historical custom payment detail shows the immutable enabled label/value snapshot saved when that payment arrived, in its configured order; Stripe payments retain the normalized fallback details.
 - If Payments cannot refresh, already-loaded payments stay visible. A compact inline message says **Payments couldn't refresh.**, offers **Retry** and **Dismiss**, and clears automatically after a successful refresh.
 - Automatic foreground, notification-triggered, and pull-to-refresh callers share one in-flight Payments request. A canceled or superseded caller does not flash a false connectivity error while the shared request is still succeeding.
 

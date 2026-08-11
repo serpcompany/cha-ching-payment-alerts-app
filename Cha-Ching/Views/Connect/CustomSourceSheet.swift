@@ -20,6 +20,7 @@ struct CustomSourceSheet: View {
     @State private var errorMessage: String?
     @State private var copiedItem: CopiedItem?
     @State private var confirmRegenerate = false
+    @State private var saveConfirmation: String?
 
     var body: some View {
         NavigationStack {
@@ -172,7 +173,8 @@ struct CustomSourceSheet: View {
                     source: source,
                     fields: [],
                     mapping: $mapping,
-                    onActivated: { _ in }
+                    onActivated: { _ in },
+                    onSaved: { saveConfirmation = $0 }
                 )
             } label: {
                 Label {
@@ -185,6 +187,10 @@ struct CustomSourceSheet: View {
                 } icon: {
                     Image(systemName: "bell.badge").foregroundStyle(Theme.accent)
                 }
+            }
+            if let saveConfirmation {
+                Label(saveConfirmation, systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(Theme.accent)
             }
         }
 

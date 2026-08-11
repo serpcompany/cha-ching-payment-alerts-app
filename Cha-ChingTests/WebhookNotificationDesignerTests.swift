@@ -263,4 +263,34 @@ struct WebhookNotificationDesignerTests {
         #expect(mapping.isReadyForActivation(after: mapping))
         #expect(!changed.isReadyForActivation(after: mapping))
     }
+
+    @Test func activeNotificationEditsStayDraftUntilTheServerConfirmsSave() {
+        let original = WebhookFieldMapping(
+            paymentIdPath: "/payment/id",
+            amountPath: "/payment/amount_minor",
+            amountUnit: "minor",
+            currencyPath: "/payment/currency",
+            notificationFields: [
+                WebhookNotificationField(
+                    id: "email",
+                    path: "/buyer/email",
+                    label: "Buyer Email",
+                    enabled: true
+                )
+            ]
+        )
+        var editor = ActiveNotificationSettingsDraft(mapping: original)
+        editor.notificationFields[0].label = "Customer email"
+
+        #expect(editor.persistedMapping == original)
+        #expect(editor.saveConfirmation == nil)
+
+        var accepted = original
+        accepted.notificationFields = editor.notificationFields
+        editor.accept(accepted)
+
+        #expect(editor.persistedMapping == accepted)
+        #expect(editor.notificationFields == accepted.notificationFields)
+        #expect(editor.saveConfirmation == "Notification settings saved.")
+    }
 }

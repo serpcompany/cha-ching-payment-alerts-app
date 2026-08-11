@@ -5,6 +5,7 @@ struct CustomNotificationSettingsView: View {
     let fields: [WebhookField]
     @Binding var mapping: WebhookFieldMapping
     let onActivated: (CustomPaymentSource) -> Void
+    let onSaved: (String) -> Void
 
     @EnvironmentObject private var store: ConnectStore
     @Environment(\.dismiss) private var dismiss
@@ -16,8 +17,35 @@ struct CustomNotificationSettingsView: View {
     @State private var showingTestResult = false
     @State private var isBusy = false
     @State private var errorMessage: String?
+    @State private var activeDraft: ActiveNotificationSettingsDraft
+
+    init(
+        source: CustomPaymentSource,
+        fields: [WebhookField],
+        mapping: Binding<WebhookFieldMapping>,
+        onActivated: @escaping (CustomPaymentSource) -> Void,
+        onSaved: @escaping (String) -> Void = { _ in }
+    ) {
+        self.source = source
+        self.fields = fields
+        _mapping = mapping
+        self.onActivated = onActivated
+        self.onSaved = onSaved
+        _activeDraft = State(initialValue: ActiveNotificationSettingsDraft(mapping: mapping.wrappedValue))
+    }
 
     private var isEditingActiveSource: Bool { source.status != .setup }
+
+    private var notificationFields: [WebhookNotificationField] {
+        get { isEditingActiveSource ? activeDraft.notificationFields : mapping.notificationFields }
+        nonmutating set {
+            if isEditingActiveSource {
+                activeDraft.notificationFields = newValue
+            } else {
+                mapping.notificationFields = newValue
+            }
+        }
+    }
 
     var body: some View {
         List {
@@ -35,7 +63,7 @@ struct CustomNotificationSettingsView: View {
             if !isEditingActiveSource { paymentMatchingSection }
 
             Section {
-                ForEach(mapping.notificationFields) { field in
+                ForEach(notificationFields) { field in
                     notificationFieldRow(field)
                 }
                 .onMove(perform: moveNotificationFields)
@@ -43,7 +71,7 @@ struct CustomNotificationSettingsView: View {
                 HStack {
                     Text("Notification contents")
                     Spacer()
-                    Text("\(includedFieldCount) of \(mapping.notificationFields.count) on")
+                    Text("\(includedFieldCount) of \(notificationFields.count) on")
                         .textCase(nil)
                 }
             } footer: {
@@ -86,7 +114,7 @@ struct CustomNotificationSettingsView: View {
                 allowsRemapping: !isEditingActiveSource,
                 canMoveEarlier: notificationFieldIndex(id: field.id) != 0,
                 canMoveLater: notificationFieldIndex(id: field.id).map {
-                    $0 < mapping.notificationFields.count - 1
+                    $0 < notificationFields.count - 1
                 } ?? false,
                 onSave: updateNotificationField,
                 onMove: moveNotificationField
@@ -288,7 +316,7 @@ struct CustomNotificationSettingsView: View {
     }
 
     private var includedFieldCount: Int {
-        mapping.notificationFields.count(where: \.enabled)
+        notificationFields.count(where: \.enabled)
     }
 
     private var mappingIsComplete: Bool {
@@ -351,31 +379,40 @@ struct CustomNotificationSettingsView: View {
     }
 
     private func notificationFieldIndex(id: String) -> Int? {
-        mapping.notificationFields.firstIndex { $0.id == id }
+        notificationFields.firstIndex { $0.id == id }
     }
 
     private func notificationFieldEnabledBinding(id: String) -> Binding<Bool> {
         Binding(
-            get: { mapping.notificationFields.first(where: { $0.id == id })?.enabled ?? false },
+            get: { notificationFields.first(where: { $0.id == id })?.enabled ?? false },
             set: { enabled in
                 guard let index = notificationFieldIndex(id: id) else { return }
-                mapping.notificationFields[index].enabled = enabled
+                var updated = notificationFields
+                updated[index].enabled = enabled
+                notificationFields = updated
             }
         )
     }
 
     private func updateNotificationField(_ field: WebhookNotificationField) {
         guard let index = notificationFieldIndex(id: field.id) else { return }
-        mapping.notificationFields[index] = field
+        var updated = notificationFields
+        updated[index] = field
+        notificationFields = updated
     }
 
     private func moveNotificationField(_ field: WebhookNotificationField, by offset: Int) {
         updateNotificationField(field)
-        mapping.moveNotificationField(id: field.id, by: offset)
+        var updated = mapping
+        updated.notificationFields = notificationFields
+        updated.moveNotificationField(id: field.id, by: offset)
+        notificationFields = updated.notificationFields
     }
 
     private func moveNotificationFields(from offsets: IndexSet, to destination: Int) {
-        mapping.notificationFields.move(fromOffsets: offsets, toOffset: destination)
+        var updated = notificationFields
+        updated.move(fromOffsets: offsets, toOffset: destination)
+        notificationFields = updated
     }
 
     private func legacyPreviewBody(_ preview: CustomPaymentPreview) -> String {
@@ -492,10 +529,13 @@ struct CustomNotificationSettingsView: View {
             return
         }
         await run {
-            mapping = try await store.updateCustomSourceNotificationFields(
+            let accepted = try await store.updateCustomSourceNotificationFields(
                 id: source.id,
-                fields: mapping.notificationFields
+                fields: notificationFields
             )
+            activeDraft.accept(accepted)
+            mapping = activeDraft.persistedMapping
+            onSaved(activeDraft.saveConfirmation ?? "Notification settings saved.")
             dismiss()
         }
     }
