@@ -17,7 +17,8 @@ The live MVP proves secure identity, entitlement enforcement, payment-source lin
 - **Field mapping**: the user's ordered, saved choices for locating Payment ID, Amount, Currency, and notification display fields in a custom webhook payload.
 - **Provider account**: the user's account at a provider. It is linked through provider-hosted authorization, never by pasting credentials into the app.
 - **Connection**: Cha-Ching's revocable, least-privilege authorization to identify and read events for one provider account.
-- **Entitlement**: server-owned permission enabling a feature for a user. UI presentation never grants access.
+- **Subscription**: a user's commercial access relationship with Cha-Ching, as reported by a billing provider.
+- **Entitlement**: Cha-Ching's billing-provider-independent grant of permission to use a product capability. UI presentation and client state never grant it.
 - **Payment**: the normalized successful-payment record shown on the Dashboard. Provider webhooks can verify a payment; custom-webhook payments are sender-reported.
 - **Payment notification**: the user-visible iPhone notification produced from a payment. “Ping” is not product language.
 

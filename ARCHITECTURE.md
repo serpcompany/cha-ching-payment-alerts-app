@@ -6,6 +6,8 @@
 - `backend/src/index.ts` is the Worker HTTP boundary.
 - Better Auth owns `user`, `session`, `account`, `verification`, and `rate_limit` in D1.
 - Cha-Ching owns `entitlements`, `provider_connections`, `oauth_states`, `provider_events`, `custom_payment_sources`, `sales`, `device_tokens`, and `notification_deliveries`.
+- Billing adapters translate provider-specific subscription state into a provider-independent product entitlement owned by Cha-Ching. Clients never grant access directly.
+- Effective provider access requires both the product entitlement and the existing feature entitlement for that provider.
 - Stripe and PayPal OAuth modules are the only code allowed to exchange provider authorization codes.
 
 ## Request flow
@@ -47,6 +49,7 @@ Production APNs payloads and test notifications name the bundled cash-register s
 - Provider tokens use versioned AES-256-GCM ciphertext with a fresh 96-bit IV.
 - OAuth state is random, short-lived, single-use, and stored only as SHA-256.
 - Entitlements are enforced by the Worker; UI state is informational only.
+- A billing-provider outage cannot extend product access beyond the last verified entitlement expiration.
 - Provider connection rows are user-scoped, and one external account cannot be linked to multiple users.
 - Apple email is recovered only from an already-linked local Better Auth account when Apple omits it on later sign-ins.
 - Stripe webhook signatures are checked before JSON parsing or D1 writes.
