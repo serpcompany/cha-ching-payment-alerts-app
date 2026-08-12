@@ -17,7 +17,7 @@
     "PUBLIC_BASE_URL": "https://cha-ching-api.serpcompany.workers.dev",
     "APPLE_APP_BUNDLE_ID": "com.serpcompany.chaching",
     "APPLE_APP_ID": "6800029282",
-    "PRODUCT_ACCESS_ENFORCEMENT": "disabled",
+    "PRODUCT_ACCESS_ENFORCEMENT": "enabled",
     "APPLE_SERVICE_ID": "com.serpcompany.chaching.signin",
     "APNS_BUNDLE_ID": "com.serpcompany.chaching",
     "PAYPAL_ENVIRONMENT": "sandbox"

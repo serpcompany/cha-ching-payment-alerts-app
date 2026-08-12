@@ -39,6 +39,6 @@ All three are enabled by default when first materialized for an MVP user. Effect
 - Stripe and custom-source events received without product access create no payment or notification and are not replayed after recovery.
 - Purchase success on the device does not grant access unless backend reconciliation returns Full access.
 - Restore is explicit and available from both Subscription required and Settings.
-- Production enforcement is staged behind `PRODUCT_ACCESS_ENFORCEMENT`. It remains disabled until a matching TestFlight build can purchase/restore and a signed-device sandbox transaction has reconciled successfully; disabled enforcement never suppresses API access or incoming payment events.
+- Production enforcement is enabled through `PRODUCT_ACCESS_ENFORCEMENT` after TestFlight build 23 reconciled an Apple-signed sandbox transaction through the production Worker into D1 and loaded the Full access API set. A current backend-verified product entitlement is now required for protected APIs and incoming payment events.
 
 Plan catalogs, manual exceptions, and an operator UI are not part of the MVP.
