@@ -21,6 +21,7 @@ struct CustomSourceSheet: View {
     @State private var copiedItem: CopiedItem?
     @State private var confirmRegenerate = false
     @State private var saveConfirmation: String?
+    @StateObject private var healthRefresh = CustomSourceHealthRefreshFeedback()
 
     var body: some View {
         NavigationStack {
@@ -201,8 +202,37 @@ struct CustomSourceSheet: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
-                actionButton("Refresh connection health", systemImage: "arrow.clockwise") {
-                    await checkConnection()
+                Button {
+                    Task { await refreshConnectionHealth() }
+                } label: {
+                    HStack(spacing: 8) {
+                        if healthRefresh.isRefreshing {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        Text(healthRefresh.buttonTitle)
+                    }
+                }
+                .fontWeight(.semibold)
+                .disabled(healthRefresh.isRefreshing)
+
+                if let message = healthRefresh.statusMessage {
+                    Label {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(message)
+                            if let refreshedAt = healthRefresh.refreshedAt {
+                                Text("Checked \(refreshedAt.formatted(date: .abbreviated, time: .shortened))")
+                                    .font(.footnote)
+                            }
+                        }
+                    } icon: {
+                        Image(systemName: healthRefresh.didFail
+                              ? "exclamationmark.circle.fill"
+                              : "checkmark.circle.fill")
+                    }
+                    .foregroundStyle(healthRefresh.didFail ? .red : Theme.accent)
                 }
             }
         }
@@ -308,6 +338,15 @@ struct CustomSourceSheet: View {
     private func checkConnection() async {
         guard let id = source?.id else { return }
         await run { apply(try await store.customSourceDetail(id: id)) }
+    }
+
+    private func refreshConnectionHealth() async {
+        guard let id = source?.id else { return }
+        if let detail = await healthRefresh.refresh({
+            try await store.customSourceDetail(id: id)
+        }) {
+            apply(detail)
+        }
     }
 
     private func apply(_ detail: CustomSourceDetail) {
