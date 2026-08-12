@@ -189,6 +189,43 @@
         border-radius: 50%;
         box-shadow: 0 0 0 54px #f5b94218, 0 0 0 108px #f5b9420c;
       }
+
+      html.ipad,
+      html.ipad body,
+      html.ipad .artboard {
+        width: 2048px;
+        height: 2732px;
+      }
+
+      html.ipad .brand-mark {
+        width: 180px;
+        height: 180px;
+        top: 72px;
+        left: 934px;
+        border-radius: 42px;
+      }
+
+      html.ipad .copy {
+        left: 180px;
+        right: 180px;
+        top: 285px;
+      }
+
+      html.ipad h1 {
+        font-size: 138px;
+        letter-spacing: -6px;
+      }
+
+      html.ipad .payment .capture-shell {
+        left: 524px;
+        top: 790px;
+        width: 1000px;
+        height: 2050px;
+      }
+
+      html.ipad .payment .capture-shell img {
+        width: 1000px;
+      }
     </style>
   </head>
   <body>
@@ -202,7 +239,9 @@
       </div>
     </main>
     <script>
-      const variant = new URLSearchParams(location.search).get("variant") || "payment";
+      const params = new URLSearchParams(location.search);
+      const variant = params.get("variant") || "payment";
+      if (params.get("device") === "ipad") document.documentElement.classList.add("ipad");
       const artboard = document.querySelector(".artboard");
 
       if (variant === "sources") {
