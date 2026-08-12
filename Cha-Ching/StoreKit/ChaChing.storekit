@@ -1,0 +1,108 @@
+{
+  "identifier" : "CHA-CHING-LOCAL",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_billingGracePeriodEnabled" : false,
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "CHA-CHING-ACCESS",
+      "localizations" : [
+
+      ],
+      "name" : "Cha-Ching Access",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "14.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "CHA-CHING-ANNUAL",
+          "introductoryOffer" : {
+            "internalID" : "CHA-CHING-TRIAL",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Payment notifications for your connected accounts.",
+              "displayName" : "Cha-Ching Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.serpcompany.chaching.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Cha-Ching Annual",
+          "subscriptionGroupID" : "CHA-CHING-ACCESS",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

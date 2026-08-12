@@ -10,6 +10,10 @@ The launch offer is one Apple auto-renewing subscription at $14.99/year with a s
 
 Purchase and restore use a stable per-user `appAccountToken`. The app sends Apple's signed transaction to the Worker, the Worker verifies and reconciles it, and D1 is the authorization source of truth. StoreKit or UI state alone never grants access.
 
+Restore first checks StoreKit's locally available verified current entitlements and submits a matching transaction to the Worker. Only when no matching entitlement is available does the explicit restore action force `AppStore.sync()` and check again. A StoreKit restore failure keeps access gated and includes the Apple error domain and code so signed-device beta failures can be diagnosed without treating local state as authorization.
+
+Local Debug runs use the checked-in StoreKit catalog and automated purchase/restore coverage described in [`docs/development/storekit-testing.md`](../development/storekit-testing.md). The catalog is excluded from Release; local StoreKit state never replaces backend reconciliation or production Apple signature verification.
+
 Customer-visible states are limited to **Full access** and **Subscription required**. Before a purchase, the primary action is **Start free trial** when StoreKit confirms eligibility and **Subscribe** otherwise. A previously purchased but inactive account receives **Subscribe again**. **Restore Purchases** is always separately available. Billing-retry-specific presentation remains pending renewal-state reconciliation.
 
 Access remains active through a verified trial or paid expiration even when auto-renew is disabled. Expiration, refund, revocation, or billing retry without a current paid period turns access off. Verified recovery turns it back on. Events received while access is off are ignored and are not backfilled.

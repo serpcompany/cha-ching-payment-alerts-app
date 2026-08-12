@@ -65,6 +65,10 @@ The session persists in that Simulator's Keychain. Sign in again only after
 signing out, erasing that Simulator, clearing its app data, or deleting the local
 Wrangler state that contains the matching session.
 
+The shared Debug scheme also selects the local StoreKit catalog. Follow
+[`storekit-testing.md`](storekit-testing.md) to test subscription purchase and
+restore without a TestFlight upload.
+
 The native API client uses Better Auth's bearer token and deliberately does not
 persist auth cookies. This prevents an old local Worker cookie from blocking a
 fresh Simulator session after local state changes.
@@ -76,6 +80,7 @@ fresh Simulator session after local state changes.
 | Signed-in UI and session restoration | Yes | Yes |
 | Better Auth bearer sessions in D1 | Yes, local D1 | Yes, production D1 |
 | Entitlement and user-scoped API behavior | Yes | Yes |
+| Local StoreKit purchase and restore UI | Yes | No; uses Apple's sandbox catalog instead |
 | Apple's authorization UI and identity-token validation | No | Yes |
 | Production APNs delivery | No | Yes |
 

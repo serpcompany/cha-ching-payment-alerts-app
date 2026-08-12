@@ -76,6 +76,9 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
       </CommandLineArguments>
+      <StoreKitConfigurationFileReference
+         identifier = "../../Cha-Ching/StoreKit/ChaChing.storekit">
+      </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

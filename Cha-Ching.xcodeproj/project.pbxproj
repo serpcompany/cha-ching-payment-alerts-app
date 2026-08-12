@@ -28,8 +28,10 @@
 		7FF6A62D26FE5A1B2DEF4248 /* AppNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5BFDF9B844EE38D865B037E /* AppNavigationTests.swift */; };
 		80CEDB095F8C9808067CBFAC /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F544C6BA875EDD9ECF20E81B /* ConnectView.swift */; };
 		869FC8CAC123C3A8C732E633 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 14CD4631A44997104C853CB0 /* Assets.xcassets */; };
+		8A8F669D936FF52942D8E531 /* ChaChing.storekit in Resources */ = {isa = PBXBuildFile; fileRef = E95E2AB87DD76A96216DABCE /* ChaChing.storekit */; };
 		8DC3CF4F0C9989CBD83F8A36 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BEAE7900E64409AE45942B /* HomeView.swift */; };
 		991C548A38405CB88DC6704C /* ConnectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0867D67A73EEC4496B1399C /* ConnectStore.swift */; };
+		9C60FAA7DB48DEEABAABEA71 /* LocalStoreKitIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 509125BBFE0DDFCA50E5FA99 /* LocalStoreKitIntegrationTests.swift */; };
 		A0039B73D3CA4C97E635C7AA /* PaymentNotificationPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B698CD26E86058C88F518AE /* PaymentNotificationPresentationTests.swift */; };
 		A18C3C775864A1B0EB0A332C /* WebhookNotificationDesignerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */; };
 		AF01ED49D8033099991F6BBF /* CustomWebhookDeveloperPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = C702CA5FCE9B85FA055A62E1 /* CustomWebhookDeveloperPrompt.swift */; };
@@ -61,6 +63,7 @@
 		30DF41A590E1799F2D791252 /* SaleRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaleRow.swift; sourceTree = "<group>"; };
 		321139328020A6C4640818BE /* SubscriptionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionStoreTests.swift; sourceTree = "<group>"; };
 		468DDF9F4DEF74FC897AF682 /* CustomPaymentSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomPaymentSource.swift; sourceTree = "<group>"; };
+		509125BBFE0DDFCA50E5FA99 /* LocalStoreKitIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStoreKitIntegrationTests.swift; sourceTree = "<group>"; };
 		5C9ABCE1E07393E5E7E9E2C3 /* SalesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalesStore.swift; sourceTree = "<group>"; };
 		5D8CF3A6096695D8F6D6B808 /* ConnectSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectSheet.swift; sourceTree = "<group>"; };
 		6972DE6CF7473B461CAFC8D9 /* SubscriptionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionStore.swift; sourceTree = "<group>"; };
@@ -84,6 +87,7 @@
 		D115B8103FF1439A0C2E6D3D /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		D5BEAE7900E64409AE45942B /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		E4843FB418816E521C2646A0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		E95E2AB87DD76A96216DABCE /* ChaChing.storekit */ = {isa = PBXFileReference; path = ChaChing.storekit; sourceTree = "<group>"; };
 		EE2EC057FBB36035F143FC48 /* Cha-ChingTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = "Cha-ChingTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0867D67A73EEC4496B1399C /* ConnectStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectStore.swift; sourceTree = "<group>"; };
 		F544C6BA875EDD9ECF20E81B /* ConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectView.swift; sourceTree = "<group>"; };
@@ -103,6 +107,7 @@
 				CBA791CA6365D6E5B901E196 /* Models */,
 				765D02B5175B2B97BC55ADBE /* Resources */,
 				F119CCC1013425178C6C59AF /* Services */,
+				57AE8CB770FC70926821725B /* StoreKit */,
 				4AE4521D40E25B9F0F77685C /* Views */,
 			);
 			path = "Cha-Ching";
@@ -139,6 +144,14 @@
 			path = Connect;
 			sourceTree = "<group>";
 		};
+		57AE8CB770FC70926821725B /* StoreKit */ = {
+			isa = PBXGroup;
+			children = (
+				E95E2AB87DD76A96216DABCE /* ChaChing.storekit */,
+			);
+			path = StoreKit;
+			sourceTree = "<group>";
+		};
 		765D02B5175B2B97BC55ADBE /* Resources */ = {
 			isa = PBXGroup;
 			children = (
@@ -153,6 +166,7 @@
 				A5BFDF9B844EE38D865B037E /* AppNavigationTests.swift */,
 				7996CF08A2EAA4E22A254C26 /* CustomWebhookDeveloperPromptTests.swift */,
 				C7C6369E30F863F2869F6669 /* CustomWebhookHealthTests.swift */,
+				509125BBFE0DDFCA50E5FA99 /* LocalStoreKitIntegrationTests.swift */,
 				0B698CD26E86058C88F518AE /* PaymentNotificationPresentationTests.swift */,
 				BEBA6FCB9D4D20B2ACB4B83D /* SalesStoreTests.swift */,
 				321139328020A6C4640818BE /* SubscriptionStoreTests.swift */,
@@ -313,6 +327,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				869FC8CAC123C3A8C732E633 /* Assets.xcassets in Resources */,
+				8A8F669D936FF52942D8E531 /* ChaChing.storekit in Resources */,
 				02EA947E6037283AAFE280AD /* LaunchScreen.storyboard in Resources */,
 				F2F5B71D883CD8AA37F12596 /* cash-register.caf in Resources */,
 			);
@@ -328,6 +343,7 @@
 				7FF6A62D26FE5A1B2DEF4248 /* AppNavigationTests.swift in Sources */,
 				63FF238A5F0308F390742C0F /* CustomWebhookDeveloperPromptTests.swift in Sources */,
 				B6814146399AD6D569992EDF /* CustomWebhookHealthTests.swift in Sources */,
+				9C60FAA7DB48DEEABAABEA71 /* LocalStoreKitIntegrationTests.swift in Sources */,
 				A0039B73D3CA4C97E635C7AA /* PaymentNotificationPresentationTests.swift in Sources */,
 				4BFC9D438C135FDD2C3CA473 /* SalesStoreTests.swift in Sources */,
 				B3D6BBF6C86A0346C40D76CE /* SubscriptionStoreTests.swift in Sources */,
@@ -587,6 +603,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = ChaChingDollarIcon;
 				CODE_SIGN_ENTITLEMENTS = "Cha-Ching/ChaChing.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				EXCLUDED_SOURCE_FILE_NAMES = ChaChing.storekit;
 				INFOPLIST_FILE = "Cha-Ching/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
