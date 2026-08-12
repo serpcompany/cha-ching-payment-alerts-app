@@ -3,6 +3,28 @@
 Use this loop for ordinary UI, entitlement, and API development. It avoids Apple
 credentials while preserving the real production authentication boundary.
 
+## Dedicated Simulator ownership
+
+Every agent must use a dedicated Simulator and retain its exact UDID for the
+entire debugging session. Treat every Simulator that was already booted when the
+session began as owned by somebody else.
+
+1. List devices with `xcrun simctl list devices available`.
+2. Select a shut-down device, record its UDID, and boot only that device. If no
+   suitable shut-down device exists, create a new Simulator instead of taking
+   over a running one.
+3. Pass the recorded UDID explicitly to every `simctl`, build destination,
+   install, launch, log, screenshot, and mirroring command. Do not use `booted`
+   as a selector when multiple sessions may be active.
+4. Never install onto, launch, control, erase, reset, shut down, or delete a
+   Simulator that this session did not boot or create. Never use an unscoped
+   command that affects all Simulators.
+5. At handoff, report the owned device name and UDID. Shut it down only when the
+   current session no longer needs its state; do not clean up any other device.
+
+Simulator ownership prevents one agent from changing another agent's Keychain,
+app data, login state, StoreKit test state, logs, or currently displayed UI.
+
 ## One-time setup
 
 From `backend/`:

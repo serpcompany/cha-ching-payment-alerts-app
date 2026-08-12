@@ -36,6 +36,7 @@ Read-only inspection of related projects and Cloudflare resources is permitted w
 - Preserve provider secrets outside git. `.dev.vars` and Worker secrets are the supported locations.
 - Run `pnpm check` and a Wrangler dry run from `backend/` after Worker changes.
 - Regenerate the Xcode project with `xcodegen generate` after changing `project.yml`.
+- Use a dedicated Simulator that this agent explicitly owns by UDID. Never install onto, control, shut down, erase, or repurpose an already-running Simulator that may belong to another agent or developer; follow `docs/development/simulator-auth.md`.
 - Run an unsigned Simulator build after Swift or project changes.
 - Keep the backend and unsigned iOS jobs in `.github/workflows/ci.yml` green before merging.
 - Update feature docs, ADRs, and the tracking GitHub Issue when behavior or decisions change.
