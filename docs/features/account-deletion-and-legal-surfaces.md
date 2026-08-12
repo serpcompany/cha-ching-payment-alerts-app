@@ -30,15 +30,8 @@ Every signed-in user can permanently delete a Cha-Ching account from the app, ev
 - App Store Connect build `28` (`939edae1-3975-42df-b5d8-1665c5a7d7bc`) is valid and available to the internal TestFlight group with focused account-deletion test instructions.
 - App Store Connect privacy, support, and description URLs match the Cha-Ching-specific Worker pages.
 
-## Signed-device acceptance
+## Launch verification boundary
 
-Use the next TestFlight candidate and a disposable Apple sandbox tester/account:
+Cha-Ching v1 does not require a destructive signed-device account-deletion exercise before App Review. The only available production account owns the working custom webhook, and deleting that account would permanently invalidate its stable webhook URL. No successful physical-device deletion or Apple credential revocation is claimed.
 
-1. Start or restore the annual sandbox subscription, connect a disposable Stripe test account or custom source, register notifications, and create one payment.
-2. Open Delete Account from Settings and verify the data-removal and billing warning, Manage Subscription link, Support, Privacy Policy, and Terms of Use.
-3. Cancel the Apple sheet once and confirm no data changes. Retry, authenticate with the linked Apple Account, and complete deletion.
-4. Confirm the app returns to sign-in and no prior payment, connection, source, notification detail, or bearer session reappears after relaunch.
-5. Confirm D1 has no rows for the user in `user`, `session`, `account`, `entitlements`, `product_entitlements`, `provider_connections`, `oauth_states`, `provider_events`, `custom_payment_sources`, `sales`, `device_tokens`, `notification_deliveries`, or `apple_account_credentials`.
-6. Confirm Apple subscription management still shows the sandbox subscription independently, then verify that signing in again creates a new empty Cha-Ching account and presents Apple's initial authorization choices after revocation.
-
-Repository implementation is not public-launch evidence by itself. Production migration/deployment and the signed-device sequence above are required before App Review submission.
+The launch accepts the automated integration evidence, completed production migration and deployment, valid internal TestFlight build, and App Review's ability to exercise deletion with its own account. Any later end-to-end deletion test must use a separate Apple Account that owns no production connection or custom webhook.
