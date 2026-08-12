@@ -3,6 +3,20 @@ import Testing
 @testable import Cha_Ching
 
 struct CustomWebhookHealthTests {
+    @Test func rejectedRequestPresentsPassiveSenderSideResolution() {
+        let health = CustomSourceHealth(
+            status: .needsAttention,
+            reason: .rejected,
+            lastEventReceivedAt: "2026-08-12 06:00:00",
+            lastPaymentReceivedAt: "2026-08-11 23:00:00",
+            expectedEventBy: nil,
+            detail: "The latest request did not include the mapped payment amount."
+        )
+
+        #expect(health.statusTitle == "Latest webhook request rejected")
+        #expect(health.managementGuidance == "Fix the sender payload, then resend it to this webhook URL.")
+    }
+
     @Test func activeSourceDecodesIndependentWebhookHealthEvidence() throws {
         let source = try JSONDecoder().decode(CustomPaymentSource.self, from: Data(#"""
         {
@@ -27,7 +41,8 @@ struct CustomWebhookHealthTests {
         #expect(source.status == .active)
         #expect(source.health?.status == .needsAttention)
         #expect(source.health?.reason == .quiet)
-        #expect(source.health?.statusTitle == "Needs checking")
+        #expect(source.health?.statusTitle == "No recent webhook activity")
+        #expect(source.health?.managementGuidance == "This may be normal when there are no payments. Verify the sending service if you expected activity.")
         #expect(source.health?.lastEventDate != nil)
         #expect(source.health?.expectedEventDate != nil)
     }

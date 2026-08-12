@@ -21,7 +21,6 @@ struct CustomSourceSheet: View {
     @State private var copiedItem: CopiedItem?
     @State private var confirmRegenerate = false
     @State private var saveConfirmation: String?
-    @StateObject private var activityCheck = CustomSourceActivityCheckFeedback()
 
     var body: some View {
         NavigationStack {
@@ -169,7 +168,7 @@ struct CustomSourceSheet: View {
         }
 
         if let health = source.health {
-            Section("Connection health") {
+            Section("Webhook activity") {
                 Label {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(health.statusTitle)
@@ -203,47 +202,10 @@ struct CustomSourceSheet: View {
                     }
                 }
 
-                Text("Cha-Ching cannot contact the sender from here. This check only looks for new requests that reached this webhook URL.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                if health.canCheckForNewActivity {
-                    Button {
-                        Task { await checkForNewWebhookActivity() }
-                    } label: {
-                        HStack(spacing: 8) {
-                            if activityCheck.isRefreshing {
-                                ProgressView()
-                                    .controlSize(.small)
-                            } else {
-                                Image(systemName: "arrow.clockwise")
-                            }
-                            Text(activityCheck.buttonTitle)
-                        }
-                    }
-                    .fontWeight(.semibold)
-                    .disabled(activityCheck.isRefreshing)
-                    .accessibilityHint("Checks whether a newer request reached Cha-Ching. It does not contact the sender.")
-
-                    if let message = activityCheck.statusMessage {
-                        Label {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(message)
-                                    .fontWeight(.semibold)
-                                if let detail = activityCheck.statusDetail {
-                                    Text(detail)
-                                        .font(.footnote)
-                                }
-                                if let checkedAt = activityCheck.checkedAt {
-                                    Text("Checked \(checkedAt.formatted(date: .abbreviated, time: .shortened))")
-                                        .font(.footnote)
-                                }
-                            }
-                        } icon: {
-                            Image(systemName: activityCheckAppearance.icon)
-                        }
-                        .foregroundStyle(activityCheckAppearance.color)
-                    }
+                if let guidance = health.managementGuidance {
+                    Text(guidance)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -349,25 +311,6 @@ struct CustomSourceSheet: View {
     private func checkConnection() async {
         guard let id = source?.id else { return }
         await run { apply(try await store.customSourceDetail(id: id)) }
-    }
-
-    private func checkForNewWebhookActivity() async {
-        guard let id = source?.id else { return }
-        let previousHealth = source?.health
-        if let detail = await activityCheck.check(previousHealth: previousHealth, {
-            try await store.customSourceDetail(id: id)
-        }) {
-            apply(detail)
-        }
-    }
-
-    private var activityCheckAppearance: (icon: String, color: Color) {
-        switch activityCheck.severity {
-        case .positive: ("checkmark.circle.fill", Theme.accent)
-        case .warning: ("exclamationmark.triangle.fill", Theme.gold)
-        case .error: ("exclamationmark.circle.fill", .red)
-        case .informative: ("info.circle.fill", .secondary)
-        }
     }
 
     private func apply(_ detail: CustomSourceDetail) {
