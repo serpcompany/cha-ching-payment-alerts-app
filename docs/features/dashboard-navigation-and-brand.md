@@ -20,6 +20,7 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 - **Connected processors** is removed; connection status belongs in **Connect**.
 - **Recent pings** becomes **Payments**.
 - The empty state says **No payments yet** and explains that a payment will appear when one arrives.
+- The Dashboard presents every payment currently loaded from the sales API in the API's order. It does not silently truncate the loaded Payments feed to a fixed number of rows.
 - Payment rows and details continue to use the D1-backed sales API. A historical custom payment retains the values that were enabled when it arrived in a stable field-ID archive, while accepted presentation edits rename, hide, reorder, and re-enable those values so Dashboard details stay consistent with the source's current configuration. Newly shown fields appear on an older payment only when the value was retained when it arrived; Stripe payments retain the normalized fallback details.
 - Pulling down on an individual payment detail refreshes the shared Payments feed and redraws that open detail from the latest server-accepted presentation instead of preserving the navigation-time snapshot.
 - A custom-payment row uses the product title, a dollar-payment symbol, and the first enabled configured detail as its subtitle. It does not substitute a generic globe or “Reported by” attribution. Changing the enabled fields, labels, or order therefore changes the most prominent supporting detail on retained custom payments after the accepted presentation is applied.
@@ -49,6 +50,7 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 
 - The tab bar contains Dashboard, Connect, and Settings in that order, with no History or Today tab.
 - Dashboard contains no Connected processors section and no user-facing use of “ping.”
+- Given more than six loaded payments, Dashboard renders every loaded payment in the sales API's order.
 - Dashboard contains no Top seller, This week, or Last 7 days widget or implementation.
 - Dashboard contains no revenue hero or nonfunctional notification-bell toolbar item.
 - Dashboard contains a Payments section backed by the same payment list and detail route.
