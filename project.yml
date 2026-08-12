@@ -112,3 +112,14 @@ schemes:
       config: Debug
       targets:
         - Cha-ChingTests
+
+  Cha-Ching Local StoreKit E2E:
+    build:
+      targets:
+        Cha-Ching: all
+    test:
+      config: Debug
+      environmentVariables:
+        RUN_LOCAL_STOREKIT_E2E: '1'
+      targets:
+        - Cha-ChingTests

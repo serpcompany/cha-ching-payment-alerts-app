@@ -108,6 +108,66 @@ describe("subscription HTTP interface", () => {
     );
   });
 
+  it("reconciles an Xcode transaction only through the loopback development path", async () => {
+    env.ENVIRONMENT = "development";
+    env.PUBLIC_BASE_URL = "http://127.0.0.1:8787";
+    const status = await handleSubscriptionRequest(
+      env,
+      authFor("user-one"),
+      new Request("http://127.0.0.1:8787/v1/subscription"),
+    );
+    const required = await status.json<{ appAccountToken: string }>();
+    const signedTransaction = unsignedXcodeTransaction(required.appAccountToken);
+
+    const sync = await handleSubscriptionRequest(
+      env,
+      authFor("user-one"),
+      new Request("http://127.0.0.1:8787/v1/subscription/sync", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ signedTransaction }),
+      }),
+    );
+
+    expect(sync.status).toBe(200);
+    expect(await sync.json()).toMatchObject({
+      access: "full_access",
+      appAccountToken: required.appAccountToken,
+    });
+  });
+
+  it.each([
+    {
+      name: "production environment",
+      environment: "production" as const,
+      publicBaseURL: "https://api.cha-ching.test",
+      requestURL: "https://api.cha-ching.test/v1/subscription/sync",
+    },
+    {
+      name: "non-loopback request",
+      environment: "development" as const,
+      publicBaseURL: "http://127.0.0.1:8787",
+      requestURL: "https://api.cha-ching.test/v1/subscription/sync",
+    },
+  ])("rejects an Xcode transaction from the $name", async ({
+    environment,
+    publicBaseURL,
+    requestURL,
+  }) => {
+    env.ENVIRONMENT = environment;
+    env.PUBLIC_BASE_URL = publicBaseURL;
+
+    await expect(handleSubscriptionRequest(
+      env,
+      authFor("user-one"),
+      new Request(requestURL, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ signedTransaction: unsignedXcodeTransaction(crypto.randomUUID()) }),
+      }),
+    )).rejects.toThrow("Signed Apple data must come from Apple's Production or Sandbox environment");
+  });
+
   it("keeps existing users ungated while staged enforcement is disabled", async () => {
     env.PRODUCT_ACCESS_ENFORCEMENT = "disabled";
     expect(await hasProductAccess(env, "user-one")).toBe(true);
@@ -223,3 +283,18 @@ describe("subscription HTTP interface", () => {
     });
   });
 });
+
+function unsignedXcodeTransaction(appAccountToken: string): string {
+  const now = Date.now();
+  const payload = Buffer.from(JSON.stringify({
+    appAccountToken,
+    bundleId: "com.serpcompany.chaching",
+    environment: "Xcode",
+    expiresDate: now + 7 * 24 * 60 * 60 * 1_000,
+    originalTransactionId: "xcode-original-100",
+    productId: "com.serpcompany.chaching.annual",
+    signedDate: now,
+    transactionId: "xcode-transaction-101",
+  })).toString("base64url");
+  return `${Buffer.from("{}").toString("base64url")}.${payload}.xcode-local-signature`;
+}
