@@ -22,6 +22,14 @@ Every signed-in user can permanently delete a Cha-Ching account from the app, ev
 - `pnpm exec wrangler deploy --dry-run` validates the Worker bundle and migration-aware code path.
 - Unsigned Debug and Release Simulator builds prove the fresh-authorization deletion UI compiles in both development and App Store configurations.
 
+## Production promotion
+
+- Merge commit `e2859ca` promoted the implementation to `main` after the backend and unsigned iOS CI jobs passed.
+- Remote D1 migration `0014_apple_account_deletion_credentials.sql` is applied to `cha-ching-prod`.
+- Production Worker version `73e1c69d-9875-40a4-9811-be7d0bc1f83c` serves the deletion API and the canonical `/support`, `/privacy`, and `/terms` pages; each legal page returned HTTP 200 after deployment.
+- App Store Connect build `28` (`939edae1-3975-42df-b5d8-1665c5a7d7bc`) is valid and available to the internal TestFlight group with focused account-deletion test instructions.
+- App Store Connect privacy, support, and description URLs match the Cha-Ching-specific Worker pages.
+
 ## Signed-device acceptance
 
 Use the next TestFlight candidate and a disposable Apple sandbox tester/account:
