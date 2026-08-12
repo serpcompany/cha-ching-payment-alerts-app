@@ -4,6 +4,12 @@ enum DashboardSection: CaseIterable {
     case payments
 }
 
+enum DashboardPaymentPresentation {
+    static func rows(from loadedPayments: [Sale]) -> [Sale] {
+        loadedPayments
+    }
+}
+
 struct HomeView: View {
     @EnvironmentObject private var store: SalesStore
     @EnvironmentObject private var notifications: NotificationManager
@@ -58,7 +64,7 @@ struct HomeView: View {
                 NoSalesYetView()
             } else {
                 VStack(spacing: 10) {
-                    ForEach(store.sales.prefix(6)) { sale in
+                    ForEach(DashboardPaymentPresentation.rows(from: store.sales)) { sale in
                         NavigationLink(value: sale) {
                             SaleRow(sale: sale)
                         }
