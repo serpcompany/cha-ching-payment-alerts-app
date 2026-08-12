@@ -1,4 +1,5 @@
-import type { Provider } from "./env";
+import type { Env, Provider } from "./env";
+import { requireProductAccess } from "./subscriptions";
 
 export const featureForProvider = (provider: Provider) => `connect_${provider}` as const;
 
@@ -27,11 +28,12 @@ export async function getUserEntitlements(db: D1Database, userId: string) {
 }
 
 export async function requireProviderEntitlement(
-  db: D1Database,
+  env: Env,
   userId: string,
   provider: Provider,
 ): Promise<void> {
-  const entitlements = await getUserEntitlements(db, userId);
+  await requireProductAccess(env, userId);
+  const entitlements = await getUserEntitlements(env.DB, userId);
   if (!entitlements.some((item) => item.feature === featureForProvider(provider) && item.enabled)) {
     throw new Response(JSON.stringify({ error: `${provider} connections are not included in your plan` }), {
       status: 403,
@@ -40,8 +42,9 @@ export async function requireProviderEntitlement(
   }
 }
 
-export async function requireCustomSourceEntitlement(db: D1Database, userId: string): Promise<void> {
-  const entitlements = await getUserEntitlements(db, userId);
+export async function requireCustomSourceEntitlement(env: Env, userId: string): Promise<void> {
+  await requireProductAccess(env, userId);
+  const entitlements = await getUserEntitlements(env.DB, userId);
   if (!entitlements.some((item) => item.feature === "connect_custom" && item.enabled)) {
     throw new Response(JSON.stringify({ error: "Custom payment sources are not included in your plan" }), {
       status: 403,

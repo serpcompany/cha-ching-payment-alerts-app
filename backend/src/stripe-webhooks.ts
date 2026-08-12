@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 
 import type { Env } from "./env";
 import { enqueueSaleNotification } from "./notification-queue";
+import { hasProductAccess } from "./subscriptions";
 
 const encoder = new TextEncoder();
 const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
@@ -191,6 +192,11 @@ async function ingestSale(env: Env, event: StripeEvent, sale: NormalizedStripeSa
   if (connection.is_active !== 1) {
     await recordEvent(env, event, connection.user_id, "ignored");
     console.log(JSON.stringify({ message: "stripe.event.ignored", eventId: event.id, reason: "connection_paused" }));
+    return;
+  }
+  if (!(await hasProductAccess(env, connection.user_id))) {
+    await recordEvent(env, event, connection.user_id, "ignored");
+    console.log(JSON.stringify({ message: "stripe.event.ignored", eventId: event.id, reason: "subscription_required" }));
     return;
   }
   const disposition = await recordEvent(env, event, connection.user_id, "received");

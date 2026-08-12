@@ -8,6 +8,7 @@ struct ChaChingApp: App {
     @StateObject private var auth = AuthManager()
     @StateObject private var connectStore = ConnectStore()
     @StateObject private var notifications = NotificationManager.shared
+    @StateObject private var subscription = SubscriptionStore()
 
     var body: some Scene {
         WindowGroup {
@@ -18,7 +19,19 @@ struct ChaChingApp: App {
                         ProgressView()
                     }
                 } else if auth.isSignedIn {
-                    RootTabView()
+                    switch subscription.presentation {
+                    case .loading:
+                        ZStack {
+                            Theme.canvas.ignoresSafeArea()
+                            ProgressView()
+                        }
+                    case .fullAccess:
+                        RootTabView()
+                    case .subscriptionRequired:
+                        SubscriptionGateView()
+                    case .unavailable:
+                        SubscriptionUnavailableView()
+                    }
                 } else {
                     SignInView()
                 }
@@ -27,10 +40,26 @@ struct ChaChingApp: App {
             .environmentObject(auth)
             .environmentObject(connectStore)
             .environmentObject(notifications)
+            .environmentObject(subscription)
             .tint(Theme.accent)
             .task(id: auth.isSignedIn) {
                 notifications.clearAppBadge()
                 if auth.isSignedIn {
+                    subscription.startListeningForTransactions()
+                    await subscription.refresh()
+                    guard subscription.presentation == .fullAccess else { return }
+                    async let connections: Void = connectStore.refresh()
+                    async let sales: Void = store.refresh()
+                    _ = await (connections, sales)
+                    notifications.registerIfAuthorized()
+                }
+            }
+            .onChange(of: auth.isSignedIn) { _, isSignedIn in
+                if !isSignedIn { subscription.reset() }
+            }
+            .onChange(of: subscription.presentation) { _, presentation in
+                guard presentation == .fullAccess else { return }
+                Task {
                     async let connections: Void = connectStore.refresh()
                     async let sales: Void = store.refresh()
                     _ = await (connections, sales)
@@ -42,6 +71,8 @@ struct ChaChingApp: App {
                 notifications.clearAppBadge()
                 guard auth.isSignedIn else { return }
                 Task {
+                    await subscription.refresh()
+                    guard subscription.presentation == .fullAccess else { return }
                     await store.refresh()
                     notifications.registerIfAuthorized()
                 }

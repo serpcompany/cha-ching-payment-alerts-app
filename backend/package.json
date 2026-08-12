@@ -13,6 +13,7 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "^3.1.0",
     "better-auth": "1.6.26",
     "jose": "6.2.8"
   },

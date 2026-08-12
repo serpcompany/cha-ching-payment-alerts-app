@@ -2,15 +2,25 @@
 
 ## User outcome
 
-Cha-Ching can grant or withhold provider features per user without requiring an app release.
+Cha-Ching grants Full access only while the backend has a current Apple-verified product entitlement. A signed-in customer without access sees Subscription required and can purchase or restore without losing their account.
 
-## MVP model
+## Product access
+
+The launch offer is one Apple auto-renewing subscription at $14.99/year with a seven-day introductory trial. Apple decides trial eligibility once per subscription group. Family Sharing and Billing Grace Period are disabled.
+
+Purchase and restore use a stable per-user `appAccountToken`. The app sends Apple's signed transaction to the Worker, the Worker verifies and reconciles it, and D1 is the authorization source of truth. StoreKit or UI state alone never grants access.
+
+Customer-visible states are limited to **Full access** and **Subscription required**. Before a purchase, the primary action is **Start free trial** when StoreKit confirms eligibility and **Subscribe** otherwise. A previously purchased but inactive account receives **Subscribe again**. **Restore Purchases** is always separately available. Billing-retry-specific presentation remains pending renewal-state reconciliation.
+
+Access remains active through a verified trial or paid expiration even when auto-renew is disabled. Expiration, refund, revocation, or billing retry without a current paid period turns access off. Verified recovery turns it back on. Events received while access is off are ignored and are not backfilled.
+
+## Feature access
 
 - `connect_stripe`
 - `connect_paypal`
 - `connect_custom`
 
-All three are enabled by default when first materialized for an MVP user. D1 is the source of truth. Entitlements are internal access control, not a user-facing subscription plan, so Settings does not display a **Plan access** section.
+All three are enabled by default when first materialized for an MVP user. Effective feature access requires both Full access and the relevant feature entitlement.
 
 ## Acceptance criteria
 
@@ -19,6 +29,12 @@ All three are enabled by default when first materialized for an MVP user. D1 is 
 - Authorization fails server-side when the relevant row is disabled.
 - Creating a custom payment source requires an enabled `connect_custom` entitlement.
 - Unknown feature keys cannot be inserted through application APIs.
-- Removing the Settings presentation does not weaken server-side authorization or feature-availability behavior.
+- A valid signed transaction for the authenticated user's token grants Full access only until its verified expiration.
+- A transaction belonging to another user, product, or app is rejected.
+- Refund and revocation notifications remove access; stale notifications cannot overwrite newer state.
+- Stripe and custom-source events received without product access create no payment or notification and are not replayed after recovery.
+- Purchase success on the device does not grant access unless backend reconciliation returns Full access.
+- Restore is explicit and available from both Subscription required and Settings.
+- Production enforcement is staged behind `PRODUCT_ACCESS_ENFORCEMENT`. It remains disabled until a matching TestFlight build can purchase/restore and a signed-device sandbox transaction has reconciled successfully; disabled enforcement never suppresses API access or incoming payment events.
 
-Billing-derived grants, plan catalogs, and an operator UI are future work.
+Plan catalogs, manual exceptions, and an operator UI are not part of the MVP.

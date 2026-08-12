@@ -12,6 +12,8 @@
 		2081778642AD4EE2DB0FB871 /* HomeComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A58B251927E5F6F4FFFE6915 /* HomeComponents.swift */; };
 		210EF9A32A4E48EC67C203F8 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75CD9FC697BAB28269D3B464 /* APIClient.swift */; };
 		219D7A3BB6D0D9D4AA468F75 /* ChaChingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97EE9023C77A95B6CC382CC6 /* ChaChingApp.swift */; };
+		2726CEEF8CD1AA2797D09884 /* SubscriptionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6972DE6CF7473B461CAFC8D9 /* SubscriptionStore.swift */; };
+		34130356CB74C256B6C8AC99 /* SubscriptionGateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB164CED3893053EFA8ABC3 /* SubscriptionGateView.swift */; };
 		341ADFBA1811D51201522F8C /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DE4FF55125FA287FFF07BA9 /* SignInView.swift */; };
 		37517B775DDEFA20EE147AF2 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A78F14FB2FD3E9606C1258A1 /* NotificationManager.swift */; };
 		405010C6F04A7FEE07B40F66 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8764F36998B956216842955 /* AuthManager.swift */; };
@@ -32,6 +34,7 @@
 		A18C3C775864A1B0EB0A332C /* WebhookNotificationDesignerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */; };
 		AF01ED49D8033099991F6BBF /* CustomWebhookDeveloperPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = C702CA5FCE9B85FA055A62E1 /* CustomWebhookDeveloperPrompt.swift */; };
 		B15D512565372F588A4ED383 /* SalesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9ABCE1E07393E5E7E9E2C3 /* SalesStore.swift */; };
+		B3D6BBF6C86A0346C40D76CE /* SubscriptionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 321139328020A6C4640818BE /* SubscriptionStoreTests.swift */; };
 		B6814146399AD6D569992EDF /* CustomWebhookHealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C6369E30F863F2869F6669 /* CustomWebhookHealthTests.swift */; };
 		BE62FAE52D0FD8AA9A9CB0EF /* ProviderWebAuthenticationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6F6855FD89FDB53F76A4457 /* ProviderWebAuthenticationSession.swift */; };
 		E67C106D234520815AC76138 /* ConnectSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D8CF3A6096695D8F6D6B808 /* ConnectSheet.swift */; };
@@ -53,11 +56,14 @@
 		0ECEEA344D12969329CC034A /* Sale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sale.swift; sourceTree = "<group>"; };
 		14CD4631A44997104C853CB0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1D1792A1F3D214B7B66527E1 /* CustomSourceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomSourceSheet.swift; sourceTree = "<group>"; };
+		2CB164CED3893053EFA8ABC3 /* SubscriptionGateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionGateView.swift; sourceTree = "<group>"; };
 		2DE4FF55125FA287FFF07BA9 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		30DF41A590E1799F2D791252 /* SaleRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaleRow.swift; sourceTree = "<group>"; };
+		321139328020A6C4640818BE /* SubscriptionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionStoreTests.swift; sourceTree = "<group>"; };
 		468DDF9F4DEF74FC897AF682 /* CustomPaymentSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomPaymentSource.swift; sourceTree = "<group>"; };
 		5C9ABCE1E07393E5E7E9E2C3 /* SalesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalesStore.swift; sourceTree = "<group>"; };
 		5D8CF3A6096695D8F6D6B808 /* ConnectSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectSheet.swift; sourceTree = "<group>"; };
+		6972DE6CF7473B461CAFC8D9 /* SubscriptionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionStore.swift; sourceTree = "<group>"; };
 		75CD9FC697BAB28269D3B464 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		7996CF08A2EAA4E22A254C26 /* CustomWebhookDeveloperPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomWebhookDeveloperPromptTests.swift; sourceTree = "<group>"; };
 		97EE9023C77A95B6CC382CC6 /* ChaChingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChaChingApp.swift; sourceTree = "<group>"; };
@@ -106,6 +112,7 @@
 			isa = PBXGroup;
 			children = (
 				AA321C7A5BA4FBE69295C95C /* RootTabView.swift */,
+				2CB164CED3893053EFA8ABC3 /* SubscriptionGateView.swift */,
 				4F257519907AF954D022A86E /* Auth */,
 				579B4EBE194CE60F44BC3082 /* Connect */,
 				D09A217744D1A64A37966B30 /* Home */,
@@ -148,6 +155,7 @@
 				C7C6369E30F863F2869F6669 /* CustomWebhookHealthTests.swift */,
 				0B698CD26E86058C88F518AE /* PaymentNotificationPresentationTests.swift */,
 				BEBA6FCB9D4D20B2ACB4B83D /* SalesStoreTests.swift */,
+				321139328020A6C4640818BE /* SubscriptionStoreTests.swift */,
 				CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */,
 			);
 			path = "Cha-ChingTests";
@@ -208,6 +216,7 @@
 				F0867D67A73EEC4496B1399C /* ConnectStore.swift */,
 				A78F14FB2FD3E9606C1258A1 /* NotificationManager.swift */,
 				C6F6855FD89FDB53F76A4457 /* ProviderWebAuthenticationSession.swift */,
+				6972DE6CF7473B461CAFC8D9 /* SubscriptionStore.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -321,6 +330,7 @@
 				B6814146399AD6D569992EDF /* CustomWebhookHealthTests.swift in Sources */,
 				A0039B73D3CA4C97E635C7AA /* PaymentNotificationPresentationTests.swift in Sources */,
 				4BFC9D438C135FDD2C3CA473 /* SalesStoreTests.swift in Sources */,
+				B3D6BBF6C86A0346C40D76CE /* SubscriptionStoreTests.swift in Sources */,
 				A18C3C775864A1B0EB0A332C /* WebhookNotificationDesignerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -348,6 +358,8 @@
 				69948E549340E6EE519B3471 /* SaleRow.swift in Sources */,
 				B15D512565372F588A4ED383 /* SalesStore.swift in Sources */,
 				341ADFBA1811D51201522F8C /* SignInView.swift in Sources */,
+				34130356CB74C256B6C8AC99 /* SubscriptionGateView.swift in Sources */,
+				2726CEEF8CD1AA2797D09884 /* SubscriptionStore.swift in Sources */,
 				041BE9C54475ED31FA588CF2 /* Theme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -430,7 +442,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 20;
+				CURRENT_PROJECT_VERSION = 21;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 847HR8U8D9;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -495,7 +507,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 20;
+				CURRENT_PROJECT_VERSION = 21;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 847HR8U8D9;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

@@ -18,6 +18,7 @@ The live MVP proves secure identity, entitlement enforcement, payment-source lin
 - **Provider account**: the user's account at a provider. It is linked through provider-hosted authorization, never by pasting credentials into the app.
 - **Connection**: Cha-Ching's revocable, least-privilege authorization to identify and read events for one provider account.
 - **Entitlement**: server-owned permission enabling a feature for a user. UI presentation never grants access.
+- **Subscription**: the commercial relationship Apple reports for Cha-Ching's annual product. It is translated into a provider-independent product entitlement before it can grant access.
 - **Payment**: the normalized successful-payment record shown on the Dashboard. Provider webhooks can verify a payment; custom-webhook payments are sender-reported.
 - **Payment notification**: the user-visible iPhone notification produced from a payment. “Ping” is not product language.
 
@@ -27,6 +28,9 @@ The live MVP proves secure identity, entitlement enforcement, payment-source lin
 - Provider consent happens on provider-controlled pages.
 - One external provider account belongs to at most one Cha-Ching user.
 - A connection requires an enabled entitlement both when authorization begins and when it completes.
+- Full product access requires a current, backend-verified product entitlement. An active trial or paid period grants access through its recorded expiration; expiration, refund, or revocation turns access off.
+- StoreKit and UI state never grant access. Purchase and restore submit Apple's signed transaction to the Worker, and D1 remains the authorization source of truth.
+- Events received while product access is off are acknowledged and durably ignored. They are not backfilled after access returns.
 - Sample data must not appear as production revenue.
 - Production custom-webhook setup never preloads fabricated data. Its user-visible lifecycle is **Waiting for first event** → **Event received** → **Active**, driven by sender traffic and explicit activation.
 - A custom webhook URL remains stable across app and backend releases. Only the source owner's explicit regeneration invalidates it.
@@ -47,4 +51,4 @@ The live MVP proves secure identity, entitlement enforcement, payment-source lin
 
 ## MVP success
 
-A signed-in user can view live provider availability, connect or disconnect one Stripe account and one PayPal account when configured, pause or resume payment intake, clear Cha-Ching's stored Stripe payment history without disconnecting, and see D1-backed state after relaunch. Entitlements remain a server-side access-control mechanism and are not presented as a “plan” in Settings. A connected active Stripe user receives one persisted payment and one payment-notification attempt for each verified successful charge. An active custom source can create sender-reported payments through its mapped private webhook.
+A signed-in user with Full access can view live provider availability, connect or disconnect one Stripe account and one PayPal account when configured, pause or resume payment intake, clear Cha-Ching's stored Stripe payment history without disconnecting, and see D1-backed state after relaunch. A user without Full access sees Subscription required with purchase, restore, and management actions. The launch offer is one $14.99/year Apple auto-renewing subscription with a seven-day introductory trial. A connected active Stripe user receives one persisted payment and one payment-notification attempt for each verified successful charge. An active custom source can create sender-reported payments through its mapped private webhook.

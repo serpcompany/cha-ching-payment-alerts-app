@@ -5,8 +5,9 @@
 - `Cha-Ching/` is the iOS presentation and native-auth client. It never stores provider credentials.
 - `backend/src/index.ts` is the Worker HTTP boundary.
 - Better Auth owns `user`, `session`, `account`, `verification`, and `rate_limit` in D1.
-- Cha-Ching owns `entitlements`, `provider_connections`, `oauth_states`, `provider_events`, `custom_payment_sources`, `sales`, `device_tokens`, and `notification_deliveries`.
+- Cha-Ching owns `entitlements`, `product_entitlements`, `provider_connections`, `oauth_states`, `provider_events`, `custom_payment_sources`, `sales`, `device_tokens`, and `notification_deliveries`.
 - Stripe and PayPal OAuth modules are the only code allowed to exchange provider authorization codes.
+- `backend/src/subscriptions.ts` is the Apple billing adapter and the provider-independent product-access boundary. Apple lifecycle states do not cross this boundary.
 
 ## Request flow
 
@@ -16,6 +17,17 @@
 4. The Worker checks the D1 entitlement and persists only a hash of a ten-minute OAuth state.
 5. The provider returns to the Worker. The Worker consumes the one-time state and rechecks entitlement. Stripe App installs are verified with the app signing secret; production installs must also pass a live-mode, read-only Charge probe before the account ID is stored. Providers that issue OAuth tokens are exchanged and encrypted.
 6. The Worker redirects to `chaching://oauth-callback`; iOS refreshes connection state from D1.
+
+Every authenticated product API except identity bootstrap (`/v1/me`), subscription status, and subscription reconciliation requires both current product access and any feature-specific entitlement once product enforcement is enabled. The iOS app renders the backend's `full_access` or `subscription_required` result; StoreKit purchase state is never an authorization source. Production first deploys subscription reconciliation with `PRODUCT_ACCESS_ENFORCEMENT=disabled`, distributes the matching client, and enables enforcement only after a signed-device sandbox purchase or restore succeeds end to end.
+
+## Subscription flow
+
+1. The signed-in app requests `/v1/subscription` and receives a stable per-user `appAccountToken`, product ID, and provider-independent access state.
+2. StoreKit purchases the annual product using that token. Purchase and explicit restore submit the verified transaction's signed JWS to `/v1/subscription/sync`.
+3. The Worker validates Apple's certificate chain and signature, bundle ID, product ID, account token, transaction identity, and expiration before updating `product_entitlements`.
+4. App Store Server Notifications V2 reach `/v1/webhooks/apple`; the same verification and monotonic reconciliation path applies renewals, expirations, refunds, and revocations.
+5. D1 grants access only through the recorded expiration and never extends the last verified result during an Apple outage.
+6. Stripe and custom-webhook ingress check product access before creating a payment. Events received while access is off are acknowledged and ignored without later backfill.
 
 ## Stripe sale-notification flow
 
@@ -49,7 +61,8 @@ Production APNs payloads and test notifications name the bundled cash-register s
 - API and provider secrets are Worker secrets, never Wrangler vars or iOS resources.
 - Provider tokens use versioned AES-256-GCM ciphertext with a fresh 96-bit IV.
 - OAuth state is random, short-lived, single-use, and stored only as SHA-256.
-- Entitlements are enforced by the Worker; UI state is informational only.
+- Product and feature entitlements are enforced by the Worker; StoreKit and UI state are informational only.
+- Apple signed transactions must match the configured app, annual product, and the authenticated user's stable `appAccountToken`. An older provider event cannot overwrite newer verified state.
 - Provider connection rows are user-scoped, and one external account cannot be linked to multiple users.
 - Apple email is recovered only from an already-linked local Better Auth account when Apple omits it on later sign-ins.
 - Stripe webhook signatures are checked before JSON parsing or D1 writes.

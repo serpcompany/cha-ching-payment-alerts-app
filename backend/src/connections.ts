@@ -54,7 +54,7 @@ export async function beginConnection(
   const provider = parseProvider(providerValue);
   if (!provider) return Response.json({ error: "Unsupported provider" }, { status: 400 });
   const user = await requireUser(auth, request);
-  await requireProviderEntitlement(env.DB, user.id, provider);
+  await requireProviderEntitlement(env, user.id, provider);
   const configured = provider === "stripe" ? isStripeConfigured(env) : isPayPalConfigured(env);
   if (!configured) {
     return Response.json({ error: `${provider === "stripe" ? "Stripe" : "PayPal"} connections are unavailable` }, { status: 503 });
@@ -104,7 +104,7 @@ export async function completeConnection(
   if (!consumed) return appRedirect(provider, "error", "This connection request expired");
 
   try {
-    await requireProviderEntitlement(env.DB, consumed.user_id, provider);
+    await requireProviderEntitlement(env, consumed.user_id, provider);
     const tokens = provider === "stripe"
       ? await verifyStripeAppInstall(env, {
           state,
