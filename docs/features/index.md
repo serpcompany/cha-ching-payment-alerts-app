@@ -3,6 +3,7 @@
 | Feature | Status | Document |
 | --- | --- | --- |
 | Sign in with Apple | Implemented; real device flow plus isolated local Simulator sessions | `sign-in-with-apple.md` |
+| Account deletion and legal surfaces | Implemented in repository; production deployment and signed-device Apple revocation verification pending | `account-deletion-and-legal-surfaces.md` |
 | Stripe account connection | Read-only live Stripe App installed; production sandbox guard verified | `provider-account-connections.md` |
 | PayPal account connection | Implemented for sandbox, live approval pending | `provider-account-connections.md` |
 | Subscription and entitlements | Implemented; annual App Store product ready to submit; backend-owned product-access enforcement enabled after signed-device reconciliation | `entitlements.md` |

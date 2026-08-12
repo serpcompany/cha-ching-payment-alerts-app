@@ -2,6 +2,8 @@ import SwiftUI
 
 struct SubscriptionGateView: View {
     @EnvironmentObject private var subscription: SubscriptionStore
+    @EnvironmentObject private var auth: AuthManager
+    @State private var accountSheet: AccountSheet?
 
     var body: some View {
         ScrollView {
@@ -61,20 +63,33 @@ struct SubscriptionGateView: View {
                 }
 
                 HStack(spacing: 18) {
-                    Link("Terms", destination: URL(string: "https://cha-ching-api.serpcompany.workers.dev/terms")!)
-                    Link("Privacy", destination: URL(string: "https://cha-ching-api.serpcompany.workers.dev/privacy")!)
+                    Link("Support", destination: ChaChingLink.support)
+                    Link("Terms", destination: ChaChingLink.terms)
+                    Link("Privacy", destination: ChaChingLink.privacy)
+                }
+                .font(.footnote)
+
+                HStack(spacing: 18) {
+                    Button("Sign out") { auth.signOut() }
+                    Button("Delete account", role: .destructive) {
+                        auth.accountDeletionError = nil
+                        accountSheet = .deletion
+                    }
                 }
                 .font(.footnote)
             }
             .padding(24)
         }
         .background(Theme.canvas.ignoresSafeArea())
+        .sheet(item: $accountSheet) { _ in
+            AccountDeletionView()
+        }
     }
 
     @ViewBuilder
     private var primaryAction: some View {
         if action == .updateBilling {
-            Link("Update billing", destination: URL(string: "https://apps.apple.com/account/subscriptions")!)
+            Link("Update billing", destination: ChaChingLink.manageSubscription)
         } else {
             Button(primaryActionTitle) {
                 Task { await subscription.purchase() }

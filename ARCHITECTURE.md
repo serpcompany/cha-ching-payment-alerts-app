@@ -13,10 +13,11 @@
 
 1. iOS obtains an Apple ID token with a nonce and posts it to Better Auth.
 2. Better Auth returns a bearer session; iOS stores it in Keychain.
-3. iOS requests a provider authorization URL with that bearer session.
-4. The Worker checks the D1 entitlement and persists only a hash of a ten-minute OAuth state.
-5. The provider returns to the Worker. The Worker consumes the one-time state and rechecks entitlement. Stripe App installs are verified with the app signing secret; production installs must also pass a live-mode, read-only Charge probe before the account ID is stored. Providers that issue OAuth tokens are exchanged and encrypted.
-6. The Worker redirects to `chaching://oauth-callback`; iOS refreshes connection state from D1.
+3. For account deletion, iOS obtains a fresh Apple authorization code. The Worker exchanges it for a refresh token, verifies that Apple's subject matches the linked account, encrypts the token, and revokes it before deleting the D1 user.
+4. iOS requests a provider authorization URL with that bearer session.
+5. The Worker checks the D1 entitlement and persists only a hash of a ten-minute OAuth state.
+6. The provider returns to the Worker. The Worker consumes the one-time state and rechecks entitlement. Stripe App installs are verified with the app signing secret; production installs must also pass a live-mode, read-only Charge probe before the account ID is stored. Providers that issue OAuth tokens are exchanged and encrypted.
+7. The Worker redirects to `chaching://oauth-callback`; iOS refreshes connection state from D1.
 
 Every authenticated product API except identity bootstrap (`/v1/me`), subscription status, and subscription reconciliation requires both current product access and any feature-specific entitlement once product enforcement is enabled. The iOS app renders the backend's `full_access` or `subscription_required` result; StoreKit purchase state is never an authorization source. Production first deploys subscription reconciliation with `PRODUCT_ACCESS_ENFORCEMENT=disabled`, distributes the matching client, and enables enforcement only after a signed-device sandbox purchase or restore succeeds end to end.
 
@@ -65,6 +66,8 @@ Production APNs payloads and test notifications name the bundled cash-register s
 - Apple signed transactions must match the configured app, annual product, and the authenticated user's stable `appAccountToken`. An older provider event cannot overwrite newer verified state.
 - Provider connection rows are user-scoped, and one external account cannot be linked to multiple users.
 - Apple email is recovered only from an already-linked local Better Auth account when Apple omits it on later sign-ins.
+- Account deletion requires a current bearer session plus fresh Sign in with Apple authorization. Apple token revocation completes before D1 deletion; a revocation failure leaves the account intact for retry.
+- Deleting the D1 user cascades through Better Auth sessions/accounts, entitlements, connections, OAuth states, custom sources and encrypted samples, sales, device tokens, notification deliveries, and Apple deletion credentials. User-linked provider event audit rows are explicitly removed rather than retained with a null owner.
 - Stripe webhook signatures are checked before JSON parsing or D1 writes.
 - Stripe App install callbacks are signed, and the app manifest grants only `event_read` and `charge_read`.
 - A sandbox Stripe account cannot be stored by a production callback, even though sandbox and live identifiers share the `acct_` format.

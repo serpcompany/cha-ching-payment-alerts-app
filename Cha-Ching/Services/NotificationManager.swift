@@ -254,6 +254,17 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         }
     }
 
+    func accountDidDelete() {
+        hasRegisteredDevice = false
+        registrationError = nil
+        foregroundNotification = nil
+        openedSaleID = nil
+        openedCustomSourceID = nil
+        deviceToken = nil
+        UIApplication.shared.unregisterForRemoteNotifications()
+        clearAppBadge()
+    }
+
     private func uploadToken() async {
         guard paymentNotificationsEnabled, let deviceToken, APIClient.shared.hasAuthToken else { return }
         #if DEBUG

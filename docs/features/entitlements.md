@@ -16,6 +16,8 @@ Local Debug runs use the checked-in StoreKit catalog and automated purchase/rest
 
 Customer-visible states are limited to **Full access** and **Subscription required**. Before a purchase, the primary action is **Start free trial** when StoreKit confirms eligibility and **Subscribe** otherwise. A previously purchased but inactive account receives **Subscribe again**. **Restore Purchases** is always separately available. Billing-retry-specific presentation remains pending renewal-state reconciliation.
 
+Both Full access and Subscription required surfaces provide **Manage Subscription**, support, privacy, terms, sign-out, and authenticated account deletion. Deleting a Cha-Ching account does not cancel Apple billing. The deletion screen states that boundary before confirmation and links to Apple's subscription management first; deletion then removes the server entitlement without changing the App Store subscription.
+
 Access remains active through a verified trial or paid expiration even when auto-renew is disabled. Expiration, refund, revocation, or billing retry without a current paid period turns access off. Verified recovery turns it back on. Events received while access is off are ignored and are not backfilled.
 
 ## Feature access
@@ -39,6 +41,7 @@ All three are enabled by default when first materialized for an MVP user. Effect
 - Stripe and custom-source events received without product access create no payment or notification and are not replayed after recovery.
 - Purchase success on the device does not grant access unless backend reconciliation returns Full access.
 - Restore is explicit and available from both Subscription required and Settings.
+- A subscription-gated user can still manage billing and delete their account without product access.
 - Production enforcement is enabled through `PRODUCT_ACCESS_ENFORCEMENT` after TestFlight build 23 reconciled an Apple-signed sandbox transaction through the production Worker into D1 and loaded the Full access API set. A current backend-verified product entitlement is now required for protected APIs and incoming payment events.
 
 Plan catalogs, manual exceptions, and an operator UI are not part of the MVP.

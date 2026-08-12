@@ -27,6 +27,9 @@ The App Store name and subtitle intentionally split the longer SEO phrase across
 - Marketing and support: `https://cha-ching-api.serpcompany.workers.dev/`
 - Privacy policy: `https://cha-ching-api.serpcompany.workers.dev/privacy`
 - Terms: `https://cha-ching-api.serpcompany.workers.dev/terms`
+- In-app support: `https://cha-ching-api.serpcompany.workers.dev/support`
+
+The app, privacy disclosures, and reviewer notes must use these Cha-Ching-specific Worker pages. Generic corporate legal pages do not describe Cha-Ching's custom webhook payload handling, Apple subscription boundary, or immediate authenticated account deletion and are not an equivalent substitute.
 
 Canonical machine-readable listing metadata lives under `metadata/`.
 

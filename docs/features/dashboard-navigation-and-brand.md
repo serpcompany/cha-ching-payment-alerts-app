@@ -34,6 +34,8 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 - If backend removal fails, Settings reports that the phone could not be removed instead of claiming a successful server-side disable. iOS system permission remains controlled separately in the Settings app.
 - **Plan access** is removed. Entitlements remain enforced invisibly by the Worker and still determine which connection actions are allowed.
 - Sign out remains available.
+- Settings exposes reachable Support, Privacy Policy, and Terms of Use links.
+- **Delete account** opens an explicit irreversible-deletion explanation, warns that Apple billing continues separately, links to **Manage Subscription**, and requires fresh Sign in with Apple authorization before the backend removes the account.
 
 ## Notification identity
 
@@ -59,6 +61,7 @@ There is no separate **History** tab. The Dashboard's **Payments** section is th
 - A Payments refresh failure is actionable and dismissible and does not erase previously loaded payments.
 - Pulling to refresh while another automatic refresh is active does not issue duplicate requests or briefly show a false failure card.
 - Settings contains a working Payment notifications toggle and Sign out, with no Plan access section.
+- Settings contains support/legal links and authenticated account deletion. The deletion path remains available from Subscription required as well as Full access.
 - A setup sample push is a genuine Apple banner and opens its standalone preview after a press because no payment exists yet. An active-source test uses the latest retained payment ID, so pressing it safely selects Dashboard and opens that payment's full detail just like a real payment notification. A lock-screen test is queued only after the server accepts the delayed request and starts its countdown without an acknowledgement step.
 - The compiled app includes matching dollar-symbol app-icon and BrandMark assets.
 - The compiled app bundle includes the named cash-register sound used by both live and test APNs payloads.

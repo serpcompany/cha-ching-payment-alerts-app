@@ -1,4 +1,5 @@
 import { createAuth, requireUser } from "./auth";
+import { handleAccountDeletion, handleAppleCredentialRequest } from "./account-deletion";
 import { handleCustomSourceRequest } from "./custom-webhooks";
 import {
   beginConnection,
@@ -20,7 +21,7 @@ import {
   missingCoreConfiguration,
   providerCapabilities,
 } from "./env";
-import { homePage, privacyPage, termsPage } from "./legal";
+import { homePage, privacyPage, supportPage, termsPage } from "./legal";
 import { processNotificationBatch } from "./notifications";
 import type { NotificationMessage } from "./notifications";
 import { monitorCustomSourceHealth } from "./custom-source-health";
@@ -46,6 +47,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (request.method === "GET" && url.pathname === "/") return homePage();
   if (request.method === "GET" && url.pathname === "/privacy") return privacyPage();
   if (request.method === "GET" && url.pathname === "/terms") return termsPage();
+  if (request.method === "GET" && url.pathname === "/support") return supportPage();
   if (request.method === "GET" && url.pathname === "/health") {
     const readiness = {
       authentication: missingCoreConfiguration(env).length === 0,
@@ -90,6 +92,12 @@ async function route(request: Request, env: Env): Promise<Response> {
     || url.pathname === "/v1/subscription/sync"
   ) {
     return handleSubscriptionRequest(env, auth, request);
+  }
+  if (url.pathname === "/v1/account/apple-credential") {
+    return handleAppleCredentialRequest(env, auth, request);
+  }
+  if (url.pathname === "/v1/account") {
+    return handleAccountDeletion(env, auth, request);
   }
   if (request.method === "GET" && url.pathname === "/v1/me") {
     const user = await requireUser(auth, request);

@@ -55,7 +55,11 @@ struct ChaChingApp: App {
                 }
             }
             .onChange(of: auth.isSignedIn) { _, isSignedIn in
-                if !isSignedIn { subscription.reset() }
+                if !isSignedIn {
+                    subscription.reset()
+                    store.reset()
+                    connectStore.reset()
+                }
             }
             .onChange(of: subscription.presentation) { _, presentation in
                 guard presentation == .fullAccess else { return }

@@ -124,6 +124,14 @@ final class SalesStore: ObservableObject {
         errorMessage = nil
     }
 
+    func reset() {
+        refreshOperation?.task.cancel()
+        refreshOperation = nil
+        sales = []
+        isLoading = false
+        errorMessage = nil
+    }
+
     func sale(id: String) -> Sale? {
         sales.first { $0.id == id }
     }
