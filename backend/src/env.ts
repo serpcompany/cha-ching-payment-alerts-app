@@ -22,6 +22,7 @@ interface RuntimeOverrides {
   PUBLIC_BASE_URL: string;
   PAYPAL_ENVIRONMENT: "sandbox" | "live";
   APPLE_APP_ID: string;
+  PRODUCT_ACCESS_ENFORCEMENT: "disabled" | "enabled";
 }
 
 export type Env = Omit<Cloudflare.Env, keyof RuntimeOverrides> & RuntimeOverrides & SecretBindings;

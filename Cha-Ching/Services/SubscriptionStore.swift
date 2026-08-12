@@ -23,6 +23,7 @@ enum SubscriptionPresentation: Equatable {
     case loading
     case fullAccess
     case subscriptionRequired(action: SubscriptionAction)
+    case unavailable
 }
 
 struct SubscriptionOffer: Equatable {
@@ -69,6 +70,7 @@ struct SubscriptionStoreKitClient {
     var purchase: (_ productID: String, _ appAccountToken: UUID) async throws -> StorePurchaseOutcome
     var restore: (_ productID: String) async throws -> StorePurchase?
     var finish: (_ transactionID: UInt64) async -> Void
+    var updates: () -> AsyncStream<StorePurchase>
 
     static var live: SubscriptionStoreKitClient { SubscriptionStoreKitClient(
         offer: { productID in
@@ -121,6 +123,22 @@ struct SubscriptionStoreKitClient {
                 await transaction.finish()
                 return
             }
+        },
+        updates: {
+            AsyncStream { continuation in
+                let task = Task {
+                    for await verification in Transaction.updates {
+                        guard !Task.isCancelled,
+                              case .verified(let transaction) = verification else { continue }
+                        continuation.yield(StorePurchase(
+                            signedTransaction: verification.jwsRepresentation,
+                            transactionID: transaction.id
+                        ))
+                    }
+                    continuation.finish()
+                }
+                continuation.onTermination = { _ in task.cancel() }
+            }
         }
     ) }
 }
@@ -147,6 +165,7 @@ final class SubscriptionStore: ObservableObject {
     private let accessClient: SubscriptionAccessClient
     private let storeKit: SubscriptionStoreKitClient
     private var status: SubscriptionStatus?
+    private var updateTask: Task<Void, Never>?
 
     init(
         accessClient: SubscriptionAccessClient? = nil,
@@ -165,8 +184,24 @@ final class SubscriptionStore: ObservableObject {
             }
             errorMessage = nil
         } catch {
-            presentation = .loading
+            presentation = .unavailable
             errorMessage = "Subscription status couldn't refresh."
+        }
+    }
+
+    func startListeningForTransactions() {
+        guard updateTask == nil else { return }
+        updateTask = Task { [weak self, storeKit, accessClient] in
+            for await purchase in storeKit.updates() {
+                guard let self, !Task.isCancelled else { return }
+                do {
+                    let reconciled = try await accessClient.sync(purchase.signedTransaction)
+                    apply(reconciled)
+                    await storeKit.finish(purchase.transactionID)
+                } catch {
+                    errorMessage = "A subscription update couldn't be verified by Cha-Ching."
+                }
+            }
         }
     }
 
@@ -208,6 +243,8 @@ final class SubscriptionStore: ObservableObject {
     }
 
     func reset() {
+        updateTask?.cancel()
+        updateTask = nil
         status = nil
         offer = nil
         errorMessage = nil

@@ -22,15 +22,17 @@ struct SubscriptionGateView: View {
                         .foregroundStyle(.secondary)
                 }
                 VStack(spacing: 12) {
-                    if isEligibleForTrial {
+                    if let offer = subscription.offer, isEligibleForTrial {
                         Text("7 days free")
                             .font(.title2.bold())
                             .foregroundStyle(Theme.accent)
-                        Text("Then \(subscription.offer?.displayPrice ?? "$14.99") per year")
+                        Text("Then \(offer.displayPrice) per year")
                             .font(.headline)
-                    } else {
-                        Text("\(subscription.offer?.displayPrice ?? "$14.99") per year")
+                    } else if let offer = subscription.offer {
+                        Text("\(offer.displayPrice) per year")
                             .font(.title2.bold())
+                    } else {
+                        ProgressView("Loading localized price…")
                     }
                     Text(renewalDisclosure)
                         .font(.footnote)
@@ -44,6 +46,7 @@ struct SubscriptionGateView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .disabled(subscription.isWorking)
+                    .disabled(subscription.isWorking || subscription.offer == nil)
 
                 Button("Restore Purchases") {
                     Task { await subscription.restore() }
@@ -98,5 +101,20 @@ struct SubscriptionGateView: View {
             return "Full access during your trial. The subscription renews automatically unless canceled at least 24 hours before the current period ends."
         }
         return "Full access with an auto-renewing subscription. Cancel at least 24 hours before the current period ends to prevent renewal."
+    }
+}
+
+struct SubscriptionUnavailableView: View {
+    @EnvironmentObject private var subscription: SubscriptionStore
+
+    var body: some View {
+        ContentUnavailableView {
+            Label("Subscription status unavailable", systemImage: "exclamationmark.triangle")
+        } description: {
+            Text(subscription.errorMessage ?? "Cha-Ching couldn't verify access right now.")
+        } actions: {
+            Button("Try Again") { Task { await subscription.refresh() } }
+                .buttonStyle(.borderedProminent)
+        }
     }
 }

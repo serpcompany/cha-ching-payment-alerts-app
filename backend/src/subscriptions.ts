@@ -40,7 +40,7 @@ export interface AppleSignedDataVerifier {
   verifyNotification(signedPayload: string): Promise<VerifiedAppleTransaction | null>;
 }
 
-type AppleEnvironment = "Production" | "Sandbox" | "Xcode";
+type AppleEnvironment = "Production" | "Sandbox";
 
 function decodedEnvironment(signedData: string): AppleEnvironment {
   const payload = signedData.split(".")[1];
@@ -50,10 +50,10 @@ function decodedEnvironment(signedData: string): AppleEnvironment {
     data?: { environment?: unknown };
   };
   const environment = decoded.environment ?? decoded.data?.environment;
-  if (environment === "Production" || environment === "Sandbox" || environment === "Xcode") {
+  if (environment === "Production" || environment === "Sandbox") {
     return environment;
   }
-  throw new Error("Signed Apple data has an unsupported environment");
+  throw new Error("Signed Apple data must come from Apple's Production or Sandbox environment");
 }
 
 function verifiedTransaction(decoded: JWSTransactionDecodedPayload): VerifiedAppleTransaction {
@@ -87,16 +87,19 @@ function verifiedTransaction(decoded: JWSTransactionDecodedPayload): VerifiedApp
 }
 
 export function appleSignedDataVerifier(env: Env): AppleSignedDataVerifier {
-  const verifyTransaction = async (signedTransaction: string) => {
-    const environment = decodedEnvironment(signedTransaction);
+  const verifierFor = async (signedData: string) => {
+    const environment = decodedEnvironment(signedData);
     const { SignedDataVerifier } = await import("@apple/app-store-server-library");
-    const verifier = new SignedDataVerifier(
+    return new SignedDataVerifier(
       [Buffer.from(APPLE_ROOT_CA_G3_DER_BASE64, "base64")],
       false,
       environment as Environment,
       env.APPLE_APP_BUNDLE_ID,
       environment === "Production" ? Number(env.APPLE_APP_ID) : undefined,
     );
+  };
+  const verifyTransaction = async (signedTransaction: string) => {
+    const verifier = await verifierFor(signedTransaction);
     const decoded = await verifier
       .verifyAndDecodeTransaction(signedTransaction);
     return verifiedTransaction(decoded);
@@ -104,15 +107,7 @@ export function appleSignedDataVerifier(env: Env): AppleSignedDataVerifier {
   return {
     verifyTransaction,
     verifyNotification: async (signedPayload: string) => {
-      const environment = decodedEnvironment(signedPayload);
-      const { SignedDataVerifier } = await import("@apple/app-store-server-library");
-      const verifier = new SignedDataVerifier(
-        [Buffer.from(APPLE_ROOT_CA_G3_DER_BASE64, "base64")],
-        false,
-        environment as Environment,
-        env.APPLE_APP_BUNDLE_ID,
-        environment === "Production" ? Number(env.APPLE_APP_ID) : undefined,
-      );
+      const verifier = await verifierFor(signedPayload);
       const notification = await verifier
         .verifyAndDecodeNotification(signedPayload);
       const signedTransaction = notification.data?.signedTransactionInfo;
@@ -144,11 +139,11 @@ async function entitlementForUser(db: D1Database, userId: string): Promise<Produ
 }
 
 async function reconcileTransaction(
-  db: D1Database,
+  env: Env,
   userId: string,
   transaction: VerifiedAppleTransaction,
 ): Promise<void> {
-  if (transaction.bundleId !== "com.serpcompany.chaching") {
+  if (transaction.bundleId !== env.APPLE_APP_BUNDLE_ID) {
     throw new Response(JSON.stringify({ error: "Apple transaction is for a different app" }), {
       status: 422,
       headers: { "content-type": "application/json" },
@@ -160,14 +155,14 @@ async function reconcileTransaction(
       headers: { "content-type": "application/json" },
     });
   }
-  const entitlement = await entitlementForUser(db, userId);
+  const entitlement = await entitlementForUser(env.DB, userId);
   if (!transaction.appAccountToken || transaction.appAccountToken !== entitlement.app_account_token) {
     throw new Response(JSON.stringify({ error: "This purchase belongs to a different Cha-Ching account" }), {
       status: 409,
       headers: { "content-type": "application/json" },
     });
   }
-  await db.prepare(
+  await env.DB.prepare(
     `UPDATE product_entitlements SET
        provider_product_id = ?1,
        provider_original_transaction_id = ?2,
@@ -204,9 +199,7 @@ export async function getProductAccess(
     ? null
     : row.provider_product_id === null
       ? "start_free_trial"
-      : row.revoked_at === null
-        ? "update_billing"
-        : "subscribe_again";
+      : "subscribe_again";
   return {
     access: isActive ? "full_access" : "subscription_required",
     action,
@@ -216,19 +209,21 @@ export async function getProductAccess(
 }
 
 export async function hasProductAccess(
-  db: D1Database,
+  env: Env,
   userId: string,
   now = Date.now(),
 ): Promise<boolean> {
-  const row = await db.prepare(
+  if (env.PRODUCT_ACCESS_ENFORCEMENT !== "enabled") return true;
+  const row = await env.DB.prepare(
     `SELECT 1 AS active FROM product_entitlements
      WHERE user_id = ?1 AND revoked_at IS NULL AND access_expires_at > ?2`,
   ).bind(userId, now).first<{ active: number }>();
   return row?.active === 1;
 }
 
-export async function requireProductAccess(db: D1Database, userId: string): Promise<void> {
-  const access = await getProductAccess(db, userId);
+export async function requireProductAccess(env: Env, userId: string): Promise<void> {
+  if (env.PRODUCT_ACCESS_ENFORCEMENT !== "enabled") return;
+  const access = await getProductAccess(env.DB, userId);
   if (access.access === "full_access") return;
   throw new Response(JSON.stringify({ error: "Subscription required", action: access.action }), {
     status: 403,
@@ -254,7 +249,7 @@ export async function handleSubscriptionRequest(
       return Response.json({ error: "A signed Apple transaction is required" }, { status: 400 });
     }
     const transaction = await signedDataVerifier.verifyTransaction(body.signedTransaction);
-    await reconcileTransaction(env.DB, user.id, transaction);
+    await reconcileTransaction(env, user.id, transaction);
     return Response.json(await getProductAccess(env.DB, user.id));
   }
   return Response.json({ error: "Not found" }, { status: 404 });
@@ -276,6 +271,6 @@ export async function handleAppleSubscriptionNotification(
     "SELECT user_id FROM product_entitlements WHERE app_account_token = ?1",
   ).bind(transaction.appAccountToken).first<{ user_id: string }>();
   if (!entitlement) return new Response(null, { status: 204 });
-  await reconcileTransaction(env.DB, entitlement.user_id, transaction);
+  await reconcileTransaction(env, entitlement.user_id, transaction);
   return new Response(null, { status: 204 });
 }

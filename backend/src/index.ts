@@ -102,7 +102,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
   if (url.pathname.startsWith("/v1/")) {
     const user = await requireUser(auth, request);
-    await requireProductAccess(env.DB, user.id);
+    await requireProductAccess(env, user.id);
   }
   if (
     url.pathname === "/v1/custom-sources"

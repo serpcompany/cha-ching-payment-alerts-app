@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { Auth } from "../src/auth";
 import type { Env } from "../src/env";
-import { handleAppleSubscriptionNotification, handleSubscriptionRequest } from "../src/subscriptions";
+import { appleSignedDataVerifier, handleAppleSubscriptionNotification, handleSubscriptionRequest, hasProductAccess } from "../src/subscriptions";
 import type { AppleSignedDataVerifier } from "../src/subscriptions";
 
 function authFor(userId: string): Auth {
@@ -56,7 +56,12 @@ describe("subscription HTTP interface", () => {
     await db.prepare(
       "INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?4)",
     ).bind("user-one", "Founder", "founder@example.test", Date.now()).run();
-    env = { DB: db } as unknown as Env;
+    env = {
+      DB: db,
+      APPLE_APP_BUNDLE_ID: "com.serpcompany.chaching",
+      APPLE_APP_ID: "6800029282",
+      PRODUCT_ACCESS_ENFORCEMENT: "enabled",
+    } as unknown as Env;
   });
 
   afterEach(async () => {
@@ -92,6 +97,22 @@ describe("subscription HTTP interface", () => {
       productId: "com.serpcompany.chaching.annual",
     });
     expect(secondBody.appAccountToken).toBe(firstBody.appAccountToken);
+  });
+
+  it("rejects unsigned Xcode transaction data instead of bypassing Apple signature verification", async () => {
+    const payload = Buffer.from(JSON.stringify({ environment: "Xcode" })).toString("base64url");
+    const unsigned = `${Buffer.from("{}").toString("base64url")}.${payload}.unsigned`;
+
+    await expect(appleSignedDataVerifier(env).verifyTransaction(unsigned)).rejects.toThrow(
+      "Signed Apple data must come from Apple's Production or Sandbox environment",
+    );
+  });
+
+  it("keeps existing users ungated while staged enforcement is disabled", async () => {
+    env.PRODUCT_ACCESS_ENFORCEMENT = "disabled";
+    expect(await hasProductAccess(env, "user-one")).toBe(true);
+    env.PRODUCT_ACCESS_ENFORCEMENT = "enabled";
+    expect(await hasProductAccess(env, "user-one")).toBe(false);
   });
 
   it("grants Full access only after the backend verifies a current Apple transaction", async () => {

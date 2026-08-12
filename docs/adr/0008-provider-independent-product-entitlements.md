@@ -13,6 +13,8 @@ Cha-Ching translates verified billing-provider state into a provider-independent
 
 Apple transactions are associated with one authenticated Cha-Ching user through a stable `appAccountToken`. Purchase and restore submit signed transaction data to the Worker. The Worker verifies Apple data and records the product, transaction identity, expiration, revocation, and verification time. App Store Server Notifications V2 use the same reconciliation path. Apple-specific lifecycle values stay inside the subscription adapter.
 
+Only Apple Production and Sandbox signed data are accepted by the Worker. Xcode/local-testing payloads are rejected because Apple's server library intentionally does not signature-verify those environments. Production enforcement is a staged runtime policy: subscription endpoints ship first with enforcement disabled, the matching TestFlight client completes a signed sandbox purchase or restore, then enforcement may be enabled.
+
 The public access result is only **Full access** or **Subscription required**, plus a customer-facing action. Effective feature access requires both current product access and the relevant feature entitlement. Access ends at the last verified expiration or immediately on a verified refund or revocation. Events arriving while access is off are ignored without backfill.
 
 Deleting an account deletes its entitlement data but does not cancel Apple billing. Before deletion confirmation, the app explains that billing continues separately and offers Apple's subscription-management action.

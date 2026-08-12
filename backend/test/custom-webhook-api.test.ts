@@ -73,6 +73,7 @@ describe("custom payment source HTTP API", () => {
         }),
       },
       PUBLIC_BASE_URL: "https://api.cha-ching.test",
+      PRODUCT_ACCESS_ENFORCEMENT: "enabled",
       PROVIDER_TOKEN_ENCRYPTION_KEY: encryptionKey,
     } as unknown as Env;
   });

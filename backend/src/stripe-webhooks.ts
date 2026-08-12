@@ -194,7 +194,7 @@ async function ingestSale(env: Env, event: StripeEvent, sale: NormalizedStripeSa
     console.log(JSON.stringify({ message: "stripe.event.ignored", eventId: event.id, reason: "connection_paused" }));
     return;
   }
-  if (!(await hasProductAccess(env.DB, connection.user_id))) {
+  if (!(await hasProductAccess(env, connection.user_id))) {
     await recordEvent(env, event, connection.user_id, "ignored");
     console.log(JSON.stringify({ message: "stripe.event.ignored", eventId: event.id, reason: "subscription_required" }));
     return;

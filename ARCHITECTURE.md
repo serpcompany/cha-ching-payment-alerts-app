@@ -18,7 +18,7 @@
 5. The provider returns to the Worker. The Worker consumes the one-time state and rechecks entitlement. Stripe App installs are verified with the app signing secret; production installs must also pass a live-mode, read-only Charge probe before the account ID is stored. Providers that issue OAuth tokens are exchanged and encrypted.
 6. The Worker redirects to `chaching://oauth-callback`; iOS refreshes connection state from D1.
 
-Every authenticated product API except subscription status and reconciliation requires both current product access and any feature-specific entitlement. The iOS app renders the backend's `full_access` or `subscription_required` result; StoreKit purchase state is never an authorization source.
+Every authenticated product API except identity bootstrap (`/v1/me`), subscription status, and subscription reconciliation requires both current product access and any feature-specific entitlement once product enforcement is enabled. The iOS app renders the backend's `full_access` or `subscription_required` result; StoreKit purchase state is never an authorization source. Production first deploys subscription reconciliation with `PRODUCT_ACCESS_ENFORCEMENT=disabled`, distributes the matching client, and enables enforcement only after a signed-device sandbox purchase or restore succeeds end to end.
 
 ## Subscription flow
 

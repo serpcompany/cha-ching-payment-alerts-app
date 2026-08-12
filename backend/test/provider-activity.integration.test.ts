@@ -80,6 +80,7 @@ describe("connected provider activity", () => {
     env = {
       DB: db,
       NOTIFICATION_QUEUE: { send: vi.fn(async (message) => queued.push(message as { saleId: string })) },
+      PRODUCT_ACCESS_ENFORCEMENT: "enabled",
       STRIPE_WEBHOOK_SECRET: "whsec_provider_activity",
     } as unknown as Env;
   });

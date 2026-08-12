@@ -121,7 +121,7 @@ function sourceConnectionState(row: CustomSourceRow): CustomSourceConnectionStat
 
 async function createSource(env: Env, auth: Auth, request: Request): Promise<Response> {
   const user = await requireUser(auth, request);
-  await requireCustomSourceEntitlement(env.DB, user.id);
+  await requireCustomSourceEntitlement(env, user.id);
   let body: unknown;
   try {
     body = await request.json();
@@ -690,7 +690,7 @@ async function captureWebhookSample(env: Env, request: Request, token: string): 
     if (source.status === "active") await recordActiveWebhookRejection(env, source.id, "Payload too large");
     return Response.json({ error: "Payload too large" }, { status: 413 });
   }
-  if (!(await hasProductAccess(env.DB, source.user_id))) {
+  if (!(await hasProductAccess(env, source.user_id))) {
     await env.DB.prepare(
       `UPDATE custom_payment_sources SET last_event_received_at = CURRENT_TIMESTAMP,
        last_event_status = 'ignored', last_event_error = NULL,

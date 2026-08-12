@@ -32,7 +32,8 @@ struct SubscriptionStoreTests {
                 transactionID: 101
             )) },
             restore: { _ in nil },
-            finish: { _ in }
+            finish: { _ in },
+            updates: { AsyncStream { $0.finish() } }
         )
         let store = SubscriptionStore(accessClient: accessClient, storeKit: storeKit)
 

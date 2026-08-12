@@ -29,6 +29,8 @@ struct ChaChingApp: App {
                         RootTabView()
                     case .subscriptionRequired:
                         SubscriptionGateView()
+                    case .unavailable:
+                        SubscriptionUnavailableView()
                     }
                 } else {
                     SignInView()
@@ -43,6 +45,7 @@ struct ChaChingApp: App {
             .task(id: auth.isSignedIn) {
                 notifications.clearAppBadge()
                 if auth.isSignedIn {
+                    subscription.startListeningForTransactions()
                     await subscription.refresh()
                     guard subscription.presentation == .fullAccess else { return }
                     async let connections: Void = connectStore.refresh()
@@ -53,6 +56,15 @@ struct ChaChingApp: App {
             }
             .onChange(of: auth.isSignedIn) { _, isSignedIn in
                 if !isSignedIn { subscription.reset() }
+            }
+            .onChange(of: subscription.presentation) { _, presentation in
+                guard presentation == .fullAccess else { return }
+                Task {
+                    async let connections: Void = connectStore.refresh()
+                    async let sales: Void = store.refresh()
+                    _ = await (connections, sales)
+                    notifications.registerIfAuthorized()
+                }
             }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
