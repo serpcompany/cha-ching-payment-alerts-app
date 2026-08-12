@@ -68,7 +68,8 @@ private struct SignedTransactionRequest: Encodable {
 struct SubscriptionStoreKitClient {
     var offer: (_ productID: String) async throws -> SubscriptionOffer
     var purchase: (_ productID: String, _ appAccountToken: UUID) async throws -> StorePurchaseOutcome
-    var restore: (_ productID: String) async throws -> StorePurchase?
+    var currentEntitlement: (_ productID: String) async -> StorePurchase?
+    var sync: () async throws -> Void
     var finish: (_ transactionID: UInt64) async -> Void
     var updates: () -> AsyncStream<StorePurchase>
 
@@ -104,8 +105,7 @@ struct SubscriptionStoreKitClient {
                 return .cancelled
             }
         },
-        restore: { productID in
-            try await AppStore.sync()
+        currentEntitlement: { productID in
             for await verification in Transaction.currentEntitlements {
                 guard case .verified(let transaction) = verification,
                       transaction.productID == productID else { continue }
@@ -116,6 +116,7 @@ struct SubscriptionStoreKitClient {
             }
             return nil
         },
+        sync: { try await AppStore.sync() },
         finish: { transactionID in
             for await verification in Transaction.unfinished {
                 guard case .verified(let transaction) = verification,
@@ -230,16 +231,26 @@ final class SubscriptionStore: ObservableObject {
         isWorking = true
         defer { isWorking = false }
         do {
-            if let purchase = try await storeKit.restore(status.productId) {
-                let reconciled = try await accessClient.sync(purchase.signedTransaction)
-                apply(reconciled)
-                await storeKit.finish(purchase.transactionID)
+            if let purchase = await storeKit.currentEntitlement(status.productId) {
+                try await restore(purchase)
             } else {
-                apply(try await accessClient.status())
+                try await storeKit.sync()
+                if let purchase = await storeKit.currentEntitlement(status.productId) {
+                    try await restore(purchase)
+                } else {
+                    apply(try await accessClient.status())
+                }
             }
         } catch {
-            errorMessage = "Purchases couldn't be restored."
+            let storeError = error as NSError
+            errorMessage = "Purchases couldn't be restored. (\(storeError.domain) \(storeError.code))"
         }
+    }
+
+    private func restore(_ purchase: StorePurchase) async throws {
+        let reconciled = try await accessClient.sync(purchase.signedTransaction)
+        apply(reconciled)
+        await storeKit.finish(purchase.transactionID)
     }
 
     func reset() {
