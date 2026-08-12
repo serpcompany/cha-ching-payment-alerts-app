@@ -8,7 +8,7 @@
 | Feature entitlements | Implemented | `entitlements.md` |
 | Dashboard, navigation, and notification brand | Payments-only MVP dashboard, concurrent-refresh fix, actionable refresh errors, device toggle, crash-safe notification details, non-sticky icon badge, delayed lock test, and dollar icon available in internal TestFlight build 15 | `dashboard-navigation-and-brand.md` |
 | Stripe payment ingestion and notifications | Real live Charge persisted and visibly notified on a signed iPhone | `sale-ingestion-and-notifications.md` |
-| Custom webhook payment sources | Production sender event received; always-visible activation and notification setup available in internal TestFlight build 15; first active live payment acceptance pending | `custom-webhook-payment-sources.md` |
+| Custom webhook payment sources | Active in production; repository adds separate request-health evidence, adaptive quiet-source warnings, and source-routed UI/push alerts (not yet deployed) | `custom-webhook-payment-sources.md` |
 | PayPal payment ingestion and notifications | Not implemented | `sale-ingestion-and-notifications.md` |
 
 “Implemented” describes repository behavior. “Live” requires the production checks tracked in [GitHub Issue #1](https://github.com/serpcompany/cha-ching/issues/1).

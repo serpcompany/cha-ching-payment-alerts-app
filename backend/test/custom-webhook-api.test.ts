@@ -38,7 +38,7 @@ describe("custom payment source HTTP API", () => {
       d1Databases: ["DB"],
     });
     const db = await miniflare.getD1Database("DB");
-    for (const migration of ["0001_initial.sql", "0002_sales_and_notifications.sql", "0003_anonymous_simulator_user.sql", "0004_nullable_provider_access_token.sql", "0005_custom_payment_sources.sql", "0006_provider_connection_activity.sql", "0007_provider_event_disposition.sql", "0008_notification_queue_claims.sql", "0009_custom_notification_fields.sql", "0010_reconcile_custom_payment_history_presentation.sql", "0011_retain_custom_payment_field_values.sql"]) {
+    for (const migration of ["0001_initial.sql", "0002_sales_and_notifications.sql", "0003_anonymous_simulator_user.sql", "0004_nullable_provider_access_token.sql", "0005_custom_payment_sources.sql", "0006_provider_connection_activity.sql", "0007_provider_event_disposition.sql", "0008_notification_queue_claims.sql", "0009_custom_notification_fields.sql", "0010_reconcile_custom_payment_history_presentation.sql", "0011_retain_custom_payment_field_values.sql", "0012_custom_source_health.sql"]) {
       const statements = (await readFile(join(process.cwd(), "migrations", migration), "utf8"))
         .replace(/--.*$/gm, "")
         .split(";")
@@ -168,6 +168,58 @@ describe("custom payment source HTTP API", () => {
     );
     expect(await history.json()).toEqual({ sales: [] });
     expect(sent).toEqual([]);
+  });
+
+  it("reports webhook activity separately from the configured source status", async () => {
+    const create = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/custom-sources", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Health evidence" }),
+      }),
+    );
+    const created = await create.json<{ source: { id: string; webhookUrl: string } }>();
+
+    const before = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
+    );
+    expect((await before.json<{ source: { health: unknown } }>()).source.health).toEqual({
+      status: "awaiting_events",
+      reason: null,
+      lastEventReceivedAt: null,
+      lastPaymentReceivedAt: null,
+      expectedEventBy: null,
+      detail: "No webhook event has been received yet.",
+    });
+
+    await handleCustomSourceRequest(
+      env,
+      authFor("user-two"),
+      new Request(created.source.webhookUrl, {
+        method: "POST",
+        body: JSON.stringify({ id: "setup-health", amount: 900, currency: "USD" }),
+      }),
+    );
+
+    const after = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
+    );
+    expect((await after.json<{
+      source: { health: { status: string; lastEventReceivedAt: string | null; detail: string } };
+    }>()).source.health).toEqual({
+      status: "receiving",
+      reason: null,
+      lastEventReceivedAt: expect.any(String),
+      lastPaymentReceivedAt: null,
+      expectedEventBy: null,
+      detail: "Cha-Ching received a webhook event.",
+    });
   });
 
   it("applies active notification presentation edits to payment history and future payments", async () => {
@@ -1448,6 +1500,43 @@ describe("custom payment source HTTP API", () => {
       new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
     );
     expect((await check.json<{ sample: unknown }>()).sample).toEqual({ error: "Invalid JSON" });
+  });
+
+  it("reports malformed active webhook requests as connection health failures", async () => {
+    const create = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/custom-sources", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Broken active sender" }),
+      }),
+    );
+    const created = await create.json<{ source: { id: string; webhookUrl: string } }>();
+    await env.DB.prepare(
+      "UPDATE custom_payment_sources SET status = 'active' WHERE id = ?1",
+    ).bind(created.source.id).run();
+
+    const malformed = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(created.source.webhookUrl, { method: "POST", body: "{not-json" }),
+    );
+    expect(malformed.status).toBe(400);
+
+    const check = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
+    );
+    expect((await check.json<{ source: { health: unknown } }>()).source.health).toEqual({
+      status: "needs_attention",
+      reason: "rejected",
+      lastEventReceivedAt: expect.any(String),
+      lastPaymentReceivedAt: null,
+      expectedEventBy: null,
+      detail: "Invalid JSON",
+    });
   });
 
   it("rejects an oversized setup payload without creating a sample", async () => {

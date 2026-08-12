@@ -1,5 +1,43 @@
 import Foundation
 
+struct CustomSourceHealth: Decodable, Hashable {
+    let status: Status
+    let reason: Reason?
+    let lastEventReceivedAt: String?
+    let lastPaymentReceivedAt: String?
+    let expectedEventBy: String?
+    let detail: String
+
+    enum Status: String, Decodable {
+        case awaitingEvents = "awaiting_events"
+        case receiving
+        case needsAttention = "needs_attention"
+        case paused
+    }
+
+    enum Reason: String, Decodable {
+        case rejected, quiet
+    }
+
+    var statusTitle: String {
+        switch status {
+        case .awaitingEvents: "Waiting for events"
+        case .receiving: "Receiving events"
+        case .needsAttention: "Needs checking"
+        case .paused: "Monitoring paused"
+        }
+    }
+
+    var lastEventDate: Date? { Self.date(from: lastEventReceivedAt) }
+    var lastPaymentDate: Date? { Self.date(from: lastPaymentReceivedAt) }
+
+    private static func date(from value: String?) -> Date? {
+        guard let value else { return nil }
+        let normalized = value.contains("T") ? value : value.replacingOccurrences(of: " ", with: "T") + "Z"
+        return try? Date(normalized, strategy: .iso8601)
+    }
+}
+
 struct CustomPaymentSource: Identifiable, Decodable, Hashable {
     let id: String
     let name: String
@@ -8,6 +46,16 @@ struct CustomPaymentSource: Identifiable, Decodable, Hashable {
     let webhookUrl: URL
     let createdAt: String
     let updatedAt: String
+    var health: CustomSourceHealth? = nil
+
+    var displayedStatusTitle: String {
+        if status == .active, let health { return health.statusTitle }
+        return connectionState.title
+    }
+
+    var needsAttention: Bool {
+        status == .active && health?.status == .needsAttention
+    }
 
     enum Status: String, Decodable {
         case setup, active, paused

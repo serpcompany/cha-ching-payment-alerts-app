@@ -47,6 +47,12 @@ struct RootTabView: View {
         .onChange(of: notifications.openedSaleID) { _, saleID in
             if saleID != nil { selectedTab = .dashboard }
         }
+        .onChange(of: notifications.openedCustomSourceID) { _, sourceID in
+            if sourceID != nil { selectedTab = .connect }
+        }
+        .task(id: notifications.openedCustomSourceID) {
+            if notifications.openedCustomSourceID != nil { selectedTab = .connect }
+        }
         .sheet(item: foregroundNotificationBinding) { notification in
             ForegroundPaymentNotificationView(notification: notification)
         }

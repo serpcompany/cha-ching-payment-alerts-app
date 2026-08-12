@@ -3,6 +3,7 @@ import { requireUser } from "./auth";
 import { decryptSecret, encryptSecret, randomToken, sha256 } from "./crypto";
 import { requireCustomSourceEntitlement } from "./entitlements";
 import type { Env } from "./env";
+import { classifyCustomSourceHealth } from "./custom-source-health";
 import { enqueueSaleNotification } from "./notification-queue";
 import { formatMinorAmount, notificationFieldsBody, sendTestNotification } from "./notifications";
 import type { TestNotificationMessage } from "./notifications";
@@ -59,6 +60,10 @@ interface CustomSourceRow {
   sample_received_at?: string | null;
   sample_error?: string | null;
   mapping_json?: string | null;
+  last_event_received_at?: string | null;
+  last_event_status?: "received" | "accepted" | "duplicate" | "rejected" | "ignored" | null;
+  last_event_error?: string | null;
+  last_payment_received_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -83,11 +88,25 @@ function webhookURL(env: Env, token: string): string {
 
 async function publicSource(env: Env, row: CustomSourceRow) {
   const token = await decryptSecret(row.webhook_token_ciphertext, env.PROVIDER_TOKEN_ENCRYPTION_KEY);
+  const recentPayments = row.status === "active"
+    ? await env.DB.prepare(
+      `SELECT created_at FROM sales WHERE provider = 'custom' AND provider_account_id = ?1
+       ORDER BY created_at DESC LIMIT 10`,
+    ).bind(row.id).all<{ created_at: string }>()
+    : { results: [] as Array<{ created_at: string }> };
   return {
     id: row.id,
     name: row.name,
     status: row.status,
     connectionState: sourceConnectionState(row),
+    health: classifyCustomSourceHealth({
+      status: row.status,
+      lastEventReceivedAt: row.last_event_received_at ?? null,
+      lastEventStatus: row.last_event_status ?? null,
+      lastEventError: row.last_event_error ?? null,
+      lastPaymentReceivedAt: row.last_payment_received_at ?? null,
+      recentPaymentTimes: recentPayments.results.map((payment) => payment.created_at),
+    }),
     webhookUrl: webhookURL(env, token),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -126,7 +145,9 @@ async function createSource(env: Env, auth: Auth, request: Request): Promise<Res
     ) VALUES (?1, ?2, ?3, 'setup', ?4, ?5)`,
   ).bind(id, user.id, name, tokenHash, tokenCiphertext).run();
   const row = await env.DB.prepare(
-    `SELECT id, name, status, webhook_token_ciphertext, sample_received_at, created_at, updated_at
+    `SELECT id, name, status, webhook_token_ciphertext, sample_received_at,
+            last_event_received_at, last_event_status, last_event_error,
+            last_payment_received_at, created_at, updated_at
      FROM custom_payment_sources WHERE id = ?1 AND user_id = ?2`,
   ).bind(id, user.id).first<CustomSourceRow>();
   return Response.json({ source: await publicSource(env, row!) }, { status: 201 });
@@ -135,7 +156,9 @@ async function createSource(env: Env, auth: Auth, request: Request): Promise<Res
 async function listSources(env: Env, auth: Auth, request: Request): Promise<Response> {
   const user = await requireUser(auth, request);
   const result = await env.DB.prepare(
-    `SELECT id, name, status, webhook_token_ciphertext, sample_received_at, created_at, updated_at
+    `SELECT id, name, status, webhook_token_ciphertext, sample_received_at,
+            last_event_received_at, last_event_status, last_event_error,
+            last_payment_received_at, created_at, updated_at
      FROM custom_payment_sources WHERE user_id = ?1 ORDER BY created_at, id`,
   ).bind(user.id).all<CustomSourceRow>();
   return Response.json({ sources: await Promise.all(result.results.map((row) => publicSource(env, row))) });
@@ -158,7 +181,9 @@ async function getSource(env: Env, auth: Auth, request: Request, sourceId: strin
   const user = await requireUser(auth, request);
   const row = await env.DB.prepare(
     `SELECT id, name, status, webhook_token_ciphertext, sample_payload_ciphertext,
-            sample_received_at, sample_error, mapping_json, created_at, updated_at
+            sample_received_at, sample_error, mapping_json, last_event_received_at,
+            last_event_status, last_event_error, last_payment_received_at,
+            created_at, updated_at
      FROM custom_payment_sources WHERE id = ?1 AND user_id = ?2`,
   ).bind(sourceId, user.id).first<CustomSourceRow>();
   if (!row) return Response.json({ error: "Payment source not found" }, { status: 404 });
@@ -469,7 +494,8 @@ async function activateSource(env: Env, auth: Auth, request: Request, sourceId: 
     `UPDATE custom_payment_sources SET status = 'active', sample_payload_ciphertext = NULL,
       sample_received_at = NULL, sample_error = NULL, updated_at = CURRENT_TIMESTAMP
      WHERE id = ?1 AND user_id = ?2 AND status = 'setup' AND mapping_json = ?3
-     RETURNING id, name, status, webhook_token_ciphertext, created_at, updated_at`,
+     RETURNING id, name, status, webhook_token_ciphertext, last_event_received_at,
+       last_event_status, last_event_error, last_payment_received_at, created_at, updated_at`,
   ).bind(sourceId, user.id, mappingJSON).first<CustomSourceRow>();
   if (!updated) {
     return Response.json({ error: "Complete a valid field mapping before activation" }, { status: 409 });
@@ -607,7 +633,8 @@ async function setSourceStatus(
   const row = await env.DB.prepare(
     `UPDATE custom_payment_sources SET status = ?1, updated_at = CURRENT_TIMESTAMP
      WHERE id = ?2 AND user_id = ?3 AND status IN ('active', 'paused')
-     RETURNING id, name, status, webhook_token_ciphertext, created_at, updated_at`,
+     RETURNING id, name, status, webhook_token_ciphertext, last_event_received_at,
+       last_event_status, last_event_error, last_payment_received_at, created_at, updated_at`,
   ).bind(status, sourceId, user.id).first<CustomSourceRow>();
   if (!row) return Response.json({ error: "Payment source not found" }, { status: 404 });
   return Response.json({ source: await publicSource(env, row) });
@@ -629,17 +656,22 @@ async function regenerateWebhookURL(
     `UPDATE custom_payment_sources SET webhook_token_hash = ?1,
       webhook_token_ciphertext = ?2, updated_at = CURRENT_TIMESTAMP
      WHERE id = ?3 AND user_id = ?4
-     RETURNING id, name, status, webhook_token_ciphertext, created_at, updated_at`,
+     RETURNING id, name, status, webhook_token_ciphertext, last_event_received_at,
+       last_event_status, last_event_error, last_payment_received_at, created_at, updated_at`,
   ).bind(tokenHash, tokenCiphertext, sourceId, user.id).first<CustomSourceRow>();
   if (!row) return Response.json({ error: "Payment source not found" }, { status: 404 });
   return Response.json({ source: await publicSource(env, row) });
 }
 
+async function recordActiveWebhookRejection(env: Env, sourceId: string, message: string): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE custom_payment_sources SET last_event_received_at = CURRENT_TIMESTAMP,
+     last_event_status = 'rejected', last_event_error = ?1,
+     updated_at = CURRENT_TIMESTAMP WHERE id = ?2 AND status = 'active'`,
+  ).bind(message, sourceId).run();
+}
+
 async function captureWebhookSample(env: Env, request: Request, token: string): Promise<Response> {
-  const contentLength = Number(request.headers.get("content-length") ?? "0");
-  if (contentLength > MAX_CUSTOM_WEBHOOK_BYTES) {
-    return Response.json({ error: "Payload too large" }, { status: 413 });
-  }
   const tokenHash = await sha256(token);
   const source = await env.DB.prepare(
     `SELECT id, user_id, name, status, mapping_json
@@ -652,25 +684,46 @@ async function captureWebhookSample(env: Env, request: Request, token: string): 
     mapping_json: string | null;
   }>();
   if (!source) return Response.json({ error: "Webhook not found" }, { status: 404 });
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (contentLength > MAX_CUSTOM_WEBHOOK_BYTES) {
+    if (source.status === "active") await recordActiveWebhookRejection(env, source.id, "Payload too large");
+    return Response.json({ error: "Payload too large" }, { status: 413 });
+  }
   const raw = await request.text();
   if (new TextEncoder().encode(raw).byteLength > MAX_CUSTOM_WEBHOOK_BYTES) {
-    await env.DB.prepare(
-      "UPDATE custom_payment_sources SET sample_error = 'Payload too large', updated_at = CURRENT_TIMESTAMP WHERE id = ?1 AND status = 'setup'",
-    ).bind(source.id).run();
+    if (source.status === "active") await recordActiveWebhookRejection(env, source.id, "Payload too large");
+    else if (source.status === "setup") {
+      await env.DB.prepare(
+        "UPDATE custom_payment_sources SET sample_error = 'Payload too large', updated_at = CURRENT_TIMESTAMP WHERE id = ?1",
+      ).bind(source.id).run();
+    }
     return Response.json({ error: "Payload too large" }, { status: 413 });
   }
   let payload: unknown;
   try {
     payload = JSON.parse(raw);
   } catch {
-    await env.DB.prepare(
-      "UPDATE custom_payment_sources SET sample_error = 'Invalid JSON', updated_at = CURRENT_TIMESTAMP WHERE id = ?1 AND status = 'setup'",
-    ).bind(source.id).run();
+    if (source.status === "active") await recordActiveWebhookRejection(env, source.id, "Invalid JSON");
+    else if (source.status === "setup") {
+      await env.DB.prepare(
+        "UPDATE custom_payment_sources SET sample_error = 'Invalid JSON', updated_at = CURRENT_TIMESTAMP WHERE id = ?1",
+      ).bind(source.id).run();
+    }
     return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  if (source.status === "paused") return Response.json({ received: true, ignored: "paused" }, { status: 202 });
+  if (source.status === "paused") {
+    await env.DB.prepare(
+      `UPDATE custom_payment_sources SET last_event_received_at = CURRENT_TIMESTAMP,
+       last_event_status = 'ignored', last_event_error = NULL,
+       health_alerted_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?1`,
+    ).bind(source.id).run();
+    return Response.json({ received: true, ignored: "paused" }, { status: 202 });
+  }
   if (source.status === "active") {
-    if (!source.mapping_json) return Response.json({ error: "Payment source mapping is missing" }, { status: 409 });
+    if (!source.mapping_json) {
+      await recordActiveWebhookRejection(env, source.id, "Payment source mapping is missing");
+      return Response.json({ error: "Payment source mapping is missing" }, { status: 409 });
+    }
     let normalized: NormalizedCustomPayment;
     let notificationFields: NotificationFieldPreview[] | undefined;
     try {
@@ -687,6 +740,7 @@ async function captureWebhookSample(env: Env, request: Request, token: string): 
         sourceId: source.id,
         reason: message,
       }));
+      await recordActiveWebhookRejection(env, source.id, message);
       return Response.json({ error: message }, { status: 422 });
     }
     const paymentFingerprint = await sha256(`${source.id}\u0000${normalized.paymentId}`);
@@ -723,6 +777,13 @@ async function captureWebhookSample(env: Env, request: Request, token: string): 
         : null,
     ).run();
     const queued = await enqueueSaleNotification(env, saleId);
+    await env.DB.prepare(
+      `UPDATE custom_payment_sources SET last_event_received_at = CURRENT_TIMESTAMP,
+       last_event_status = ?1, last_event_error = NULL,
+       last_payment_received_at = CASE WHEN ?1 = 'accepted' THEN CURRENT_TIMESTAMP
+         ELSE last_payment_received_at END,
+       health_alerted_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?2`,
+    ).bind(queued ? "accepted" : "duplicate", source.id).run();
     return Response.json({ received: true, duplicate: !queued }, { status: 202 });
   }
   const fields = flattenWebhookPayload(payload);
@@ -735,7 +796,9 @@ async function captureWebhookSample(env: Env, request: Request, token: string): 
   const encrypted = await encryptSecret(JSON.stringify(payload), env.PROVIDER_TOKEN_ENCRYPTION_KEY);
   await env.DB.prepare(
     `UPDATE custom_payment_sources SET sample_payload_ciphertext = ?1,
-      sample_received_at = CURRENT_TIMESTAMP, sample_error = NULL, updated_at = CURRENT_TIMESTAMP
+      sample_received_at = CURRENT_TIMESTAMP, sample_error = NULL,
+      last_event_received_at = CURRENT_TIMESTAMP, last_event_status = 'received',
+      last_event_error = NULL, health_alerted_at = NULL, updated_at = CURRENT_TIMESTAMP
      WHERE id = ?2 AND status = 'setup'`,
   ).bind(encrypted, source.id).run();
   return Response.json({ received: true, sampleCaptured: true }, { status: 202 });

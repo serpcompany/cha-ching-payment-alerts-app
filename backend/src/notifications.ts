@@ -15,7 +15,16 @@ export interface TestNotificationMessage {
   };
 }
 
-export type NotificationMessage = SaleNotificationMessage | TestNotificationMessage;
+export interface ConnectionHealthNotificationMessage {
+  connectionHealth: {
+    userId: string;
+    sourceId: string;
+    sourceName: string;
+    body: string;
+  };
+}
+
+export type NotificationMessage = SaleNotificationMessage | TestNotificationMessage | ConnectionHealthNotificationMessage;
 
 export const PAYMENT_NOTIFICATION_SOUND = "cash-register.caf";
 
@@ -148,6 +157,58 @@ export async function sendTestNotification(
         },
         testNotification: true,
         ...(saleId ? { saleId } : {}),
+      }),
+    });
+    if (response.ok) {
+      sent += 1;
+      continue;
+    }
+    const payload = (await response.json().catch(() => null)) as { reason?: string } | null;
+    if (invalidToken(response.status, payload?.reason ?? null)) {
+      await env.DB.prepare(
+        "UPDATE device_tokens SET status = 'invalid', updated_at = CURRENT_TIMESTAMP WHERE id = ?1",
+      ).bind(device.id).run();
+    } else if (retryable(response.status, payload?.reason ?? null)) {
+      shouldRetry = true;
+    }
+  }
+  return { registered: devices.results.length, sent, shouldRetry };
+}
+
+async function sendConnectionHealthNotification(
+  env: Env,
+  notification: ConnectionHealthNotificationMessage["connectionHealth"],
+): Promise<TestNotificationResult> {
+  const devices = await env.DB.prepare(
+    "SELECT id, token, environment FROM device_tokens WHERE user_id = ?1 AND status = 'active'",
+  ).bind(notification.userId).all<DeviceRow>();
+  if (devices.results.length === 0) return { registered: 0, sent: 0, shouldRetry: false };
+  if (!env.APNS_KEY_ID || !env.APNS_PRIVATE_KEY) throw new Error("APNs is not configured");
+  const providerToken = await apnsProviderToken(env);
+  let sent = 0;
+  let shouldRetry = false;
+  for (const device of devices.results) {
+    const host = device.environment === "production" ? "api.push.apple.com" : "api.sandbox.push.apple.com";
+    const response = await fetch(`https://${host}/3/device/${device.token}`, {
+      method: "POST",
+      headers: {
+        authorization: `bearer ${providerToken}`,
+        "apns-topic": env.APNS_BUNDLE_ID,
+        "apns-push-type": "alert",
+        "apns-priority": "10",
+        "apns-id": crypto.randomUUID(),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        aps: {
+          alert: {
+            title: "Payment source needs checking",
+            body: `${notification.sourceName}: ${notification.body}`,
+          },
+          sound: "default",
+        },
+        connectionHealth: true,
+        sourceId: notification.sourceId,
       }),
     });
     if (response.ok) {
@@ -328,17 +389,33 @@ function isTestMessage(value: unknown): value is TestNotificationMessage {
   );
 }
 
+function isConnectionHealthMessage(value: unknown): value is ConnectionHealthNotificationMessage {
+  if (!value || typeof value !== "object") return false;
+  const health = (value as Record<string, unknown>).connectionHealth;
+  return Boolean(
+    health && typeof health === "object"
+      && typeof (health as Record<string, unknown>).userId === "string"
+      && typeof (health as Record<string, unknown>).sourceId === "string"
+      && typeof (health as Record<string, unknown>).sourceName === "string"
+      && typeof (health as Record<string, unknown>).body === "string",
+  );
+}
+
 export async function processNotificationBatch(
   env: Env,
   batch: MessageBatch<NotificationMessage>,
 ): Promise<void> {
   for (const message of batch.messages) {
-    if (!isSaleMessage(message.body) && !isTestMessage(message.body)) {
+    if (!isSaleMessage(message.body) && !isTestMessage(message.body) && !isConnectionHealthMessage(message.body)) {
       message.ack();
       continue;
     }
     try {
-      if (isTestMessage(message.body)) {
+      if (isConnectionHealthMessage(message.body)) {
+        const result = await sendConnectionHealthNotification(env, message.body.connectionHealth);
+        if (result.shouldRetry) message.retry({ delaySeconds: 60 });
+        else message.ack();
+      } else if (isTestMessage(message.body)) {
         const result = await sendTestNotification(
           env,
           message.body.testNotification.userId,
@@ -355,7 +432,9 @@ export async function processNotificationBatch(
     } catch (error) {
       const reference = isSaleMessage(message.body)
         ? { saleId: message.body.saleId }
-        : { testNotificationUserId: message.body.testNotification.userId };
+        : isConnectionHealthMessage(message.body)
+          ? { connectionHealthSourceId: message.body.connectionHealth.sourceId }
+          : { testNotificationUserId: message.body.testNotification.userId };
       console.error(JSON.stringify({
         message: "notification.delivery.failed",
         ...reference,

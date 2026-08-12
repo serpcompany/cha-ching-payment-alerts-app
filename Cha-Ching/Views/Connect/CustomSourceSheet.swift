@@ -167,6 +167,46 @@ struct CustomSourceSheet: View {
                 .foregroundStyle(.secondary)
         }
 
+        if let health = source.health {
+            Section("Connection health") {
+                Label {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(health.statusTitle)
+                            .fontWeight(.semibold)
+                        Text(health.detail)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: health.status == .needsAttention
+                          ? "exclamationmark.triangle.fill"
+                          : health.status == .receiving
+                            ? "wave.3.right.circle.fill"
+                            : "clock")
+                        .foregroundStyle(health.status == .needsAttention ? Theme.gold : Theme.accent)
+                }
+
+                if let lastEvent = health.lastEventDate {
+                    LabeledContent("Last webhook request") {
+                        Text(lastEvent.formatted(date: .abbreviated, time: .shortened))
+                    }
+                }
+                if let lastPayment = health.lastPaymentDate {
+                    LabeledContent("Last accepted payment") {
+                        Text(lastPayment.formatted(date: .abbreviated, time: .shortened))
+                    }
+                }
+
+                Text("Active means Cha-Ching is ready to receive events. Health reflects the requests that actually reached this URL.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                actionButton("Refresh connection health", systemImage: "arrow.clockwise") {
+                    await checkConnection()
+                }
+            }
+        }
+
         Section("Notifications") {
             NavigationLink {
                 CustomNotificationSettingsView(

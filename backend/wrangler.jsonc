@@ -9,6 +9,9 @@
     "logs": { "head_sampling_rate": 1 },
     "traces": { "enabled": true, "head_sampling_rate": 0.05 }
   },
+  "triggers": {
+    "crons": ["17 * * * *"]
+  },
   "vars": {
     "ENVIRONMENT": "production",
     "PUBLIC_BASE_URL": "https://cha-ching-api.serpcompany.workers.dev",

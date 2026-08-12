@@ -25,9 +25,14 @@ The canonical Matt Pocock skill labels are used without aliases. See `docs/agent
 
 This repository uses a single-context domain layout. See `docs/agents/domain.md`.
 
+### Cross-project debugging
+
+Read-only inspection of related projects and Cloudflare resources is permitted when needed to trace this app's integrations. See `docs/agents/debugging-access.md` for the strict mutation boundary.
+
 ## Repository rules
 
 - Work on feature branches; do not commit directly to `main`.
+- Do not change code, configuration, data, deployments, or infrastructure outside this repository. Related projects and their Cloudflare resources are read-only debugging inputs.
 - Preserve provider secrets outside git. `.dev.vars` and Worker secrets are the supported locations.
 - Run `pnpm check` and a Wrangler dry run from `backend/` after Worker changes.
 - Regenerate the Xcode project with `xcodegen generate` after changing `project.yml`.

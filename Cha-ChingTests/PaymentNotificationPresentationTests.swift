@@ -31,6 +31,16 @@ struct PaymentNotificationPresentationTests {
         #expect(destination == .dashboardPayment(id: "sale-custom-123"))
     }
 
+    @Test func aConnectionWarningTargetsTheAffectedSource() {
+        let destination = PaymentNotificationResponseRouter.destination(
+            userInfo: ["connectionHealth": true, "sourceId": "source-quiet"],
+            title: "Payment source needs checking",
+            body: "SERP Store has not sent a webhook recently."
+        )
+
+        #expect(destination == .connectSource(id: "source-quiet"))
+    }
+
     @Test @MainActor func openingANotificationClearsTheAppBadge() async {
         let probe = BadgeClearProbe()
 

@@ -23,6 +23,7 @@ import {
 import { homePage, privacyPage, termsPage } from "./legal";
 import { processNotificationBatch } from "./notifications";
 import type { NotificationMessage } from "./notifications";
+import { monitorCustomSourceHealth } from "./custom-source-health";
 import { listSales } from "./sales";
 import { handleStripeWebhook } from "./stripe-webhooks";
 
@@ -137,5 +138,8 @@ export default {
   },
   async queue(batch: MessageBatch<NotificationMessage>, env: Env): Promise<void> {
     await processNotificationBatch(env, batch);
+  },
+  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+    await monitorCustomSourceHealth(env);
   },
 } satisfies ExportedHandler<Env, NotificationMessage>;
