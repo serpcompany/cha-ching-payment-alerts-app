@@ -2,38 +2,118 @@ import Combine
 import Foundation
 
 @MainActor
-final class CustomSourceHealthRefreshFeedback: ObservableObject {
+final class CustomSourceActivityCheckFeedback: ObservableObject {
+    enum Severity: Equatable {
+        case informative
+        case positive
+        case warning
+        case error
+    }
+
+    enum Outcome: Equatable {
+        case quiet(hasNewActivity: Bool)
+        case rejected(detail: String, hasNewActivity: Bool)
+        case warningCleared
+        case receiving(hasNewActivity: Bool)
+        case awaitingEvents
+        case unknownWarning
+        case unavailable
+
+        var presentation: Presentation {
+            switch self {
+            case .quiet(let hasNewActivity):
+                Presentation(
+                    message: hasNewActivity
+                        ? "A newer webhook request arrived, but activity still needs checking."
+                        : "Still needs checking. No new webhook request has reached Cha-Ching.",
+                    guidance: "This does not prove the sender is disconnected. Verify the sender is using this webhook URL, then send or retry an event.",
+                    severity: .warning
+                )
+            case .rejected(let detail, let hasNewActivity):
+                Presentation(
+                    message: hasNewActivity
+                        ? "A newer webhook request arrived, but it was rejected."
+                        : "Still needs checking. No newer webhook request has arrived; the latest request was rejected.",
+                    guidance: "\(detail) Fix the sender payload, then resend it to this webhook URL.",
+                    severity: .warning
+                )
+            case .warningCleared:
+                Presentation(
+                    message: "New webhook activity received. The previous warning is cleared.",
+                    guidance: "The latest request reached Cha-Ching. Its time is shown above.",
+                    severity: .positive
+                )
+            case .receiving(let hasNewActivity):
+                Presentation(
+                    message: hasNewActivity
+                        ? "New webhook activity received."
+                        : "No newer webhook request has arrived.",
+                    guidance: "The most recent request shown above reached Cha-Ching. This check does not contact the sender.",
+                    severity: .positive
+                )
+            case .awaitingEvents:
+                Presentation(
+                    message: "Still waiting. No webhook request has reached Cha-Ching.",
+                    guidance: "Send an event to this webhook URL, then check again.",
+                    severity: .informative
+                )
+            case .unknownWarning:
+                Presentation(
+                    message: "Still needs checking. Cha-Ching couldn't interpret the warning reason.",
+                    guidance: "Review the latest request evidence above before changing the sender.",
+                    severity: .warning
+                )
+            case .unavailable:
+                Presentation(
+                    message: "Couldn't interpret the latest webhook activity.",
+                    guidance: "Showing the last known status.",
+                    severity: .warning
+                )
+            }
+        }
+    }
+
+    struct Presentation: Equatable {
+        let message: String
+        let guidance: String
+        let severity: Severity
+    }
+
     enum State: Equatable {
         case idle
         case refreshing
-        case refreshed(at: Date)
+        case checked(at: Date)
         case failed
     }
 
     @Published private(set) var state: State = .idle
+    @Published private(set) var outcome: Outcome?
 
     var isRefreshing: Bool { state == .refreshing }
 
     var buttonTitle: String {
-        isRefreshing ? "Refreshing connection health…" : "Refresh connection health"
+        isRefreshing ? "Checking for new webhook activity…" : "Check for new webhook activity"
     }
 
-    var refreshedAt: Date? {
-        guard case .refreshed(let date) = state else { return nil }
+    var checkedAt: Date? {
+        guard case .checked(let date) = state else { return nil }
         return date
     }
 
-    var didFail: Bool { state == .failed }
-
     var statusMessage: String? {
         switch state {
-        case .refreshed:
-            return "Connection health refreshed."
+        case .checked: outcome?.presentation.message
         case .failed:
-            return "Connection health couldn't refresh. Try again."
-        case .idle, .refreshing:
-            return nil
+            "Couldn't check for new webhook activity. Showing the last known status."
+        case .idle, .refreshing: nil
         }
+    }
+
+    var statusDetail: String? { outcome?.presentation.guidance }
+
+    var severity: Severity {
+        if state == .failed { return .error }
+        return outcome?.presentation.severity ?? .informative
     }
 
     private let now: () -> Date
@@ -42,13 +122,40 @@ final class CustomSourceHealthRefreshFeedback: ObservableObject {
         self.now = now
     }
 
-    func refresh(
+    func check(
+        previousHealth: CustomSourceHealth? = nil,
         _ operation: () async throws -> CustomSourceDetail
     ) async -> CustomSourceDetail? {
         state = .refreshing
+        outcome = nil
         do {
             let detail = try await operation()
-            state = .refreshed(at: now())
+            guard let currentHealth = detail.source.health else {
+                outcome = .unavailable
+                state = .checked(at: now())
+                return detail
+            }
+            let hasNewActivity = currentHealth.lastEventReceivedAt != nil
+                && currentHealth.lastEventReceivedAt != previousHealth?.lastEventReceivedAt
+            if previousHealth?.status == .needsAttention,
+               currentHealth.status == .receiving {
+                outcome = .warningCleared
+            } else if currentHealth.status == .needsAttention,
+                      currentHealth.reason == .quiet {
+                outcome = .quiet(hasNewActivity: hasNewActivity)
+            } else if currentHealth.status == .needsAttention,
+                      currentHealth.reason == .rejected {
+                outcome = .rejected(detail: currentHealth.detail, hasNewActivity: hasNewActivity)
+            } else if currentHealth.status == .needsAttention {
+                outcome = .unknownWarning
+            } else if currentHealth.status == .awaitingEvents {
+                outcome = .awaitingEvents
+            } else if currentHealth.status == .receiving {
+                outcome = .receiving(hasNewActivity: hasNewActivity)
+            } else {
+                outcome = .unavailable
+            }
+            state = .checked(at: now())
             return detail
         } catch {
             state = .failed
@@ -87,6 +194,8 @@ struct CustomSourceHealth: Decodable, Hashable {
 
     var lastEventDate: Date? { Self.date(from: lastEventReceivedAt) }
     var lastPaymentDate: Date? { Self.date(from: lastPaymentReceivedAt) }
+    var expectedEventDate: Date? { Self.date(from: expectedEventBy) }
+    var canCheckForNewActivity: Bool { status != .paused }
 
     private static func date(from value: String?) -> Date? {
         guard let value else { return nil }

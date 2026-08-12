@@ -21,7 +21,7 @@ struct CustomSourceSheet: View {
     @State private var copiedItem: CopiedItem?
     @State private var confirmRegenerate = false
     @State private var saveConfirmation: String?
-    @StateObject private var healthRefresh = CustomSourceHealthRefreshFeedback()
+    @StateObject private var activityCheck = CustomSourceActivityCheckFeedback()
 
     var body: some View {
         NavigationStack {
@@ -197,42 +197,53 @@ struct CustomSourceSheet: View {
                         Text(lastPayment.formatted(date: .abbreviated, time: .shortened))
                     }
                 }
+                if health.reason == .quiet, let expectedEvent = health.expectedEventDate {
+                    LabeledContent("Activity expected by") {
+                        Text(expectedEvent.formatted(date: .abbreviated, time: .shortened))
+                    }
+                }
 
-                Text("Active means Cha-Ching is ready to receive events. Health reflects the requests that actually reached this URL.")
+                Text("Cha-Ching cannot contact the sender from here. This check only looks for new requests that reached this webhook URL.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
-                Button {
-                    Task { await refreshConnectionHealth() }
-                } label: {
-                    HStack(spacing: 8) {
-                        if healthRefresh.isRefreshing {
-                            ProgressView()
-                                .controlSize(.small)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        Text(healthRefresh.buttonTitle)
-                    }
-                }
-                .fontWeight(.semibold)
-                .disabled(healthRefresh.isRefreshing)
-
-                if let message = healthRefresh.statusMessage {
-                    Label {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(message)
-                            if let refreshedAt = healthRefresh.refreshedAt {
-                                Text("Checked \(refreshedAt.formatted(date: .abbreviated, time: .shortened))")
-                                    .font(.footnote)
+                if health.canCheckForNewActivity {
+                    Button {
+                        Task { await checkForNewWebhookActivity() }
+                    } label: {
+                        HStack(spacing: 8) {
+                            if activityCheck.isRefreshing {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
                             }
+                            Text(activityCheck.buttonTitle)
                         }
-                    } icon: {
-                        Image(systemName: healthRefresh.didFail
-                              ? "exclamationmark.circle.fill"
-                              : "checkmark.circle.fill")
                     }
-                    .foregroundStyle(healthRefresh.didFail ? .red : Theme.accent)
+                    .fontWeight(.semibold)
+                    .disabled(activityCheck.isRefreshing)
+                    .accessibilityHint("Checks whether a newer request reached Cha-Ching. It does not contact the sender.")
+
+                    if let message = activityCheck.statusMessage {
+                        Label {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(message)
+                                    .fontWeight(.semibold)
+                                if let detail = activityCheck.statusDetail {
+                                    Text(detail)
+                                        .font(.footnote)
+                                }
+                                if let checkedAt = activityCheck.checkedAt {
+                                    Text("Checked \(checkedAt.formatted(date: .abbreviated, time: .shortened))")
+                                        .font(.footnote)
+                                }
+                            }
+                        } icon: {
+                            Image(systemName: activityCheckAppearance.icon)
+                        }
+                        .foregroundStyle(activityCheckAppearance.color)
+                    }
                 }
             }
         }
@@ -340,12 +351,22 @@ struct CustomSourceSheet: View {
         await run { apply(try await store.customSourceDetail(id: id)) }
     }
 
-    private func refreshConnectionHealth() async {
+    private func checkForNewWebhookActivity() async {
         guard let id = source?.id else { return }
-        if let detail = await healthRefresh.refresh({
+        let previousHealth = source?.health
+        if let detail = await activityCheck.check(previousHealth: previousHealth, {
             try await store.customSourceDetail(id: id)
         }) {
             apply(detail)
+        }
+    }
+
+    private var activityCheckAppearance: (icon: String, color: Color) {
+        switch activityCheck.severity {
+        case .positive: ("checkmark.circle.fill", Theme.accent)
+        case .warning: ("exclamationmark.triangle.fill", Theme.gold)
+        case .error: ("exclamationmark.circle.fill", .red)
+        case .informative: ("info.circle.fill", .secondary)
         }
     }
 
