@@ -49,4 +49,31 @@ struct LocalStoreKitIntegrationTests {
         #expect(restoringStore.presentation == .fullAccess)
         #expect(submittedTransactions.count == 2)
     }
+
+    @Test(
+        .enabled(if: ProcessInfo.processInfo.environment["RUN_LOCAL_STOREKIT_E2E"] == "1")
+    )
+    @MainActor func purchaseAndRestoreReconcileWithTheLoopbackWorkerAndD1() async throws {
+        let session = try SKTestSession(configurationFileNamed: "ChaChing")
+        session.disableDialogs = true
+        session.clearTransactions()
+        APIClient.shared.clearAuthToken()
+        try await APIClient.shared.signInForSimulatorDevelopment()
+        #expect(try await APIClient.shared.validateSession())
+
+        let purchasingStore = SubscriptionStore()
+        await purchasingStore.refresh()
+        #expect(purchasingStore.presentation == .subscriptionRequired(action: .startFreeTrial))
+        await purchasingStore.purchase()
+
+        #expect(purchasingStore.presentation == .fullAccess)
+        #expect(purchasingStore.errorMessage == nil)
+
+        let restoringStore = SubscriptionStore()
+        await restoringStore.refresh()
+        await restoringStore.restore()
+
+        #expect(restoringStore.presentation == .fullAccess)
+        #expect(restoringStore.errorMessage == nil)
+    }
 }

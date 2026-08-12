@@ -8,6 +8,7 @@ import type {
 import type { Auth } from "./auth";
 import { requireUser } from "./auth";
 import type { Env } from "./env";
+import { isSimulatorAuthRequestAllowed } from "./env";
 
 export const ANNUAL_SUBSCRIPTION_PRODUCT_ID = "com.serpcompany.chaching.annual";
 
@@ -86,6 +87,27 @@ function verifiedTransaction(decoded: JWSTransactionDecodedPayload): VerifiedApp
   };
 }
 
+function decodeUnverifiedXcodeTransactionForLocalDevelopment(
+  signedTransaction: string,
+): VerifiedAppleTransaction {
+  const payload = signedTransaction.split(".")[1];
+  if (!payload) throw new Error("Signed Apple data is malformed");
+  const decoded = JSON.parse(
+    Buffer.from(payload, "base64url").toString("utf8"),
+  ) as JWSTransactionDecodedPayload;
+  if (decoded.environment !== "Xcode") {
+    throw new Error("Local development transaction must come from Xcode");
+  }
+  const transaction = verifiedTransaction(decoded);
+  if (!transaction.appAccountToken) return transaction;
+  return {
+    ...transaction,
+    originalTransactionId:
+      `xcode:${transaction.appAccountToken}:${transaction.originalTransactionId}`,
+    transactionId: `xcode:${transaction.appAccountToken}:${transaction.transactionId}`,
+  };
+}
+
 export function appleSignedDataVerifier(env: Env): AppleSignedDataVerifier {
   const verifierFor = async (signedData: string) => {
     const environment = decodedEnvironment(signedData);
@@ -112,6 +134,27 @@ export function appleSignedDataVerifier(env: Env): AppleSignedDataVerifier {
         .verifyAndDecodeNotification(signedPayload);
       const signedTransaction = notification.data?.signedTransactionInfo;
       return signedTransaction ? verifyTransaction(signedTransaction) : null;
+    },
+  };
+}
+
+function transactionVerifierForRequest(
+  env: Env,
+  request: Request,
+): AppleSignedDataVerifier {
+  const appleVerifier = appleSignedDataVerifier(env);
+  if (!isSimulatorAuthRequestAllowed(env, request.url)) return appleVerifier;
+  return {
+    ...appleVerifier,
+    verifyTransaction: async (signedTransaction) => {
+      const payload = signedTransaction.split(".")[1];
+      if (!payload) throw new Error("Signed Apple data is malformed");
+      const decoded = JSON.parse(
+        Buffer.from(payload, "base64url").toString("utf8"),
+      ) as { environment?: unknown };
+      return decoded.environment === "Xcode"
+        ? decodeUnverifiedXcodeTransactionForLocalDevelopment(signedTransaction)
+        : appleVerifier.verifyTransaction(signedTransaction);
     },
   };
 }
@@ -243,7 +286,8 @@ export async function handleSubscriptionRequest(
     return Response.json(await getProductAccess(env.DB, user.id));
   }
   if (request.method === "POST" && url.pathname === "/v1/subscription/sync") {
-    const signedDataVerifier = verifier ?? appleSignedDataVerifier(env);
+    const signedDataVerifier =
+      verifier ?? transactionVerifierForRequest(env, request);
     const body = await request.json<{ signedTransaction?: unknown }>();
     if (typeof body.signedTransaction !== "string" || body.signedTransaction.length > 32_000) {
       return Response.json({ error: "A signed Apple transaction is required" }, { status: 400 });
