@@ -17,7 +17,7 @@ Production and sandbox deployments accept only Apple Production and Sandbox sign
 
 The public access result is only **Full access** or **Subscription required**, plus a customer-facing action. Effective feature access requires both current product access and the relevant feature entitlement. Access ends at the last verified expiration or immediately on a verified refund or revocation. Events arriving while access is off are ignored without backfill.
 
-Deleting an account deletes its entitlement data but does not cancel Apple billing. Before deletion confirmation, the app explains that billing continues separately and offers Apple's subscription-management action.
+Deleting an account deletes its entitlement data but does not cancel Apple billing. Before deletion confirmation, the app explains that billing continues separately and offers Apple's subscription-management action. Deletion requires fresh Sign in with Apple authorization; the Worker exchanges and encrypts Apple's refresh token, verifies the Apple subject against the linked account, and revokes that authorization before deleting the D1 user. A revocation failure keeps the account intact for retry.
 
 ## Consequences
 

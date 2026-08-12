@@ -118,6 +118,17 @@ final class ConnectStore: ObservableObject {
         }
     }
 
+    func reset() {
+        connections = Provider.mvpProviders.map {
+            ConnectionState(provider: $0, isConnected: false, isActive: false, accountLabel: nil)
+        }
+        entitlements = [:]
+        providerAvailability = [:]
+        customSources = []
+        isBusy = false
+        errorMessage = nil
+    }
+
     func createCustomSource(name: String) async throws -> CustomPaymentSource {
         let response: CustomSourceResponse = try await APIClient.shared.post(
             "/v1/custom-sources",

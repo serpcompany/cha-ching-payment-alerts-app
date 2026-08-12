@@ -6,13 +6,16 @@ import { importPKCS8, SignJWT } from "jose";
 import type { Env } from "./env";
 import { isAppleConfigured, isSimulatorAuthEnabled } from "./env";
 
-async function appleClientSecret(env: Env): Promise<string> {
+export async function appleClientSecret(
+  env: Env,
+  clientId: string = env.APPLE_SERVICE_ID,
+): Promise<string> {
   const key = await importPKCS8(env.APPLE_PRIVATE_KEY.replace(/\\n/g, "\n"), "ES256");
   const now = Math.floor(Date.now() / 1_000);
   return new SignJWT({})
     .setProtectedHeader({ alg: "ES256", kid: env.APPLE_KEY_ID })
     .setIssuer(env.APPLE_TEAM_ID)
-    .setSubject(env.APPLE_SERVICE_ID)
+    .setSubject(clientId)
     .setAudience("https://appleid.apple.com")
     .setIssuedAt(now)
     .setExpirationTime(now + 180 * 24 * 60 * 60)

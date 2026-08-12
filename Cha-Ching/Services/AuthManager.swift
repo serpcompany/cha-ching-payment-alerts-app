@@ -7,6 +7,8 @@ final class AuthManager: ObservableObject {
     @Published var isSignedIn = false
     @Published var isLoading = true
     @Published var errorMessage: String?
+    @Published private(set) var isDeletingAccount = false
+    @Published var accountDeletionError: String?
 
     private(set) var currentNonce: String?
 
@@ -93,6 +95,42 @@ final class AuthManager: ObservableObject {
             await NotificationManager.shared.unregisterCurrentDevice()
             await APIClient.shared.signOut()
             isSignedIn = false
+        }
+    }
+
+    func handleAccountDeletionAuthorization(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .failure(let error):
+            accountDeletionError = error.localizedDescription
+        case .success(let authorization):
+            Task { await deleteAccount(with: authorization) }
+        }
+    }
+
+    private func deleteAccount(with authorization: ASAuthorization) async {
+        guard
+            let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+            let codeData = credential.authorizationCode,
+            let authorizationCode = String(data: codeData, encoding: .utf8),
+            let nonce = currentNonce
+        else {
+            accountDeletionError = "Apple didn't return the credential needed to delete this account."
+            return
+        }
+
+        isDeletingAccount = true
+        accountDeletionError = nil
+        defer { isDeletingAccount = false }
+        do {
+            try await APIClient.shared.storeAppleDeletionCredential(
+                authorizationCode: authorizationCode,
+                nonce: nonce
+            )
+            try await APIClient.shared.deleteAccount()
+            NotificationManager.shared.accountDidDelete()
+            isSignedIn = false
+        } catch {
+            accountDeletionError = "Account deletion couldn't finish: \(error.localizedDescription)"
         }
     }
 

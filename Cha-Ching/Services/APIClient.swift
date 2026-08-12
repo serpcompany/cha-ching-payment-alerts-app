@@ -41,6 +41,11 @@ private struct AppleSignInRequest: Encodable {
     }
 }
 
+private struct AppleCredentialRequest: Encodable {
+    let authorizationCode: String
+    let nonce: String
+}
+
 actor APIClient {
     static let shared = APIClient()
 
@@ -122,6 +127,18 @@ actor APIClient {
         clearAuthToken()
     }
 
+    func storeAppleDeletionCredential(authorizationCode: String, nonce: String) async throws {
+        let _: StoredAppleCredentialResponse = try await post(
+            "/v1/account/apple-credential",
+            body: AppleCredentialRequest(authorizationCode: authorizationCode, nonce: nonce)
+        )
+    }
+
+    func deleteAccount() async throws {
+        try await delete("/v1/account")
+        clearAuthToken()
+    }
+
     func get<Response: Decodable>(_ path: String) async throws -> Response {
         let request = try makeRequest(path: path, method: "GET")
         let (data, _) = try await perform(request)
@@ -194,6 +211,10 @@ actor APIClient {
             ?? HTTPURLResponse.localizedString(forStatusCode: status)
         throw APIError.server(message)
     }
+}
+
+private struct StoredAppleCredentialResponse: Decodable {
+    let stored: Bool
 }
 
 private enum KeychainToken {

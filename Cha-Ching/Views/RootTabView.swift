@@ -72,6 +72,7 @@ private struct SettingsView: View {
     @EnvironmentObject private var auth: AuthManager
     @EnvironmentObject private var notifications: NotificationManager
     @EnvironmentObject private var subscription: SubscriptionStore
+    @State private var accountSheet: AccountSheet?
 
     var body: some View {
         NavigationStack {
@@ -83,7 +84,7 @@ private struct SettingsView: View {
                     }
                     Link(
                         "Manage Subscription",
-                        destination: URL(string: "https://apps.apple.com/account/subscriptions")!
+                        destination: ChaChingLink.manageSubscription
                     )
                 }
                 Section("Notifications") {
@@ -120,11 +121,23 @@ private struct SettingsView: View {
                 }
                 Section {
                     Button("Sign out", role: .destructive) { auth.signOut() }
+                    Button("Delete account", role: .destructive) {
+                        auth.accountDeletionError = nil
+                        accountSheet = .deletion
+                    }
+                }
+                Section("Help and legal") {
+                    Link("Support", destination: ChaChingLink.support)
+                    Link("Privacy Policy", destination: ChaChingLink.privacy)
+                    Link("Terms of Use", destination: ChaChingLink.terms)
                 }
             }
             .navigationTitle("Settings")
             .task {
                 await notifications.refreshAuthorizationStatus()
+            }
+            .sheet(item: $accountSheet) { _ in
+                AccountDeletionView()
             }
         }
     }
