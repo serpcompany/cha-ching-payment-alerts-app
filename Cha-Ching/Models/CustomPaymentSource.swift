@@ -1,4 +1,61 @@
+import Combine
 import Foundation
+
+@MainActor
+final class CustomSourceHealthRefreshFeedback: ObservableObject {
+    enum State: Equatable {
+        case idle
+        case refreshing
+        case refreshed(at: Date)
+        case failed
+    }
+
+    @Published private(set) var state: State = .idle
+
+    var isRefreshing: Bool { state == .refreshing }
+
+    var buttonTitle: String {
+        isRefreshing ? "Refreshing connection health…" : "Refresh connection health"
+    }
+
+    var refreshedAt: Date? {
+        guard case .refreshed(let date) = state else { return nil }
+        return date
+    }
+
+    var didFail: Bool { state == .failed }
+
+    var statusMessage: String? {
+        switch state {
+        case .refreshed:
+            return "Connection health refreshed."
+        case .failed:
+            return "Connection health couldn't refresh. Try again."
+        case .idle, .refreshing:
+            return nil
+        }
+    }
+
+    private let now: () -> Date
+
+    init(now: @escaping () -> Date = Date.init) {
+        self.now = now
+    }
+
+    func refresh(
+        _ operation: () async throws -> CustomSourceDetail
+    ) async -> CustomSourceDetail? {
+        state = .refreshing
+        do {
+            let detail = try await operation()
+            state = .refreshed(at: now())
+            return detail
+        } catch {
+            state = .failed
+            return nil
+        }
+    }
+}
 
 struct CustomSourceHealth: Decodable, Hashable {
     let status: Status
