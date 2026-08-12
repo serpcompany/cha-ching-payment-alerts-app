@@ -83,6 +83,32 @@ describe("custom payment source HTTP API", () => {
     await miniflare.dispose();
   });
 
+  async function activateSource(name: string, sample: unknown, mapping: unknown) {
+    const create = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request("https://api.cha-ching.test/v1/custom-sources", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name }),
+      }),
+    );
+    const created = await create.json<{ source: { id: string; webhookUrl: string } }>();
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify(sample),
+    }));
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(
+      `https://api.cha-ching.test/v1/custom-sources/${created.source.id}/mapping`,
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(mapping) },
+    ));
+    await handleCustomSourceRequest(env, authFor("user-one"), new Request(
+      `https://api.cha-ching.test/v1/custom-sources/${created.source.id}/activate`,
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(mapping) },
+    ));
+    return { source: created.source };
+  }
+
   it("creates a named source with a private URL that stays stable", async () => {
     const create = await handleCustomSourceRequest(
       env,
@@ -1626,5 +1652,321 @@ describe("custom payment source HTTP API", () => {
       new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
     );
     expect((await check.json<{ sample: unknown }>()).sample).toBeNull();
+  });
+
+  it("discovers a new scalar field on an accepted active payment", async () => {
+    const { privateKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
+    Object.assign(env, {
+      APNS_KEY_ID: "TESTKEY",
+      APPLE_TEAM_ID: "TESTTEAM",
+      APNS_BUNDLE_ID: "com.example.chaching",
+      APNS_PRIVATE_KEY: privateKey.export({ format: "pem", type: "pkcs8" }).toString(),
+    });
+    await env.DB.prepare(
+      `INSERT INTO device_tokens (id, user_id, device_id, token, environment, status)
+       VALUES ('device-discovery', 'user-one', 'iphone-discovery', 'discovery-token', 'production', 'active')`,
+    ).run();
+    const setupSample = {
+      payment: { id: "setup-payment", amount_minor: 900, currency: "USD" },
+      buyer: { email: "setup@example.com" },
+    };
+    const mapping = {
+      paymentIdPath: "/payment/id",
+      amountPath: "/payment/amount_minor",
+      amountUnit: "minor",
+      currencyPath: "/payment/currency",
+      notificationFields: [
+        { id: "buyer-email", path: "/buyer/email", label: "Buyer Email", enabled: true },
+        { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: true },
+        { id: "payment-id", path: "/payment/id", label: "Payment ID", enabled: false },
+        { id: "currency", path: "/payment/currency", label: "Currency", enabled: false },
+      ],
+    };
+    const created = await activateSource("SERP Store", setupSample, mapping);
+
+    const payment = await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify({
+        payment: { id: "payment-with-affiliate", amount_minor: 900, currency: "USD" },
+        buyer: { email: "buyer@example.com" },
+        attribution: { dub_affiliate_id: "pn_hasanul" },
+      }),
+    }));
+
+    expect(payment.status).toBe(202);
+    expect(await payment.json()).toEqual({ received: true, duplicate: false });
+    expect(sent).toHaveLength(1);
+
+    const detail = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
+    );
+    const saved = await detail.json<{
+      mapping: { notificationFields: Array<{ id: string; path: string; label: string; enabled: boolean }> };
+    }>();
+    expect(saved.mapping.notificationFields).toEqual([
+      ...mapping.notificationFields,
+      {
+        id: expect.any(String),
+        path: "/attribution/dub_affiliate_id",
+        label: "Dub Affiliate ID",
+        enabled: true,
+      },
+    ]);
+
+    const history = await listSales(env, authFor("user-one"), new Request("https://api.cha-ching.test/v1/sales"));
+    expect(await history.json()).toEqual({
+      sales: [expect.objectContaining({
+        notificationFields: [
+          { label: "Buyer Email", value: "buyer@example.com" },
+          { label: "Amount", value: "$9.00" },
+          { label: "Dub Affiliate ID", value: "pn_hasanul" },
+        ],
+      })],
+    });
+
+    const apnsBodies: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      apnsBodies.push(JSON.parse(String(init?.body)));
+      return new Response(null, { status: 200 });
+    }));
+    await processNotificationBatch(env, {
+      messages: [{ body: sent[0], ack: vi.fn(), retry: vi.fn() }],
+    } as unknown as MessageBatch<{ saleId: string }>);
+    expect(apnsBodies).toEqual([expect.objectContaining({
+      aps: expect.objectContaining({
+        alert: {
+          title: "Cha-ching!",
+          body: "Buyer Email: buyer@example.com\nAmount: $9.00\nDub Affiliate ID: pn_hasanul",
+        },
+      }),
+    })]);
+  });
+
+  it("does not discover fields from an active payment rejected for notification length", async () => {
+    const sample = { payment: { id: "setup", amount_minor: 100, currency: "USD" } };
+    const mapping = {
+      paymentIdPath: "/payment/id",
+      amountPath: "/payment/amount_minor",
+      amountUnit: "minor",
+      currencyPath: "/payment/currency",
+      notificationFields: [
+        { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: true },
+      ],
+    };
+    const created = await activateSource("Verbose sender", sample, mapping);
+    const verboseFields = Object.fromEntries(
+      Array.from({ length: 20 }, (_, index) => [`field_${index}`, "x".repeat(200)]),
+    );
+
+    const response = await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify({
+        payment: { id: "too-verbose", amount_minor: 100, currency: "USD" },
+        verbose: verboseFields,
+      }),
+    }));
+
+    expect(response.status).toBe(422);
+    const detail = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
+    );
+    expect((await detail.json<{ mapping: unknown }>()).mapping).toEqual(mapping);
+    const history = await listSales(env, authFor("user-one"), new Request("https://api.cha-ching.test/v1/sales"));
+    expect(await history.json()).toEqual({ sales: [] });
+    expect(sent).toEqual([]);
+  });
+
+  it("keeps concurrent and retried field discovery idempotent", async () => {
+    const sample = { payment: { id: "setup", amount_minor: 100, currency: "USD" } };
+    const mapping = {
+      paymentIdPath: "/payment/id",
+      amountPath: "/payment/amount_minor",
+      amountUnit: "minor",
+      currencyPath: "/payment/currency",
+      notificationFields: [
+        { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: true },
+      ],
+    };
+    const created = await activateSource("Concurrent sender", sample, mapping);
+    const payloads = [
+      {
+        payment: { id: "concurrent-one", amount_minor: 100, currency: "USD" },
+        attribution: { dub_affiliate_id: "affiliate-one" },
+      },
+      {
+        payment: { id: "concurrent-two", amount_minor: 200, currency: "USD" },
+        attribution: { dub_affiliate_id: "affiliate-two" },
+      },
+      {
+        payment: { id: "concurrent-three", amount_minor: 300, currency: "USD" },
+        attribution: { referral_code: "friend" },
+      },
+    ];
+
+    const responses = await Promise.all(payloads.map((payload) => handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(created.source.webhookUrl, { method: "POST", body: JSON.stringify(payload) }),
+    )));
+    expect(responses.map((response) => response.status)).toEqual([202, 202, 202]);
+
+    const detail = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
+    );
+    const firstRead = await detail.json<{
+      mapping: { notificationFields: Array<{ id: string; path: string; label: string; enabled: boolean }> };
+    }>();
+    expect(firstRead.mapping.notificationFields.slice(1)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: "/attribution/dub_affiliate_id", label: "Dub Affiliate ID", enabled: true }),
+      expect.objectContaining({ path: "/attribution/referral_code", label: "Referral Code", enabled: true }),
+    ]));
+    expect(new Set(firstRead.mapping.notificationFields.map((field) => field.path)).size).toBe(3);
+
+    const retry = await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify(payloads[0]),
+    }));
+    expect(await retry.json()).toEqual({ received: true, duplicate: true });
+    const reread = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
+    );
+    const secondRead = await reread.json<{ mapping: { notificationFields: unknown[] } }>();
+    expect(secondRead.mapping.notificationFields).toEqual(firstRead.mapping.notificationFields);
+
+    const alteredDuplicate = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(created.source.webhookUrl, {
+        method: "POST",
+        body: JSON.stringify({ ...payloads[0], unexpected: { private_note: "do not retain" } }),
+      }),
+    );
+    expect(await alteredDuplicate.json()).toEqual({ received: true, duplicate: true });
+    const afterAlteredDuplicate = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
+    );
+    const finalMapping = await afterAlteredDuplicate.json<{
+      mapping: { notificationFields: Array<{ path: string }> };
+    }>();
+    expect(finalMapping.mapping.notificationFields.map((field) => field.path)).not.toContain(
+      "/unexpected/private_note",
+    );
+    const history = await listSales(env, authFor("user-one"), new Request("https://api.cha-ching.test/v1/sales"));
+    expect((await history.json<{ sales: unknown[] }>()).sales).toHaveLength(3);
+    expect(sent).toHaveLength(3);
+  });
+
+  it("publishes discovered fields only after Queue accepts the payment", async () => {
+    const mapping = {
+      paymentIdPath: "/payment/id",
+      amountPath: "/payment/amount_minor",
+      amountUnit: "minor",
+      currencyPath: "/payment/currency",
+      notificationFields: [
+        { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: true },
+      ],
+    };
+    const created = await activateSource("Retry sender", {
+      payment: { id: "setup", amount_minor: 100, currency: "USD" },
+    }, mapping);
+    const payment = {
+      payment: { id: "queue-retry", amount_minor: 500, currency: "USD" },
+      attribution: { dub_affiliate_id: "affiliate" },
+    };
+    vi.mocked(env.NOTIFICATION_QUEUE.send).mockRejectedValueOnce(new Error("Queue unavailable"));
+
+    await expect(handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(created.source.webhookUrl, { method: "POST", body: JSON.stringify(payment) }),
+    )).rejects.toThrow("Queue unavailable");
+    const beforeRetry = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
+    );
+    expect((await beforeRetry.json<{ mapping: unknown }>()).mapping).toEqual(mapping);
+
+    const retry = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(created.source.webhookUrl, { method: "POST", body: JSON.stringify(payment) }),
+    );
+    expect(await retry.json()).toEqual({ received: true, duplicate: false });
+    const afterRetry = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
+    );
+    const accepted = await afterRetry.json<{
+      mapping: { notificationFields: Array<{ path: string; enabled: boolean }> };
+    }>();
+    expect(accepted.mapping.notificationFields).toContainEqual(expect.objectContaining({
+      path: "/attribution/dub_affiliate_id",
+      enabled: true,
+    }));
+    expect(sent).toHaveLength(1);
+  });
+
+  it("keeps earlier and later missing field values out of payment history", async () => {
+    const sample = {
+      payment: { id: "setup", amount_minor: 100, currency: "USD", occurred_at: "2026-08-12T00:00:00Z" },
+    };
+    const mapping = {
+      paymentIdPath: "/payment/id",
+      amountPath: "/payment/amount_minor",
+      amountUnit: "minor",
+      currencyPath: "/payment/currency",
+      occurredAtPath: "/payment/occurred_at",
+      notificationFields: [
+        { id: "amount", path: "/payment/amount_minor", label: "Amount", enabled: true },
+      ],
+    };
+    const created = await activateSource("Historical truth sender", sample, mapping);
+    const events = [
+      { payment: { id: "before", amount_minor: 100, currency: "USD", occurred_at: "2026-08-12T01:00:00Z" } },
+      {
+        payment: { id: "discovering", amount_minor: 200, currency: "USD", occurred_at: "2026-08-12T02:00:00Z" },
+        attribution: { dub_affiliate_id: "pn_hasanul" },
+      },
+      { payment: { id: "after-missing", amount_minor: 300, currency: "USD", occurred_at: "2026-08-12T03:00:00Z" } },
+    ];
+    for (const event of events) {
+      await handleCustomSourceRequest(env, authFor("user-one"), new Request(created.source.webhookUrl, {
+        method: "POST",
+        body: JSON.stringify(event),
+      }));
+    }
+
+    const history = await listSales(env, authFor("user-one"), new Request("https://api.cha-ching.test/v1/sales"));
+    const body = await history.json<{ sales: Array<{ notificationFields: Array<{ label: string; value: string }> }> }>();
+    expect(body.sales.map((sale) => sale.notificationFields)).toEqual([
+      [{ label: "Amount", value: "$3.00" }],
+      [
+        { label: "Amount", value: "$2.00" },
+        { label: "Dub Affiliate ID", value: "pn_hasanul" },
+      ],
+      [{ label: "Amount", value: "$1.00" }],
+    ]);
+    const detail = await handleCustomSourceRequest(
+      env,
+      authFor("user-one"),
+      new Request(`https://api.cha-ching.test/v1/custom-sources/${created.source.id}`),
+    );
+    const saved = await detail.json<{ mapping: { notificationFields: Array<{ path: string; enabled: boolean }> } }>();
+    expect(saved.mapping.notificationFields).toContainEqual(expect.objectContaining({
+      path: "/attribution/dub_affiliate_id",
+      enabled: true,
+    }));
   });
 });

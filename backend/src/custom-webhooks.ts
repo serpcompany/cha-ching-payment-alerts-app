@@ -257,6 +257,114 @@ function serializedMapping(mapping: WebhookFieldMapping): string {
   });
 }
 
+function discoveredFieldLabel(path: string): string {
+  const leaf = decodedPointerSegment(path.split("/").at(-1) ?? "").toLowerCase();
+  const knownLabels: Record<string, string> = {
+    id: "ID",
+    email: "Buyer Email",
+    amount_minor: "Amount",
+    store: "Source Store",
+    buyer_email: "Buyer Email",
+    checkout_country_ip: "Checkout Country (IP)",
+    dub_affiliate_id: "Dub Affiliate ID",
+    utm_source: "UTM Source",
+    utm_medium: "UTM Medium",
+    utm_campaign: "UTM Campaign",
+    utm_term: "UTM Term",
+    utm_content: "UTM Content",
+    occurred_at: "Paid At",
+  };
+  const known = knownLabels[leaf];
+  if (known) return known;
+  return leaf
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map((word) => word[0]?.toUpperCase() + word.slice(1))
+    .join(" ")
+    .slice(0, 50)
+    .trimEnd();
+}
+
+async function mappingWithDiscoveredFields(
+  mapping: WebhookFieldMapping,
+  payload: unknown,
+): Promise<WebhookFieldMapping> {
+  const observed = flattenWebhookPayload(payload);
+  const existingPaths = new Set([
+    mapping.paymentIdPath,
+    mapping.amountPath,
+    mapping.currencyPath,
+    mapping.occurredAtPath,
+    mapping.productPath,
+    mapping.planPath,
+    mapping.saleTypePath,
+    ...(mapping.notificationFields ?? []).map((field) => field.path),
+  ].filter((path): path is string => Boolean(path)));
+  const unseen = observed.filter((field) => !existingPaths.has(field.path));
+  if (unseen.length === 0) return mapping;
+
+  const usedIds = new Set((mapping.notificationFields ?? []).map((field) => field.id));
+  const additions: NotificationFieldMapping[] = [];
+  for (const field of unseen) {
+    const digest = await sha256(field.path);
+    let id = `observed:${digest}`;
+    for (let suffix = 2; usedIds.has(id); suffix += 1) id = `observed:${digest}:${suffix}`;
+    usedIds.add(id);
+    additions.push({
+      id,
+      path: field.path,
+      label: discoveredFieldLabel(field.path),
+      enabled: true,
+    });
+  }
+  const updated: WebhookFieldMapping = {
+    ...mapping,
+    notificationFields: [...(mapping.notificationFields ?? []), ...additions],
+  };
+  return updated;
+}
+
+async function persistAcceptedDiscoveredFields(
+  env: Env,
+  sourceId: string,
+  payload: unknown,
+  saleId: string,
+): Promise<void> {
+  const sale = await env.DB.prepare(
+    "SELECT notification_field_values_json FROM sales WHERE id = ?1",
+  ).bind(saleId).first<{ notification_field_values_json: string | null }>();
+  const retainedIds = new Set<string>();
+  if (sale?.notification_field_values_json) {
+    const values = JSON.parse(sale.notification_field_values_json) as Array<{ id?: unknown }>;
+    for (const value of values) if (typeof value.id === "string") retainedIds.add(value.id);
+  }
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const row = await env.DB.prepare(
+      `SELECT mapping_json FROM custom_payment_sources
+       WHERE id = ?1 AND status = 'active'`,
+    ).bind(sourceId).first<{ mapping_json: string | null }>();
+    const current = row?.mapping_json ? parseMapping(JSON.parse(row.mapping_json)) : null;
+    if (!current) throw new Error("Payment source mapping is invalid");
+    const proposed = await mappingWithDiscoveredFields(current, payload);
+    const currentPaths = new Set((current.notificationFields ?? []).map((field) => field.path));
+    const acceptedAdditions = (proposed.notificationFields ?? []).filter(
+      (field) => !currentPaths.has(field.path) && retainedIds.has(field.id),
+    );
+    if (acceptedAdditions.length === 0) return;
+    const updated = {
+      ...current,
+      notificationFields: [...(current.notificationFields ?? []), ...acceptedAdditions],
+    };
+    const updatedJSON = serializedMapping(updated);
+    const result = await env.DB.prepare(
+      `UPDATE custom_payment_sources SET mapping_json = ?1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?2 AND status = 'active' AND mapping_json = ?3`,
+    ).bind(updatedJSON, sourceId, row!.mapping_json).run();
+    if (result.meta.changes === 1) return;
+  }
+  throw new Error("Payment source mapping changed too many times; retry the payment");
+}
+
 async function updateNotificationFields(
   env: Env,
   auth: Auth,
@@ -297,8 +405,9 @@ async function updateNotificationFields(
   ).bind(sourceId, user.id).all<HistoricalNotificationFieldsRow>();
   const statements = [
     env.DB.prepare(
-      "UPDATE custom_payment_sources SET mapping_json = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2 AND user_id = ?3",
-    ).bind(mappingJSON, sourceId, user.id),
+      `UPDATE custom_payment_sources SET mapping_json = ?1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?2 AND user_id = ?3 AND status IN ('active', 'paused') AND mapping_json = ?4`,
+    ).bind(mappingJSON, sourceId, user.id, row.mapping_json),
     ...history.results.flatMap((sale) => {
       const fields = applyHistoricalNotificationPresentation(
         sale.notification_fields_json,
@@ -308,11 +417,17 @@ async function updateNotificationFields(
       );
       return fields === null ? [] : [env.DB.prepare(
         `UPDATE sales SET notification_fields_json = ?1, notification_field_values_json = ?2
-         WHERE id = ?3 AND user_id = ?4`,
-      ).bind(fields.presentation, fields.archive, sale.id, user.id)];
+         WHERE id = ?3 AND user_id = ?4 AND EXISTS (
+           SELECT 1 FROM custom_payment_sources
+           WHERE id = ?5 AND user_id = ?4 AND mapping_json = ?6
+         )`,
+      ).bind(fields.presentation, fields.archive, sale.id, user.id, sourceId, mappingJSON)];
     }),
   ];
-  await env.DB.batch(statements);
+  const [mappingUpdate] = await env.DB.batch(statements);
+  if (mappingUpdate.meta.changes !== 1) {
+    return Response.json({ error: "Notification fields changed. Reload and try again." }, { status: 409 });
+  }
   return Response.json({ mapping: JSON.parse(mappingJSON) });
 }
 
@@ -736,9 +851,10 @@ async function captureWebhookSample(env: Env, request: Request, token: string): 
     let normalized: NormalizedCustomPayment;
     let notificationFields: NotificationFieldPreview[] | undefined;
     try {
-      const mapping = parseMapping(JSON.parse(source.mapping_json));
+      let mapping = parseMapping(JSON.parse(source.mapping_json));
       if (!mapping) throw new Error("Payment source mapping is invalid");
       normalized = normalizeCustomPayment(payload, mapping, source.name);
+      mapping = await mappingWithDiscoveredFields(mapping, payload);
       notificationFields = mapping.notificationFields
         ? previewNotificationFields(payload, mapping, normalized, true)
         : undefined;
@@ -786,6 +902,7 @@ async function captureWebhookSample(env: Env, request: Request, token: string): 
         : null,
     ).run();
     const queued = await enqueueSaleNotification(env, saleId);
+    await persistAcceptedDiscoveredFields(env, source.id, payload, saleId);
     await env.DB.prepare(
       `UPDATE custom_payment_sources SET last_event_received_at = CURRENT_TIMESTAMP,
        last_event_status = ?1, last_event_error = NULL,

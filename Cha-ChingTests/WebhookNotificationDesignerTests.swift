@@ -308,4 +308,38 @@ struct WebhookNotificationDesignerTests {
 
         #expect(ActiveNotificationSettingsDraft(mapping: mapping).previewBody == "Customer email: Example value")
     }
+
+    @Test func decodedActiveMappingPopulatesDiscoveredAvailableFieldsInTheDraft() throws {
+        let response = Data(#"""
+        {
+          "source": {
+            "id": "source-serp",
+            "name": "SERP Store",
+            "status": "active",
+            "connectionState": "active",
+            "webhookUrl": "https://api.cha-ching.test/v1/webhooks/custom/private",
+            "createdAt": "2026-08-12 00:00:00",
+            "updatedAt": "2026-08-12 01:00:00"
+          },
+          "sample": null,
+          "mapping": {
+            "paymentIdPath": "/payment/id",
+            "amountPath": "/payment/amount_minor",
+            "amountUnit": "minor",
+            "currencyPath": "/payment/currency",
+            "notificationFields": [
+              {"id": "amount", "path": "/payment/amount_minor", "label": "Amount", "enabled": true},
+              {"id": "observed-dub", "path": "/attribution/dub_affiliate_id", "label": "Dub Affiliate ID", "enabled": true}
+            ]
+          }
+        }
+        """#.utf8)
+
+        let detail = try JSONDecoder().decode(CustomSourceDetail.self, from: response)
+        let draft = ActiveNotificationSettingsDraft(mapping: try #require(detail.mapping))
+
+        #expect(draft.notificationFields.map(\.label) == ["Amount", "Dub Affiliate ID"])
+        #expect(draft.notificationFields.last?.enabled == true)
+        #expect(draft.previewBody == "Amount: Example value\nDub Affiliate ID: Example value")
+    }
 }
