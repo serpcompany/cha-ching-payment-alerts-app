@@ -12,8 +12,9 @@ The live MVP proves secure identity, entitlement enforcement, payment-source lin
 - **Provider**: an external payment system supported by Cha-Ching. The MVP providers are Stripe and PayPal.
 - **Payment source**: any connected origin that can report payment data to Cha-Ching. A provider account is one kind of payment source; a custom webhook is another.
 - **Custom webhook**: a user-named payment source with a durable private URL. During setup it waits for the sender's first real event and captures that event as one encrypted setup sample so the user can map fields; after activation it creates normalized payments.
-- **Observed field**: a scalar path/value present in the current custom-webhook setup sample. It is not a claim about every field the sender could theoretically provide.
-- **Field catalog**: a future sender-declared list of available fields. It is not implemented in the MVP.
+- **Observed field**: a scalar path Cha-Ching has encountered in a custom-webhook event. It is not a claim about every field the sender could theoretically provide.
+- **Available field**: an observed field offered to the source owner for notification configuration. Availability does not imply that the field has a value in earlier payments.
+- **Field catalog**: a future sender-declared list of fields, including fields Cha-Ching may not yet have observed. It is not implemented in the MVP.
 - **Field mapping**: the user's ordered, saved choices for locating Payment ID, Amount, Currency, and notification display fields in a custom webhook payload.
 - **Provider account**: the user's account at a provider. It is linked through provider-hosted authorization, never by pasting credentials into the app.
 - **Connection**: Cha-Ching's revocable, least-privilege authorization to identify and read events for one provider account.
