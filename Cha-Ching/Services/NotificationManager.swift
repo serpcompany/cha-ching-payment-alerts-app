@@ -55,6 +55,7 @@ enum PaymentNotificationPresentation {
 
 enum PaymentNotificationDestination: Equatable, Sendable {
     case dashboardPayment(id: String)
+    case connectSource(id: String)
     case preview(ForegroundPaymentNotification)
 }
 
@@ -64,6 +65,11 @@ enum PaymentNotificationResponseRouter {
         title: String,
         body: String
     ) -> PaymentNotificationDestination {
+        if userInfo["connectionHealth"] != nil,
+           let sourceID = userInfo["sourceId"] as? String,
+           !sourceID.isEmpty {
+            return .connectSource(id: sourceID)
+        }
         if let saleID = userInfo["saleId"] as? String, !saleID.isEmpty {
             return .dashboardPayment(id: saleID)
         }
@@ -98,6 +104,7 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     @Published private(set) var isUpdatingPaymentNotifications = false
     @Published private(set) var foregroundNotification: ForegroundPaymentNotification?
     @Published private(set) var openedSaleID: String?
+    @Published private(set) var openedCustomSourceID: String?
 
     var isAuthorized: Bool {
         authorizationStatus == .authorized || authorizationStatus == .provisional
@@ -237,6 +244,10 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         if openedSaleID == id { openedSaleID = nil }
     }
 
+    func consumeOpenedCustomSource(_ id: String) {
+        if openedCustomSourceID == id { openedCustomSourceID = nil }
+    }
+
     func clearAppBadge() {
         Task {
             try? await center.setBadgeCount(0)
@@ -296,6 +307,8 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
                 switch destination {
                 case let .dashboardPayment(id):
                     openedSaleID = id
+                case let .connectSource(id):
+                    openedCustomSourceID = id
                 case let .preview(notification):
                     foregroundNotification = notification
                 }

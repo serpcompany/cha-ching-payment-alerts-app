@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ConnectView: View {
     @EnvironmentObject private var connectStore: ConnectStore
+    @EnvironmentObject private var notifications: NotificationManager
     @State private var destination: ConnectDestination?
 
     var body: some View {
@@ -46,6 +47,12 @@ struct ConnectView: View {
             }
         }
         .task { await connectStore.refresh() }
+        .task(id: notifications.openedCustomSourceID) {
+            guard let sourceID = notifications.openedCustomSourceID else { return }
+            await connectStore.refresh()
+            destination = .customSource(sourceID)
+            notifications.consumeOpenedCustomSource(sourceID)
+        }
     }
 
     private var header: some View {
@@ -115,13 +122,13 @@ private struct CustomSourceCard: View {
                     Text(source.name)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.ink)
-                    Text(source.connectionState.title)
+                    Text(source.displayedStatusTitle)
                         .font(.caption)
-                        .foregroundStyle(source.connectionState == .active ? Theme.accent : .secondary)
+                        .foregroundStyle(source.needsAttention ? Theme.gold : source.connectionState == .active ? Theme.accent : .secondary)
                 }
                 Spacer()
-                Image(systemName: source.connectionState == .active ? "checkmark.circle.fill" : "chevron.right")
-                    .foregroundStyle(source.connectionState == .active ? Theme.accent : .secondary)
+                Image(systemName: source.needsAttention ? "exclamationmark.triangle.fill" : source.connectionState == .active ? "checkmark.circle.fill" : "chevron.right")
+                    .foregroundStyle(source.needsAttention ? Theme.gold : source.connectionState == .active ? Theme.accent : .secondary)
             }
             .padding(14)
             .cardStyle(padding: 0)

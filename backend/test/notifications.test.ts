@@ -107,6 +107,71 @@ describe("delivery recovery", () => {
     }
   });
 
+  it("delivers a connection warning that opens the affected source", async () => {
+    const miniflare = new Miniflare({
+      modules: true,
+      script: "export default { fetch() { return new Response('ok') } }",
+      d1Databases: ["DB"],
+    });
+    try {
+      const db = await miniflare.getD1Database("DB");
+      await db.prepare(
+        `CREATE TABLE device_tokens (
+          id TEXT PRIMARY KEY, user_id TEXT, token TEXT, environment TEXT, status TEXT,
+          updated_at TEXT
+        )`,
+      ).run();
+      await db.prepare(
+        "INSERT INTO device_tokens VALUES ('device-health', 'owner', 'apns-token', 'production', 'active', CURRENT_TIMESTAMP)",
+      ).run();
+      const { privateKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
+      const requests: unknown[] = [];
+      vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        requests.push(JSON.parse(String(init?.body)));
+        return new Response(null, { status: 200 });
+      }));
+      const env = {
+        DB: db,
+        APNS_KEY_ID: "TESTKEY",
+        APPLE_TEAM_ID: "TESTTEAM",
+        APNS_BUNDLE_ID: "com.example.chaching",
+        APNS_PRIVATE_KEY: privateKey.export({ format: "pem", type: "pkcs8" }).toString(),
+      } as unknown as Env;
+      const ack = vi.fn();
+      const retry = vi.fn();
+
+      await processNotificationBatch(env, { messages: [{
+        body: {
+          connectionHealth: {
+            userId: "owner",
+            sourceId: "source-quiet",
+            sourceName: "SERP Store",
+            body: "No webhook requests arrived within this source's expected activity window. Open Cha-Ching to review the connection.",
+          },
+        },
+        ack,
+        retry,
+      }] } as unknown as MessageBatch<never>);
+
+      expect(requests).toEqual([{
+        aps: {
+          alert: {
+            title: "Payment source needs checking",
+            body: "SERP Store: No webhook requests arrived within this source's expected activity window. Open Cha-Ching to review the connection.",
+          },
+          sound: "default",
+        },
+        connectionHealth: true,
+        sourceId: "source-quiet",
+      }]);
+      expect(ack).toHaveBeenCalledOnce();
+      expect(retry).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+      await miniflare.dispose();
+    }
+  });
+
   it("reuses the persisted delivery ID and makes duplicate Queue messages one visible delivery", async () => {
     const miniflare = new Miniflare({
       modules: true,

@@ -23,7 +23,7 @@ The selected UI is Variant A from the throwaway [notification-settings prototype
 
 The MVP keeps payment-source connection and notification design as two distinct jobs:
 
-1. **Connect tab** — shows one card per custom source with its name and honest connection state: **Waiting for first event**, **Event received**, **Active**, or **Paused**.
+1. **Connect tab** — shows one card per custom source with its name and honest connection state: **Waiting for first event**, **Event received**, **Receiving events**, **Needs checking**, or **Paused**. Configuration state and observed webhook health remain separate: an enabled URL can need checking when requests stop arriving or are rejected.
 2. **Payment-source setup** — creates the source, exposes the durable private URL and developer instructions, and checks for a sample. It does not contain payment-field pickers or notification rows.
 3. **Notification settings** — opens from the dedicated **Customize notifications** next step after a sample is found. It owns both payment matching and notification design, shows the source as connected, provides preview and test actions, and contains an ordered list with every observed field exactly once.
 4. **Field row** — shows only the display label, sample value, disclosure indicator, and a direct on/off switch. The section header shows the current included count, such as **15 of 17 on**.
@@ -99,6 +99,11 @@ Because the copied developer instructions contain that private URL, they are als
 
 - **Active**: valid mapped events become sales and queue notifications.
 - **Paused**: new events are acknowledged and ignored; URL, mapping, and history remain.
+- **Receiving events**: Cha-Ching has recent request evidence. The source-management screen shows the last webhook request and last accepted payment independently.
+- **Needs checking — rejected**: the latest request reached Cha-Ching but could not satisfy the saved mapping. The UI shows a safe mapping error without exposing raw payload values.
+- **Needs checking — quiet**: an established source has received no request within three times its median recent payment interval, bounded between six hours and seven days. This is evidence that deserves checking, not proof that the sender is disconnected.
+- Sources with fewer than three retained payments do not get silence-based outage guesses. They continue to show the evidence Cha-Ching actually has.
+- The scheduled health monitor sends one Apple notification per uninterrupted warning state. Pressing it opens Connect and the affected source. A later accepted event or duplicate clears the warning latch so a future outage can notify again.
 - Retrying an active event with the same mapped Payment ID never creates a second sale. Once Queue acceptance is recorded it does not enqueue again; crash recovery may enqueue a duplicate message, which resolves to the same sale/device delivery and stable APNs id. Cha-Ching hashes the complete source-scoped ID; long IDs are never truncated before deduplication.
 - A stale notification Queue claim is reclaimed after five minutes when the sender retries the same mapped Payment ID; Queue acceptance is recorded only after the send succeeds.
 - Numeric Payment IDs are supported only while they are JavaScript-safe integers. Send large IDs as JSON strings, or map a string field, so every digit remains exact for deduplication.
@@ -136,6 +141,9 @@ Because the copied developer instructions contain that private URL, they are als
 - An owner-authenticated test action is available during setup and after activation. It sends the exact current presentation to active registered devices, uses the latest saved payment values when available (or safe example values otherwise), links to that latest payment for Dashboard drill-down when one exists, uses the bundled money sound, and creates no payment or payment-history row.
 - A real payment may omit display-only fields that appeared in the setup sample, such as UTM attribution. Cha-Ching still accepts the payment and preserves the selected order while leaving those absent rows out of that notification. Required Payment ID, Amount, and Currency mapping failures still reject the event.
 - Rejected active events emit a safe `custom.webhook.rejected` Worker log containing the source ID and mapping reason, never the raw payload or field values.
+- Source APIs return health separately from configured status, including safe detail, last webhook request, last accepted payment, and an expected-activity deadline when cadence is established.
+- An established quiet source and a source whose latest valid JSON request is rejected show **Needs checking**; an active source with insufficient cadence history is never falsely labeled disconnected from silence alone.
+- A connection-health push contains the affected source ID, and pressing it opens that source's management UI.
 - Active retries are idempotent by the source-scoped mapped Payment ID.
 - Pausing and resuming does not replace the URL or erase history.
 - An active or paused source can preview, test, rename, show, hide, re-enable, and reorder its mapped notification fields without another sample; repeated hide/show edits restore retained historical values. It cannot remap payload paths after activation.
@@ -160,3 +168,5 @@ TestFlight `1.0 (19)` (`f976c0ef-9fa6-40b1-8a38-8e82f8f9bd8f`) is `VALID` and `I
 Migration `0011` and Worker version `7017202c-0764-459b-b8cf-d2cce5479e27` were deployed on 2026-08-12 JST. All 11 retained production custom payments now have stable ID-keyed value archives with 9–10 recoverable fields and no missing archive. Presentation saves no longer destroy a hidden value, so later re-enabling reliably restores it when the payment retained that value at arrival.
 
 TestFlight `1.0 (20)` (`8d66944d-8c80-4f93-9657-aa5d5fa274f4`) is `VALID` and `IN_BETA_TESTING` in **Cha-Ching Internal**. It reads an open payment detail from the refreshed shared Payments store and adds native pull-to-refresh to that screen.
+
+Custom-source activity evidence, adaptive quiet-source monitoring, one-time health notifications, and the iOS **Connection health** UI are implemented in the repository with migration `0012`. They have not been deployed or promoted to TestFlight.

@@ -32,6 +32,7 @@
 		A18C3C775864A1B0EB0A332C /* WebhookNotificationDesignerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */; };
 		AF01ED49D8033099991F6BBF /* CustomWebhookDeveloperPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = C702CA5FCE9B85FA055A62E1 /* CustomWebhookDeveloperPrompt.swift */; };
 		B15D512565372F588A4ED383 /* SalesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9ABCE1E07393E5E7E9E2C3 /* SalesStore.swift */; };
+		B6814146399AD6D569992EDF /* CustomWebhookHealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C6369E30F863F2869F6669 /* CustomWebhookHealthTests.swift */; };
 		BE62FAE52D0FD8AA9A9CB0EF /* ProviderWebAuthenticationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6F6855FD89FDB53F76A4457 /* ProviderWebAuthenticationSession.swift */; };
 		E67C106D234520815AC76138 /* ConnectSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D8CF3A6096695D8F6D6B808 /* ConnectSheet.swift */; };
 		F2F5B71D883CD8AA37F12596 /* cash-register.caf in Resources */ = {isa = PBXBuildFile; fileRef = A6893DE2EB5BC9C89ABC8089 /* cash-register.caf */; };
@@ -71,6 +72,7 @@
 		C0FD894F5B73CA31CF884DA9 /* ChaChing.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ChaChing.entitlements; sourceTree = "<group>"; };
 		C6F6855FD89FDB53F76A4457 /* ProviderWebAuthenticationSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderWebAuthenticationSession.swift; sourceTree = "<group>"; };
 		C702CA5FCE9B85FA055A62E1 /* CustomWebhookDeveloperPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomWebhookDeveloperPrompt.swift; sourceTree = "<group>"; };
+		C7C6369E30F863F2869F6669 /* CustomWebhookHealthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomWebhookHealthTests.swift; sourceTree = "<group>"; };
 		C8764F36998B956216842955 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookNotificationDesignerTests.swift; sourceTree = "<group>"; };
 		D115B8103FF1439A0C2E6D3D /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -143,6 +145,7 @@
 			children = (
 				A5BFDF9B844EE38D865B037E /* AppNavigationTests.swift */,
 				7996CF08A2EAA4E22A254C26 /* CustomWebhookDeveloperPromptTests.swift */,
+				C7C6369E30F863F2869F6669 /* CustomWebhookHealthTests.swift */,
 				0B698CD26E86058C88F518AE /* PaymentNotificationPresentationTests.swift */,
 				BEBA6FCB9D4D20B2ACB4B83D /* SalesStoreTests.swift */,
 				CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */,
@@ -315,6 +318,7 @@
 			files = (
 				7FF6A62D26FE5A1B2DEF4248 /* AppNavigationTests.swift in Sources */,
 				63FF238A5F0308F390742C0F /* CustomWebhookDeveloperPromptTests.swift in Sources */,
+				B6814146399AD6D569992EDF /* CustomWebhookHealthTests.swift in Sources */,
 				A0039B73D3CA4C97E635C7AA /* PaymentNotificationPresentationTests.swift in Sources */,
 				4BFC9D438C135FDD2C3CA473 /* SalesStoreTests.swift in Sources */,
 				A18C3C775864A1B0EB0A332C /* WebhookNotificationDesignerTests.swift in Sources */,

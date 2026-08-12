@@ -40,6 +40,7 @@ Custom notifications have a fixed `Cha-ching!` title. Their body is deterministi
 - Foreground delivery requests Apple's real banner, list, sound, and badge presentation. Apple limits the abbreviated system preview to a few lines; the in-app payment detail contains every configured custom field saved for that payment.
 - A sample can also be queued as a delayed lock-screen test. The authenticated request validates the current preview, confirms a registered device, and places the exact body on Cloudflare Queue without creating a payment; the Queue consumer sends it after the delay.
 - Live and sample-based test notifications use the bundled, level-checked cash-register sound by default. System mute, Focus, permission, and foreground-presentation rules remain controlled by iOS.
+- Custom-source health warnings use the existing notification Queue and active-device boundary, carry `connectionHealth: true` plus the affected source ID, and use the default system sound. Pressing one selects Connect and opens that source rather than pretending a missing sale exists.
 
 ## Data retention
 
@@ -59,6 +60,7 @@ Sale metadata and delivery records remain associated with the Cha-Ching account 
 - Turning Payment notifications off removes that phone's backend registration and prevents launch-time re-registration until the user turns it on again.
 - Clearing Stripe payment history removes only that user's Stripe payments and delivery records, preserves the connection and paused setting, and leaves custom-source payments intact.
 - Immediate foreground testing presents a genuine Apple notification and exposes every selected structured line after the user presses it. Delayed lock-screen testing does not depend on the app staying active after the server accepts the request, and opening that notification must safely cold-launch the detail presentation.
+- A custom-source health warning is emitted at most once per uninterrupted warning state and routes to the affected source; a later healthy request resets eligibility for a future warning.
 
 ## Live verification status
 
