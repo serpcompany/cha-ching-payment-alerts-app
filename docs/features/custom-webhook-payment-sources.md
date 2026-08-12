@@ -176,3 +176,5 @@ Migration `0011` and Worker version `7017202c-0764-459b-b8cf-d2cce5479e27` were 
 TestFlight `1.0 (20)` (`8d66944d-8c80-4f93-9657-aa5d5fa274f4`) is `VALID` and `IN_BETA_TESTING` in **Cha-Ching Internal**. It reads an open payment detail from the refreshed shared Payments store and adds native pull-to-refresh to that screen.
 
 Custom-source activity evidence, adaptive quiet-source monitoring, one-time health notifications, and the iOS **Connection health** UI are implemented in the repository with migration `0012`. They have not been deployed or promoted to TestFlight.
+
+Automatic active-payment field discovery is implemented in the repository. It appends genuinely unseen scalar paths through an optimistic mapping update, includes enabled discovered values only in payments where they occur, preserves earlier history, and exposes the accepted mapping to active Notification settings. This behavior has not been deployed or promoted to TestFlight.
