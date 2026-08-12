@@ -20,13 +20,13 @@ Classify a rejected latest request as **Needs checking**. Classify silence as **
 
 Run the classifier hourly. Send one source-routed APNs warning per uninterrupted warning state, and reset that latch when a later accepted or duplicate request arrives. UI copy must say that quiet activity does not prove disconnection.
 
-The authenticated source-detail request only reloads this stored evidence. Its UI action is **Check for new webhook activity**, not a connection test. A successful API response must be interpreted using the returned health status and reason: it must not show success styling while `needs_attention` remains. Rejected evidence directs the user to correct and resend the sender payload; quiet evidence says no newer request arrived and that silence is not proof of disconnection; a transition to receiving explicitly clears the warning. Paused monitoring offers no activity-check action.
+The authenticated source-detail request reloads this stored evidence when source management opens. Active-source management presents the evidence passively and offers no check, refresh, reconnect, or repair action: Cha-Ching cannot probe an arbitrary external sender, and reloading its own API is not a meaningful user action. Rejected evidence directs the user to correct and resend the sender payload. Quiet evidence says that silence may be normal and is not proof of disconnection.
 
 ## Consequences
 
 - Users can see when “enabled” no longer matches observed sender activity.
 - Mapping failures produce actionable, payload-safe detail.
 - Low-volume and new sources avoid unsupported outage claims.
-- The client distinguishes API availability from webhook activity and never claims to probe an external sender.
+- The client distinguishes API availability from webhook activity, never claims to probe an external sender, and does not ask the user to refresh receiver-side evidence manually.
 - Detection latency is bounded by the hourly schedule plus the learned activity window.
 - Migration `0012` is required before the Worker code is deployed.
