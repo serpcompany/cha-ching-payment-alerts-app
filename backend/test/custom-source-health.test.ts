@@ -26,6 +26,27 @@ describe("custom source health", () => {
     });
   });
 
+  it("reports receiving after later accepted webhook evidence", () => {
+    const result = classifyCustomSourceHealth({
+      status: "active",
+      lastEventReceivedAt: "2026-08-12 12:00:00",
+      lastEventStatus: "accepted",
+      lastEventError: null,
+      lastPaymentReceivedAt: "2026-08-12 12:00:00",
+      recentPaymentTimes: ["2026-08-12 12:00:00"],
+      now,
+    });
+
+    expect(result).toEqual({
+      status: "receiving",
+      reason: null,
+      lastEventReceivedAt: "2026-08-12 12:00:00",
+      lastPaymentReceivedAt: "2026-08-12 12:00:00",
+      expectedEventBy: null,
+      detail: "Cha-Ching received a webhook event.",
+    });
+  });
+
   it("flags an established source after its adaptive activity window passes", () => {
     const result = classifyCustomSourceHealth({
       status: "active",

@@ -20,10 +20,13 @@ Classify a rejected latest request as **Needs checking**. Classify silence as **
 
 Run the classifier hourly. Send one source-routed APNs warning per uninterrupted warning state, and reset that latch when a later accepted or duplicate request arrives. UI copy must say that quiet activity does not prove disconnection.
 
+The authenticated source-detail request only reloads this stored evidence. Its UI action is **Check for new webhook activity**, not a connection test. A successful API response must be interpreted using the returned health status and reason: it must not show success styling while `needs_attention` remains. Rejected evidence directs the user to correct and resend the sender payload; quiet evidence says no newer request arrived and that silence is not proof of disconnection; a transition to receiving explicitly clears the warning. Paused monitoring offers no activity-check action.
+
 ## Consequences
 
 - Users can see when “enabled” no longer matches observed sender activity.
 - Mapping failures produce actionable, payload-safe detail.
 - Low-volume and new sources avoid unsupported outage claims.
+- The client distinguishes API availability from webhook activity and never claims to probe an external sender.
 - Detection latency is bounded by the hourly schedule plus the learned activity window.
 - Migration `0012` is required before the Worker code is deployed.

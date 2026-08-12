@@ -128,7 +128,13 @@ final class ConnectStore: ObservableObject {
     }
 
     func customSourceDetail(id: String) async throws -> CustomSourceDetail {
-        try await APIClient.shared.get("/v1/custom-sources/\(id)")
+        let detail: CustomSourceDetail = try await APIClient.shared.get("/v1/custom-sources/\(id)")
+        acceptCustomSourceDetail(detail)
+        return detail
+    }
+
+    func acceptCustomSourceDetail(_ detail: CustomSourceDetail) {
+        replaceCustomSource(detail.source)
     }
 
     func previewCustomSource(id: String, mapping: WebhookFieldMapping) async throws -> CustomPaymentPreview {

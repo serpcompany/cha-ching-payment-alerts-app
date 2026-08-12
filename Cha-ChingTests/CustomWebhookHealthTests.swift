@@ -29,5 +29,6 @@ struct CustomWebhookHealthTests {
         #expect(source.health?.reason == .quiet)
         #expect(source.health?.statusTitle == "Needs checking")
         #expect(source.health?.lastEventDate != nil)
+        #expect(source.health?.expectedEventDate != nil)
     }
 }
