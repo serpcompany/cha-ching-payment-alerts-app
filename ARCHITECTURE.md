@@ -12,14 +12,14 @@
 ## Request flow
 
 1. iOS obtains an Apple ID token with a nonce and posts it to Better Auth.
-2. Better Auth returns a bearer session; iOS stores it in Keychain.
+2. Better Auth returns a one-year sliding bearer session; iOS stores it in Keychain. Successful authenticated use refreshes expiry at most once per day, while sign-out, account deletion, and server revocation still end the session.
 3. For account deletion, iOS obtains a fresh Apple authorization code. The Worker exchanges it for a refresh token, verifies that Apple's subject matches the linked account, encrypts the token, and revokes it before deleting the D1 user.
 4. iOS requests a provider authorization URL with that bearer session.
 5. The Worker checks the D1 entitlement and persists only a hash of a ten-minute OAuth state.
 6. The provider returns to the Worker. The Worker consumes the one-time state and rechecks entitlement. Stripe App installs are verified with the app signing secret; production installs must also pass a live-mode, read-only Charge probe before the account ID is stored. Providers that issue OAuth tokens are exchanged and encrypted.
 7. The Worker redirects to `chaching://oauth-callback`; iOS refreshes connection state from D1.
 
-Every authenticated product API except identity bootstrap (`/v1/me`), subscription status, and subscription reconciliation requires both current product access and any feature-specific entitlement once product enforcement is enabled. The iOS app renders the backend's `full_access` or `subscription_required` result; StoreKit purchase state is never an authorization source. Production first deploys subscription reconciliation with `PRODUCT_ACCESS_ENFORCEMENT=disabled`, distributes the matching client, and enables enforcement only after a signed-device sandbox purchase or restore succeeds end to end.
+Every authenticated product API except identity bootstrap (`/v1/me`), subscription status, and subscription reconciliation requires both current product access and any feature-specific entitlement once product enforcement is enabled. The iOS app renders the backend's `full_access` or `subscription_required` result; StoreKit purchase state is never an authorization source. When the backend reports `subscription_required`, iOS automatically submits any locally available verified current entitlement before settling on the paywall; only explicit Restore Purchases may force `AppStore.sync()`. Production first deploys subscription reconciliation with `PRODUCT_ACCESS_ENFORCEMENT=disabled`, distributes the matching client, and enables enforcement only after a signed-device sandbox purchase or restore succeeds end to end.
 
 ## Subscription flow
 

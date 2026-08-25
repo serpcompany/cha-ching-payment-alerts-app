@@ -162,6 +162,7 @@ final class SubscriptionStore: ObservableObject {
     @Published private(set) var offer: SubscriptionOffer?
     @Published private(set) var isWorking = false
     @Published var errorMessage: String?
+    @Published private(set) var restoreMessage: String?
 
     private let accessClient: SubscriptionAccessClient
     private let storeKit: SubscriptionStoreKitClient
@@ -177,13 +178,22 @@ final class SubscriptionStore: ObservableObject {
     }
 
     func refresh() async {
+        errorMessage = nil
         do {
             let status = try await accessClient.status()
             apply(status)
-            if status.access == .subscriptionRequired {
-                offer = try? await storeKit.offer(status.productId)
+            guard status.access == .subscriptionRequired else { return }
+
+            if let purchase = await storeKit.currentEntitlement(status.productId) {
+                do {
+                    try await reconcile(purchase)
+                    if presentation == .fullAccess { return }
+                } catch {
+                    errorMessage = "Your current Apple subscription couldn't be verified by Cha-Ching."
+                }
             }
-            errorMessage = nil
+
+            offer = try? await storeKit.offer(status.productId)
         } catch {
             presentation = .unavailable
             errorMessage = "Subscription status couldn't refresh."
@@ -208,14 +218,13 @@ final class SubscriptionStore: ObservableObject {
 
     func purchase() async {
         guard let status else { return }
+        restoreMessage = nil
         isWorking = true
         defer { isWorking = false }
         do {
             switch try await storeKit.purchase(status.productId, status.appAccountToken) {
             case .purchased(let purchase):
-                let reconciled = try await accessClient.sync(purchase.signedTransaction)
-                apply(reconciled)
-                await storeKit.finish(purchase.transactionID)
+                try await reconcile(purchase)
             case .pending:
                 errorMessage = "Apple is still processing this purchase."
             case .cancelled:
@@ -228,6 +237,12 @@ final class SubscriptionStore: ObservableObject {
 
     func restore() async {
         guard let status else { return }
+        restoreMessage = nil
+        errorMessage = nil
+        guard status.access == .subscriptionRequired else {
+            restoreMessage = "Your subscription is already active."
+            return
+        }
         isWorking = true
         defer { isWorking = false }
         do {
@@ -238,16 +253,31 @@ final class SubscriptionStore: ObservableObject {
                 if let purchase = await storeKit.currentEntitlement(status.productId) {
                     try await restore(purchase)
                 } else {
-                    apply(try await accessClient.status())
+                    let refreshed = try await accessClient.status()
+                    apply(refreshed)
+                    restoreMessage = refreshed.access == .fullAccess
+                        ? "Your subscription is already active."
+                        : "No active purchases were found for this App Store account."
                 }
             }
         } catch {
-            let storeError = error as NSError
-            errorMessage = "Purchases couldn't be restored. (\(storeError.domain) \(storeError.code))"
+            if let apiError = error as? APIError {
+                errorMessage = apiError.localizedDescription
+            } else {
+                let storeError = error as NSError
+                errorMessage = "Purchases couldn't be restored. (\(storeError.domain) \(storeError.code))"
+            }
         }
     }
 
     private func restore(_ purchase: StorePurchase) async throws {
+        try await reconcile(purchase)
+        restoreMessage = presentation == .fullAccess
+            ? "Purchases restored."
+            : "No active purchases were found for this App Store account."
+    }
+
+    private func reconcile(_ purchase: StorePurchase) async throws {
         let reconciled = try await accessClient.sync(purchase.signedTransaction)
         apply(reconciled)
         await storeKit.finish(purchase.transactionID)
@@ -259,13 +289,16 @@ final class SubscriptionStore: ObservableObject {
         status = nil
         offer = nil
         errorMessage = nil
+        restoreMessage = nil
         presentation = .loading
     }
 
     private func apply(_ status: SubscriptionStatus) {
         self.status = status
+        restoreMessage = nil
         switch status.access {
         case .fullAccess:
+            offer = nil
             presentation = .fullAccess
         case .subscriptionRequired:
             presentation = .subscriptionRequired(action: status.action ?? .subscribeAgain)

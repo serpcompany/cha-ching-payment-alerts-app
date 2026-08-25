@@ -55,6 +55,13 @@ struct SubscriptionGateView: View {
                 }
                 .disabled(subscription.isWorking)
 
+                if let message = subscription.restoreMessage {
+                    Text(message)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
                 if let error = subscription.errorMessage {
                     Text(error)
                         .font(.footnote)

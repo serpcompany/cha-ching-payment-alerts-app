@@ -10,7 +10,9 @@ The launch offer is one Apple auto-renewing subscription at $14.99/year with a s
 
 Purchase and restore use a stable per-user `appAccountToken`. The app sends Apple's signed transaction to the Worker, the Worker verifies and reconciles it, and D1 is the authorization source of truth. StoreKit or UI state alone never grants access.
 
-Restore first checks StoreKit's locally available verified current entitlements and submits a matching transaction to the Worker. Only when no matching entitlement is available does the explicit restore action force `AppStore.sync()` and check again. A StoreKit restore failure keeps access gated and includes the Apple error domain and code so signed-device beta failures can be diagnosed without treating local state as authorization.
+After sign-in, launch, and foreground activation, the app first asks the Worker for product access. If the Worker reports **Subscription required** but StoreKit already has a verified current entitlement for the annual product, the app automatically submits that transaction to the Worker before settling on the paywall. This automatic path never forces `AppStore.sync()` or presents an Apple account prompt.
+
+Restore remains an explicit fallback. It first checks StoreKit's locally available verified current entitlements and submits a matching transaction to the Worker. Only when no matching entitlement is available does the explicit restore action force `AppStore.sync()` and check again. The app reports whether purchases were restored, backend access was already active, no active purchase was found for the current App Store account, or StoreKit returned an error. A StoreKit restore failure keeps access gated and includes the Apple error domain and code so signed-device beta failures can be diagnosed without treating local state as authorization.
 
 Local Debug runs use the checked-in StoreKit catalog and automated purchase/restore coverage described in [`docs/development/storekit-testing.md`](../development/storekit-testing.md). A dedicated E2E scheme verifies local sign-in, StoreKit purchase, HTTP reconciliation, D1 persistence, and restore. The catalog is excluded from Release; the Worker accepts Xcode transactions only over its loopback-only development boundary, and local StoreKit state never replaces remote Apple signature verification.
 
@@ -40,7 +42,9 @@ All three are enabled by default when first materialized for an MVP user. Effect
 - Refund and revocation notifications remove access; stale notifications cannot overwrite newer state.
 - Stripe and custom-source events received without product access create no payment or notification and are not replayed after recovery.
 - Purchase success on the device does not grant access unless backend reconciliation returns Full access.
+- A locally available current entitlement is reconciled automatically after the backend reports Subscription required, without forcing App Store sync.
 - Restore is explicit and available from both Subscription required and Settings.
+- Restore always presents a visible outcome instead of silently retaining the existing access state.
 - A subscription-gated user can still manage billing and delete their account without product access.
 - Production enforcement is enabled through `PRODUCT_ACCESS_ENFORCEMENT` after TestFlight build 23 reconciled an Apple-signed sandbox transaction through the production Worker into D1 and loaded the Full access API set. A current backend-verified product entitlement is now required for protected APIs and incoming payment events.
 

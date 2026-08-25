@@ -6,6 +6,9 @@ import { importPKCS8, SignJWT } from "jose";
 import type { Env } from "./env";
 import { isAppleConfigured, isSimulatorAuthEnabled } from "./env";
 
+const MOBILE_SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 365;
+const MOBILE_SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
+
 export async function appleClientSecret(
   env: Env,
   clientId: string = env.APPLE_SERVICE_ID,
@@ -77,6 +80,10 @@ export function createAuth(env: Env) {
       },
     },
     session: {
+      // Keep installed native clients signed in while preserving explicit
+      // revocation and a finite inactivity boundary.
+      expiresIn: MOBILE_SESSION_EXPIRES_IN_SECONDS,
+      updateAge: MOBILE_SESSION_UPDATE_AGE_SECONDS,
       fields: {
         expiresAt: "expires_at",
         createdAt: "created_at",

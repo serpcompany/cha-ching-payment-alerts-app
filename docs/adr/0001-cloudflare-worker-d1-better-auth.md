@@ -11,6 +11,8 @@ Cha-Ching needs globally reachable native-app authentication, relational ownersh
 
 Use one Cloudflare Worker as the API boundary, D1 as the relational source of truth, and Better Auth for Apple identity and sessions. Native clients use Better Auth bearer sessions stored in Keychain. Application tables use prepared D1 statements and tracked Wrangler migrations.
 
+Native bearer sessions use a one-year sliding expiration and refresh at most once per day after authenticated use. This keeps an installed mobile app signed in through normal updates and regular use while retaining a finite inactivity boundary. Explicit sign-out, account deletion, or server-side session revocation remains immediately authoritative.
+
 ## Consequences
 
 - All authorization decisions are server-side.

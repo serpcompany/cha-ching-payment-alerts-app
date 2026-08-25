@@ -10,6 +10,8 @@ A user can establish and restore a Cha-Ching account using Apple's native author
 - The Apple identity token and raw nonce are posted to Better Auth.
 - Better Auth validates issuer, audience, age, signature, and nonce.
 - The Better Auth bearer session is stored in the device Keychain.
+- Native sessions use a one-year sliding expiration. Successful authenticated use refreshes the expiry at most once per day, so an installed app stays signed in through ordinary updates and recurring use.
+- Explicit sign-out, account deletion, server-side revocation, or one full year without successful authenticated use ends the session.
 - When Apple omits email on a later authorization, the Worker may recover it only from the already-linked local Better Auth account.
 - Sign out invalidates the server session and clears Keychain state.
 - Account deletion asks for a fresh native Apple authorization. The Worker exchanges the one-time code, verifies that Apple's subject matches the authenticated linked account, encrypts the resulting refresh token, and revokes Apple authorization before deleting Cha-Ching data.
@@ -44,6 +46,7 @@ setup and test matrix. The boundary decision is recorded in
 - A returning Apple user resolves to the same user.
 - An invalid token, nonce, issuer, or audience is rejected.
 - Relaunch restores a valid session and rejects an expired one.
+- Ordinary app and TestFlight updates do not require signing in again while the server session remains valid.
 - No Apple private key or Better Auth secret is present in the app bundle or git.
 - Full account deletion revokes Sign in with Apple authorization before removing all user-linked D1 rows and the native bearer token.
 - A Debug Simulator can create and restore a local Better Auth session without
