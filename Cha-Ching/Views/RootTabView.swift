@@ -82,6 +82,17 @@ private struct SettingsView: View {
                     Button("Restore Purchases") {
                         Task { await subscription.restore() }
                     }
+                    .disabled(subscription.isWorking)
+                    if let message = subscription.restoreMessage {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let error = subscription.errorMessage {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
                     Link(
                         "Manage Subscription",
                         destination: ChaChingLink.manageSubscription
