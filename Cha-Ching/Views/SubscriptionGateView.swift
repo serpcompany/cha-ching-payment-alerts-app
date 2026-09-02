@@ -4,6 +4,7 @@ struct SubscriptionGateView: View {
     @EnvironmentObject private var subscription: SubscriptionStore
     @EnvironmentObject private var auth: AuthManager
     @State private var accountSheet: AccountSheet?
+    @State private var isConfirmingPurchase = false
 
     var body: some View {
         ScrollView {
@@ -91,6 +92,14 @@ struct SubscriptionGateView: View {
         .sheet(item: $accountSheet) { _ in
             AccountDeletionView()
         }
+        .alert(purchaseConfirmationTitle, isPresented: $isConfirmingPurchase) {
+            Button("Continue to Apple") {
+                Task { await subscription.purchase() }
+            }
+            Button("Not now", role: .cancel) {}
+        } message: {
+            Text(purchaseConfirmationMessage)
+        }
     }
 
     @ViewBuilder
@@ -99,7 +108,7 @@ struct SubscriptionGateView: View {
             Link("Update billing", destination: ChaChingLink.manageSubscription)
         } else {
             Button(primaryActionTitle) {
-                Task { await subscription.purchase() }
+                isConfirmingPurchase = true
             }
         }
     }
@@ -114,15 +123,30 @@ struct SubscriptionGateView: View {
     }
 
     private var primaryActionTitle: String {
-        if isEligibleForTrial { return "Start free trial" }
+        if isEligibleForTrial { return "Start 7-day free trial" }
         return action == .subscribeAgain ? "Subscribe again" : "Subscribe"
     }
 
     private var renewalDisclosure: String {
         if isEligibleForTrial {
-            return "Full access during your trial. The subscription renews automatically unless canceled at least 24 hours before the current period ends."
+            return "No charge today. After 7 days, your Apple Account will be charged \(displayPrice) for one year. The subscription renews annually unless canceled at least 24 hours before the current period ends."
         }
-        return "Full access with an auto-renewing subscription. Cancel at least 24 hours before the current period ends to prevent renewal."
+        return "Your Apple Account will be charged \(displayPrice) for one year. The subscription renews annually unless canceled at least 24 hours before the current period ends."
+    }
+
+    private var purchaseConfirmationTitle: String {
+        isEligibleForTrial ? "Start your 7-day free trial?" : "Confirm annual subscription"
+    }
+
+    private var purchaseConfirmationMessage: String {
+        if isEligibleForTrial {
+            return "You won't be charged today. After 7 days, your Apple Account will be charged \(displayPrice) for one year. The subscription then renews annually unless canceled at least 24 hours before the current period ends."
+        }
+        return "Your Apple Account will be charged \(displayPrice) for one year. The subscription renews annually unless canceled at least 24 hours before the current period ends."
+    }
+
+    private var displayPrice: String {
+        subscription.offer?.displayPrice ?? "the displayed price"
     }
 }
 
