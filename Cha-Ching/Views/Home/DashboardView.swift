@@ -4,8 +4,6 @@ import SwiftUI
 struct DashboardView: View {
     @EnvironmentObject private var store: DashboardStore
     @EnvironmentObject private var preferences: PreferencesStore
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var carouselPosition: Int?
 
     var body: some View {
         NavigationStack {
@@ -53,27 +51,16 @@ struct DashboardView: View {
 
     private var dailySummaryCarousel: some View {
         DailySummaryCarousel(
-            pages: store.carouselDayOffsets.map {
-                DailySummaryPage(id: $0, summary: store.dailySummary(for: $0))
-            },
+            selectedDayOffset: store.dayOffset,
             selectedCurrency: selectedCurrency,
-            selection: $carouselPosition
+            summary: { store.dailySummary(for: $0) },
+            selectDayOffset: {
+                await store.selectDayOffset($0)
+                return store.dayOffset
+            }
         )
         .padding(.horizontal, -16)
         .accessibilityLabel("Daily payment summaries")
-        .onAppear { carouselPosition = store.dayOffset }
-        .onChange(of: store.dayOffset) { _, newOffset in
-            guard carouselPosition != newOffset else { return }
-            updateCarouselPosition(newOffset)
-        }
-        .task(id: carouselPosition) {
-            guard let requestedOffset = carouselPosition,
-                  requestedOffset != store.dayOffset
-            else { return }
-            await store.selectDayOffset(requestedOffset)
-            guard !Task.isCancelled, carouselPosition != store.dayOffset else { return }
-            updateCarouselPosition(store.dayOffset)
-        }
     }
 
     private func reportsHeader(_ dashboard: DashboardResponse) -> some View {
@@ -366,14 +353,6 @@ struct DashboardView: View {
         let offsetDifference = requestedOffset - dashboard.dayOffset
         return calendar.date(byAdding: .day, value: -offsetDifference, to: dashboard.dailySummary.start)
             ?? dashboard.dailySummary.start
-    }
-
-    private func updateCarouselPosition(_ offset: Int) {
-        if reduceMotion {
-            carouselPosition = offset
-        } else {
-            withAnimation(.snappy) { carouselPosition = offset }
-        }
     }
 
     private func chartAxisIndices(count: Int) -> [Int] {
