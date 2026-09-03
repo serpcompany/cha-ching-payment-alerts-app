@@ -96,7 +96,16 @@ pnpm exec wrangler secret put PAYPAL_CLIENT_ID
 pnpm exec wrangler secret put PAYPAL_CLIENT_SECRET
 pnpm exec wrangler queues create cha-ching-notifications
 pnpm exec wrangler queues create cha-ching-notifications-dlq
+```
+
+For ordinary production promotion, follow
+[`docs/development/database-promotion.md`](docs/development/database-promotion.md):
+
+```bash
+cd backend
+pnpm promote:check
 pnpm db:migrate:remote
+pnpm db:migrations:remote:status
 pnpm run deploy
 ```
 

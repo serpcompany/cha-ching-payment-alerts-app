@@ -8,8 +8,9 @@ This file is the repository map. Durable product and engineering knowledge belon
 2. Read `ARCHITECTURE.md` before changing boundaries, persistence, authentication, or provider integrations.
 3. Read `docs/features/index.md` and the feature document relevant to the task.
 4. Read applicable ADRs under `docs/adr/`.
-5. For tracked work, use GitHub Issues; keep the issue body and checklist current as the durable execution record.
-6. Read `docs/brand.md` before changing names, visual styling, product copy, or public metadata.
+5. Read `docs/development/database-promotion.md` before changing D1 migrations, data movement, Worker deployment, or TestFlight/backend promotion.
+6. For tracked work, use GitHub Issues; keep the issue body and checklist current as the durable execution record.
+7. Read `docs/brand.md` before changing names, visual styling, product copy, or public metadata.
 
 ## Agent skills
 
