@@ -119,7 +119,7 @@ struct CustomSourceSheet: View {
                 await checkConnection()
             }
 
-            Text("The first event configures this source. It does not create a Dashboard payment or send a notification.")
+            Text("The first event configures this source. It does not create a payment or send a notification.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -161,7 +161,7 @@ struct CustomSourceSheet: View {
                 set: { active in Task { await setActive(active) } }
             ))
             Text(source.status == .active
-                 ? "New payments appear on your Dashboard and send notifications."
+                 ? "New payments appear in Payments and send notifications."
                  : "Paused. Your setup and existing payments are kept, but new events are ignored.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)

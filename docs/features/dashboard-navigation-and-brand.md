@@ -1,67 +1,61 @@
-# Dashboard, Navigation, and Notification Brand
+# Home Dashboard, Navigation, and Notification Brand
 
 ## User outcome
 
-Cha-Ching opens into one clear **Dashboard** for payments. Connection management and Settings remain separate destinations; speculative metrics, duplicate history, and processor summaries do not compete with the primary payment view.
+Cha-Ching separates the payment-performance overview from individual transactions. **Home** answers “how are payments going?”, **Payments** retains the normalized transaction feed and detail screens, and **Settings** contains preferences and payment-source management.
 
 ## Navigation
 
-The signed-in app has exactly three tabs:
+The signed-in app has exactly three top-level tabs:
 
-1. **Dashboard** — payments reported by active sources.
-2. **Connect** — Stripe, PayPal, and custom payment-source setup and management.
-3. **Settings** — payment-notification controls and account sign-out.
+1. **Home** — a timezone-aware payment-performance overview.
+2. **Payments** — the existing transaction list and payment details.
+3. **Settings** — Payment sources, reporting timezone, notifications, subscription, account, and legal actions.
 
-There is no separate **History** tab. The Dashboard's **Payments** section is the user-facing payment list and opens the existing payment-detail screen. The former **Today** tab and navigation title are both renamed **Dashboard**.
+Settings → **Payment sources** contains the existing Stripe, PayPal, and custom-webhook connection flows. It is not a top-level tab. Payment notifications select Payments and open the matching detail. Source-health notifications select Settings, push Payment sources, and open the affected source.
 
-## Dashboard content
+## Home dashboard
 
-- The MVP Dashboard contains only **Payments**. It has no revenue hero, notification bell, **Top seller**, **This week**, or **Last 7 days** widget, and those unused dashboard components and aggregations do not remain in the app target.
-- **Connected processors** is removed; connection status belongs in **Connect**.
-- **Recent pings** becomes **Payments**.
-- The empty state says **No payments yet** and explains that a payment will appear when one arrives.
-- The Dashboard presents every payment currently loaded from the sales API in the API's order. It does not silently truncate the loaded Payments feed to a fixed number of rows.
-- Payment rows and details continue to use the D1-backed sales API. A historical custom payment retains the values that were enabled when it arrived in a stable field-ID archive, while accepted presentation edits rename, hide, reorder, and re-enable those values so Dashboard details stay consistent with the source's current configuration. Newly shown fields appear on an older payment only when the value was retained when it arrived; Stripe payments retain the normalized fallback details.
-- Pulling down on an individual payment detail refreshes the shared Payments feed and redraws that open detail from the latest server-accepted presentation instead of preserving the navigation-time snapshot.
-- A custom-payment row uses the product title, a dollar-payment symbol, and the first enabled configured detail as its subtitle. It does not substitute a generic globe or “Reported by” attribution. Changing the enabled fields, labels, or order therefore changes the most prominent supporting detail on retained custom payments after the accepted presentation is applied.
-- If Payments cannot refresh, already-loaded payments stay visible. A compact inline message says **Payments couldn't refresh.**, offers **Retry** and **Dismiss**, and clears automatically after a successful refresh.
-- Automatic foreground, notification-triggered, and pull-to-refresh callers share one in-flight Payments request. A canceled or superseded caller does not flash a false connectivity error while the shared request is still succeeding.
+The fixed **Today** summary uses the saved reporting timezone and shows Gross volume, Payments, and Average payment. Counts may span currencies; monetary totals and averages never do.
 
-## Settings content
+Reports default to **4 weeks**. A native menu offers 1 week, 4 weeks, 1 year, month to date, quarter to date, year to date, and all time. Gross volume and Payments include current and previous values, percentage-change state, and current/previous Swift Charts line series. Product and payment-source sections show payment count and gross amount for the selected currency.
 
-- **Payment notifications** is an actual on/off toggle. Turning it off unregisters this iPhone from Cha-Ching's backend and stops automatic re-registration; turning it on requests system permission when needed and registers the phone again.
-- The toggle is the status. Settings does not repeat it with a separate **Status** row.
-- If backend removal fails, Settings reports that the phone could not be removed instead of claiming a successful server-side disable. iOS system permission remains controlled separately in the Settings app.
-- **Plan access** is removed. Entitlements remain enforced invisibly by the Worker and still determine which connection actions are allowed.
-- Sign out remains available.
-- Settings exposes reachable Support, Privacy Policy, and Terms of Use links.
-- **Delete account** opens an explicit irreversible-deletion explanation, warns that Apple billing continues separately, links to **Manage Subscription**, and requires fresh Sign in with Apple authorization before the backend removes the account.
+Gross volume is the sum of normalized succeeded payments. It is not revenue, earnings, net, or a balance. Setup samples, ignored events, retries, refunded rows, and source-scoped duplicates do not count. Refunds are excluded rather than subtracted because complete adjustment ingestion is not available. Product grouping uses the retained label, including the honest generic `Stripe payment` label. Custom-source grouping uses the user-defined source name.
 
-## Notification identity
+V1 deliberately excludes Customers, MRR, active subscribers, balances, fees, refunds, disputes, net revenue, source filtering, report customization, and currency conversion because the normalized payment model does not support those claims.
 
-- The app icon and in-app brand mark use a bold dollar symbol, not a checkmark.
-- The compiled primary icon is named `ChaChingDollarIcon`; release QA verifies both the archived app icon and Apple's processed build icon before a TestFlight handoff.
-- Remote payment notifications and sample-based test notifications use the bundled money sound by default. The checked-in CAF preserves the decoded audio from the approved `cha-ching-money.mp3` source while using an Apple notification-compatible format.
-- Payment pushes do not set a synthetic unread badge. Opening or returning to Cha-Ching, including by pressing a notification, clears any badge left by an older build.
-- If the user's device is muted, Focus blocks the alert, notification permission is off, or iOS suppresses sound, Cha-Ching cannot override that system behavior.
-- While Cha-Ching is open, the app requests Apple's real banner, list, sound, and badge presentation. It does not automatically substitute an in-app sheet.
-- Apple controls the abbreviated foreground and lock-screen layout and documents it as title, subtitle, and two to four body lines. Pressing a real payment notification selects Dashboard and opens that D1-backed payment detail, whether Cha-Ching was open, backgrounded, or not running. A setup test notification has no payment and therefore keeps the standalone preview sheet.
-- **Test lock screen** schedules the sample from the Worker through Cloudflare Queue with a short delay, then immediately shows nonmodal inline guidance to lock the phone. No acknowledgement button gates or obscures the countdown. Because the Worker owns the delay, locking the app cannot suspend the outgoing request.
+## Time boundaries and comparisons
+
+- Today starts at local midnight and ends at generation time.
+- 1 week and 4 weeks start at local midnight six and 27 calendar days ago.
+- 1 year starts on the matching local calendar date one year ago, clamped for leap day.
+- MTD, QTD, and YTD start at the local calendar boundary.
+- All starts at the earliest qualifying payment and has no previous comparison.
+- Other previous periods use the immediately preceding equal-elapsed interval.
+- A positive value over zero displays **New**; zero over zero displays an em dash; zero after a positive value displays `-100%`.
+- Daily, weekly, monthly, and adaptive all-time buckets include explicit zeros.
+
+The phone's current IANA timezone initializes the account preference once. The first device wins atomically. Travel does not silently move report boundaries. A searchable Settings selector explicitly changes it and immediately refreshes Home.
+
+## Payments
+
+Payments presents every payment returned by `/v1/sales` in server order and opens the existing detail screen. Its API remains capped independently from dashboard aggregation. Pull-to-refresh keeps loaded rows on failure, provides Retry and Dismiss, and shares an in-flight request across concurrent callers.
+
+## Native design
+
+The app uses Apple's `TabView`, one `NavigationStack` per tab, `Form`, `Section`, `NavigationLink`, `LabeledContent`, native `Picker` styles, searchable `List`, `GroupBox`, `ContentUnavailableView`, `ProgressView`, `.refreshable`, SF Symbols, Dynamic Type, and Swift Charts. Cha-Ching's mint and gold theme remains an accent; there is no custom tab bar, chip control, timezone control, or chart engine.
+
+## Settings and notification identity
+
+Payment notifications remain an explicit device preference. Settings retains restore/manage subscription, notification registration guidance, sign out, account deletion, support, privacy, and terms. The dollar-symbol app icon, `Cha-ching!` title, cash-register sound, non-sticky badge behavior, and Apple-controlled banner presentation remain unchanged.
 
 ## Acceptance criteria
 
-- The tab bar contains Dashboard, Connect, and Settings in that order, with no History or Today tab.
-- Dashboard contains no Connected processors section and no user-facing use of “ping.”
-- Given more than six loaded payments, Dashboard renders every loaded payment in the sales API's order.
-- Dashboard contains no Top seller, This week, or Last 7 days widget or implementation.
-- Dashboard contains no revenue hero or nonfunctional notification-bell toolbar item.
-- Dashboard contains a Payments section backed by the same payment list and detail route.
-- An open payment detail supports pull-to-refresh and displays the refreshed server copy of that payment.
-- A custom-payment row uses a payment symbol and its first enabled configured detail; it never shows the generic globe or “Reported by” fallback.
-- A Payments refresh failure is actionable and dismissible and does not erase previously loaded payments.
-- Pulling to refresh while another automatic refresh is active does not issue duplicate requests or briefly show a false failure card.
-- Settings contains a working Payment notifications toggle and Sign out, with no Plan access section.
-- Settings contains support/legal links and authenticated account deletion. The deletion path remains available from Subscription required as well as Full access.
-- A setup sample push is a genuine Apple banner and opens its standalone preview after a press because no payment exists yet. An active-source test uses the latest retained payment ID, so pressing it safely selects Dashboard and opens that payment's full detail just like a real payment notification. A lock-screen test is queued only after the server accepts the delayed request and starts its countdown without an acknowledgement step.
-- The compiled app includes matching dollar-symbol app-icon and BrandMark assets.
-- The compiled app bundle includes the named cash-register sound used by both live and test APNs payloads.
+- Tabs are Home, Payments, and Settings in that order.
+- Payment sources is reachable under Settings with all existing setup and management actions.
+- Home derives its Today and reporting boundaries from the saved account timezone.
+- Dashboard totals query all succeeded rows and keep currencies separate.
+- Home supports every approved period, prior comparisons, zero-filled charts, product grouping, and source grouping.
+- Loaded Home data survives refresh failure with Retry and Dismiss actions.
+- Payment and source-health notifications reach their new destinations.
+- Payment list/detail, notification settings, subscription, account deletion, and legal flows remain reachable.

@@ -43,6 +43,7 @@ describe("authenticated account deletion", () => {
       "0009_custom_notification_fields.sql", "0010_reconcile_custom_payment_history_presentation.sql",
       "0011_retain_custom_payment_field_values.sql", "0012_custom_source_health.sql",
       "0013_product_entitlements.sql", "0014_apple_account_deletion_credentials.sql",
+      "0015_user_preferences.sql",
     ]) {
       const statements = (await readFile(join(process.cwd(), "migrations", migration), "utf8"))
         .replace(/--.*$/gm, "")
@@ -84,6 +85,7 @@ describe("authenticated account deletion", () => {
       env.DB.prepare("INSERT INTO provider_events (id, provider, provider_event_id, user_id, provider_account_id, event_type) VALUES ('event', 'stripe', 'evt_owner', 'owner', 'acct_owner', 'charge.succeeded')"),
       env.DB.prepare("INSERT INTO custom_payment_sources (id, user_id, name, webhook_token_hash, webhook_token_ciphertext) VALUES ('source', 'owner', 'Store', 'hash', 'ciphertext')"),
       env.DB.prepare("INSERT INTO product_entitlements (user_id, app_account_token) VALUES ('owner', '11111111-1111-4111-8111-111111111111')"),
+      env.DB.prepare("INSERT INTO user_preferences (user_id, reporting_timezone) VALUES ('owner', 'Asia/Tokyo')"),
       env.DB.prepare("INSERT INTO device_tokens (id, user_id, device_id, token, environment) VALUES ('device', 'owner', 'iphone', 'apns', 'production')"),
       env.DB.prepare(`INSERT INTO sales
         (id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
@@ -115,6 +117,7 @@ describe("authenticated account deletion", () => {
       "user", "session", "account", "entitlements", "provider_connections", "oauth_states",
       "provider_events", "custom_payment_sources", "product_entitlements", "device_tokens",
       "sales", "notification_deliveries", "apple_account_credentials",
+      "user_preferences",
     ]) {
       const row = await env.DB.prepare(`SELECT COUNT(*) AS count FROM ${table}`).first<{ count: number }>();
       expect(row?.count, table).toBe(0);

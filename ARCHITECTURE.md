@@ -5,7 +5,7 @@
 - `Cha-Ching/` is the iOS presentation and native-auth client. It never stores provider credentials.
 - `backend/src/index.ts` is the Worker HTTP boundary.
 - Better Auth owns `user`, `session`, `account`, `verification`, and `rate_limit` in D1.
-- Cha-Ching owns `entitlements`, `product_entitlements`, `provider_connections`, `oauth_states`, `provider_events`, `custom_payment_sources`, `sales`, `device_tokens`, and `notification_deliveries`.
+- Cha-Ching owns `entitlements`, `product_entitlements`, `provider_connections`, `oauth_states`, `provider_events`, `custom_payment_sources`, `sales`, `user_preferences`, `device_tokens`, and `notification_deliveries`.
 - Stripe and PayPal OAuth modules are the only code allowed to exchange provider authorization codes.
 - `backend/src/subscriptions.ts` is the Apple billing adapter and the provider-independent product-access boundary. Apple lifecycle states do not cross this boundary.
 
@@ -39,6 +39,14 @@ Every authenticated product API except identity bootstrap (`/v1/me`), subscripti
 5. The queue consumer claims one delivery per active device, reuses that delivery row's stable ID as the APNs id, signs an APNs provider token, and sends to Apple's development or production endpoint based on the registered token.
 6. Completed deliveries are not repeated; duplicate Queue messages resolve to the same sale/device row and APNs id. Transient failures retry and eventually move to `cha-ching-notifications-dlq`.
 7. iOS refreshes `/v1/sales` when it receives or opens a notification.
+
+## Home reporting flow
+
+1. On the first authenticated full-access launch, iOS submits `TimeZone.current.identifier` as an initialize-only reporting preference. D1's user-keyed insert makes the first device win; later launches and travel do not overwrite it.
+2. The user can explicitly replace that IANA timezone under Settings. Invalid identifiers are rejected by the Worker.
+3. `GET /v1/dashboard` computes local calendar boundaries from the saved timezone while keeping every stored payment timestamp in UTC.
+4. The Worker aggregates all matching succeeded `sales` rows rather than the 100-row Payments feed. Monetary results remain separated by currency, and missing chart buckets are returned as zero.
+5. Home refreshes after a preference change, foreground activation, and payment-notification routing. Payments continues to use `/v1/sales` for its list and detail navigation.
 
 A connected provider's `is_active` flag is checked before sale insertion. Pausing preserves authorization and history while new provider events receive a durable `ignored` disposition, so replaying one after resume cannot turn it into a sale.
 

@@ -75,7 +75,7 @@ struct CustomNotificationSettingsView: View {
                 }
             } footer: {
                 Text(isEditingActiveSource
-                     ? "Changes update existing Dashboard details and future payments."
+                     ? "Changes update existing payment details and future payments."
                      : "All details found in the test payment are listed. Each enabled detail appears on its own “Label: Value” line.")
             }
 
@@ -370,7 +370,7 @@ struct CustomNotificationSettingsView: View {
 
     private var activationGuidance: String {
         if mapping.isReadyForActivation(after: previewedMapping) {
-            return "Ready. New webhook events will become Dashboard payments and notifications."
+            return "Ready. New webhook events will become payments and notifications."
         }
         if mappingIsComplete {
             return "Preview the current notification above to enable activation."

@@ -391,7 +391,7 @@ struct CustomSourceDetail: Decodable {
         case .active:
             return CustomSourceConnectionPresentation(
                 title: "Active",
-                detail: "New events create Dashboard payments and notifications.",
+                detail: "New events create payments and notifications.",
                 receivedAt: nil
             )
         case .paused:

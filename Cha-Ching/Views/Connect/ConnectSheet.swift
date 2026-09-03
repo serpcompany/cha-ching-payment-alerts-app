@@ -125,7 +125,7 @@ struct ConnectSheet: View {
                     Task { await clearPaymentHistory() }
                 }
             } message: {
-                Text("Remove all Stripe payments from your Dashboard? This can't be undone. Your Stripe connection and paused setting will stay unchanged.")
+                Text("Remove all Stripe payments from Payments? This can't be undone. Your Stripe connection and paused setting will stay unchanged.")
             }
         }
     }

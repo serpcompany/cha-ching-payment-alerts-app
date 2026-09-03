@@ -2,56 +2,67 @@ import SwiftUI
 import UIKit
 
 enum AppTab: String, CaseIterable {
-    case dashboard
-    case connect
+    case home
+    case payments
     case settings
 
     var title: String {
         switch self {
-        case .dashboard: "Dashboard"
-        case .connect: "Connect"
+        case .home: "Home"
+        case .payments: "Payments"
         case .settings: "Settings"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .dashboard: "chart.bar.fill"
-        case .connect: "link"
+        case .home: "house.fill"
+        case .payments: "creditcard.fill"
         case .settings: "gearshape.fill"
-        }
-    }
-
-    @MainActor @ViewBuilder
-    var content: some View {
-        switch self {
-        case .dashboard: HomeView()
-        case .connect: ConnectView()
-        case .settings: SettingsView()
         }
     }
 }
 
+enum SettingsRoute: Hashable {
+    case paymentSources
+    case reportingTimezone
+}
+
 struct RootTabView: View {
+    @EnvironmentObject private var dashboard: DashboardStore
     @EnvironmentObject private var notifications: NotificationManager
-    @State private var selectedTab = AppTab.dashboard
+    @State private var selectedTab = AppTab.home
+    @State private var settingsPath: [SettingsRoute] = []
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            ForEach(AppTab.allCases, id: \.self) { tab in
-                tab.content
-                    .tabItem { Label(tab.title, systemImage: tab.systemImage) }
-                    .tag(tab)
-            }
+            DashboardView()
+                .tabItem { Label(AppTab.home.title, systemImage: AppTab.home.systemImage) }
+                .tag(AppTab.home)
+            PaymentsView()
+                .tabItem { Label(AppTab.payments.title, systemImage: AppTab.payments.systemImage) }
+                .tag(AppTab.payments)
+            SettingsView(path: $settingsPath)
+                .tabItem { Label(AppTab.settings.title, systemImage: AppTab.settings.systemImage) }
+                .tag(AppTab.settings)
         }
         .onChange(of: notifications.openedSaleID) { _, saleID in
-            if saleID != nil { selectedTab = .dashboard }
+            if saleID != nil {
+                selectedTab = .payments
+                Task { await dashboard.refresh() }
+            }
         }
         .onChange(of: notifications.openedCustomSourceID) { _, sourceID in
-            if sourceID != nil { selectedTab = .connect }
+            if sourceID != nil {
+                selectedTab = .settings
+                settingsPath = [.paymentSources]
+            }
         }
         .task(id: notifications.openedCustomSourceID) {
-            if notifications.openedCustomSourceID != nil { selectedTab = .connect }
+            if notifications.openedCustomSourceID != nil {
+                selectedTab = .settings
+                settingsPath = [.paymentSources]
+            }
         }
         .sheet(item: foregroundNotificationBinding) { notification in
             ForegroundPaymentNotificationView(notification: notification)
@@ -71,12 +82,30 @@ struct RootTabView: View {
 private struct SettingsView: View {
     @EnvironmentObject private var auth: AuthManager
     @EnvironmentObject private var notifications: NotificationManager
+    @EnvironmentObject private var preferences: PreferencesStore
     @EnvironmentObject private var subscription: SubscriptionStore
+    @Binding var path: [SettingsRoute]
     @State private var accountSheet: AccountSheet?
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Form {
+                Section("Payment sources") {
+                    NavigationLink(value: SettingsRoute.paymentSources) {
+                        Label("Payment sources", systemImage: "link")
+                    }
+                }
+                Section("Reporting") {
+                    NavigationLink(value: SettingsRoute.reportingTimezone) {
+                        LabeledContent("Timezone") {
+                            Text(preferences.reportingTimezone?.replacingOccurrences(of: "_", with: " ") ?? "Setting up…")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    if let error = preferences.errorMessage {
+                        Text(error).font(.footnote).foregroundStyle(.red)
+                    }
+                }
                 Section("Subscription") {
                     Text("Full access")
                     Button("Restore Purchases") {
@@ -144,13 +173,59 @@ private struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .navigationDestination(for: SettingsRoute.self) { route in
+                switch route {
+                case .paymentSources:
+                    PaymentSourcesView()
+                case .reportingTimezone:
+                    ReportingTimezoneView()
+                }
+            }
             .task {
+                await preferences.initializeIfNeeded()
                 await notifications.refreshAuthorizationStatus()
             }
             .sheet(item: $accountSheet) { _ in
                 AccountDeletionView()
             }
         }
+    }
+}
+
+private struct ReportingTimezoneView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var dashboard: DashboardStore
+    @EnvironmentObject private var preferences: PreferencesStore
+    @State private var query = ""
+
+    private var identifiers: [String] {
+        let all = TimeZone.knownTimeZoneIdentifiers
+        guard !query.isEmpty else { return all }
+        return all.filter { $0.localizedCaseInsensitiveContains(query) }
+    }
+
+    var body: some View {
+        List(identifiers, id: \.self) { identifier in
+            Button {
+                Task {
+                    guard await preferences.updateReportingTimezone(identifier) else { return }
+                    await dashboard.refresh()
+                    dismiss()
+                }
+            } label: {
+                HStack {
+                    Text(identifier.replacingOccurrences(of: "_", with: " "))
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    if preferences.reportingTimezone == identifier {
+                        Image(systemName: "checkmark").foregroundStyle(Theme.accent)
+                    }
+                }
+            }
+            .disabled(preferences.isSaving)
+        }
+        .navigationTitle("Reporting timezone")
+        .searchable(text: $query, prompt: "Search timezones")
     }
 }
 
@@ -195,6 +270,8 @@ private struct ForegroundPaymentNotificationView: View {
         .environmentObject(SalesStore())
         .environmentObject(AuthManager())
         .environmentObject(ConnectStore())
+        .environmentObject(DashboardStore())
+        .environmentObject(PreferencesStore())
         .environmentObject(NotificationManager.shared)
         .environmentObject(SubscriptionStore())
 }

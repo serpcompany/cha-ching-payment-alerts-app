@@ -17,7 +17,8 @@ Brand rules live in [`docs/brand.md`](docs/brand.md), App Store copy in [`docs/a
 - Custom sources issue a stable private webhook URL, provide copyable developer instructions, learn a user-selected mapping from one encrypted setup sample, and let the user show, hide, rename, remap, or reorder every observed notification field before previewing, sending a real test notification, and activating.
 - Custom pushes use a fixed `Cha-ching!` title and one ordered `{label}: {value}` line per enabled field. “Observed” means present in the test sample; it does not claim to be every field the sender could theoretically provide.
 - Custom notifications retain only the enabled, normalized label/value pairs with the sale; the complete live webhook payload is not stored.
-- The iOS Dashboard Payments section reads Stripe-verified and custom sender-reported payments from the Worker; sample revenue is not part of production behavior.
+- The iOS app separates a timezone-aware Home payment dashboard from the Payments transaction list. Dashboard aggregation reads every qualifying D1 row, while Payments retains its focused latest-payment API; sample revenue is not part of production behavior.
+- Payment-source setup and management lives under Settings → Payment sources rather than occupying a top-level tab.
 
 PayPal account linking is implemented separately from sale ingestion. Version 1.0 supports Stripe payment alerts once the production Stripe platform and webhook secrets are configured; PayPal alerts are not implemented.
 

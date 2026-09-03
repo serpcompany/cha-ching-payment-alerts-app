@@ -1,16 +1,16 @@
 import SwiftUI
 
-enum DashboardSection: CaseIterable {
+enum PaymentsSection: CaseIterable {
     case payments
 }
 
-enum DashboardPaymentPresentation {
+enum PaymentsPresentation {
     static func rows(from loadedPayments: [Sale]) -> [Sale] {
         loadedPayments
     }
 }
 
-struct HomeView: View {
+struct PaymentsView: View {
     @EnvironmentObject private var store: SalesStore
     @EnvironmentObject private var notifications: NotificationManager
     @State private var path: [Sale] = []
@@ -41,7 +41,7 @@ struct HomeView: View {
                 }
                 notifications.consumeOpenedSale(saleID)
             }
-            .navigationTitle("Dashboard")
+            .navigationTitle("Payments")
         }
     }
 
@@ -64,7 +64,7 @@ struct HomeView: View {
                 NoSalesYetView()
             } else {
                 VStack(spacing: 10) {
-                    ForEach(DashboardPaymentPresentation.rows(from: store.sales)) { sale in
+                    ForEach(PaymentsPresentation.rows(from: store.sales)) { sale in
                         NavigationLink(value: sale) {
                             SaleRow(sale: sale)
                         }
@@ -109,7 +109,7 @@ enum Formatters {
 }
 
 #Preview {
-    HomeView()
+    PaymentsView()
         .environmentObject(SalesStore())
         .environmentObject(ConnectStore())
         .environmentObject(NotificationManager.shared)

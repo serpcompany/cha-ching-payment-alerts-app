@@ -7,7 +7,9 @@ struct ChaChingApp: App {
     @StateObject private var store = SalesStore()
     @StateObject private var auth = AuthManager()
     @StateObject private var connectStore = ConnectStore()
+    @StateObject private var dashboard = DashboardStore()
     @StateObject private var notifications = NotificationManager.shared
+    @StateObject private var preferences = PreferencesStore()
     @StateObject private var subscription = SubscriptionStore()
 
     var body: some Scene {
@@ -39,7 +41,9 @@ struct ChaChingApp: App {
             .environmentObject(store)
             .environmentObject(auth)
             .environmentObject(connectStore)
+            .environmentObject(dashboard)
             .environmentObject(notifications)
+            .environmentObject(preferences)
             .environmentObject(subscription)
             .tint(Theme.accent)
             .task(id: auth.isSignedIn) {
@@ -48,9 +52,11 @@ struct ChaChingApp: App {
                     subscription.startListeningForTransactions()
                     await subscription.refresh()
                     guard subscription.presentation == .fullAccess else { return }
+                    await preferences.initializeIfNeeded()
                     async let connections: Void = connectStore.refresh()
                     async let sales: Void = store.refresh()
-                    _ = await (connections, sales)
+                    async let dashboardRefresh: Void = dashboard.refresh()
+                    _ = await (connections, sales, dashboardRefresh)
                     notifications.registerIfAuthorized()
                 }
             }
@@ -59,14 +65,18 @@ struct ChaChingApp: App {
                     subscription.reset()
                     store.reset()
                     connectStore.reset()
+                    dashboard.reset()
+                    preferences.reset()
                 }
             }
             .onChange(of: subscription.presentation) { _, presentation in
                 guard presentation == .fullAccess else { return }
                 Task {
+                    await preferences.initializeIfNeeded()
                     async let connections: Void = connectStore.refresh()
                     async let sales: Void = store.refresh()
-                    _ = await (connections, sales)
+                    async let dashboardRefresh: Void = dashboard.refresh()
+                    _ = await (connections, sales, dashboardRefresh)
                     notifications.registerIfAuthorized()
                 }
             }
@@ -77,7 +87,10 @@ struct ChaChingApp: App {
                 Task {
                     await subscription.refresh()
                     guard subscription.presentation == .fullAccess else { return }
-                    await store.refresh()
+                    await preferences.initializeIfNeeded()
+                    async let sales: Void = store.refresh()
+                    async let dashboardRefresh: Void = dashboard.refresh()
+                    _ = await (sales, dashboardRefresh)
                     notifications.registerIfAuthorized()
                 }
             }

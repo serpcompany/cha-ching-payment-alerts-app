@@ -54,8 +54,8 @@ enum PaymentNotificationPresentation {
 }
 
 enum PaymentNotificationDestination: Equatable, Sendable {
-    case dashboardPayment(id: String)
-    case connectSource(id: String)
+    case payment(id: String)
+    case paymentSource(id: String)
     case preview(ForegroundPaymentNotification)
 }
 
@@ -68,10 +68,10 @@ enum PaymentNotificationResponseRouter {
         if userInfo["connectionHealth"] != nil,
            let sourceID = userInfo["sourceId"] as? String,
            !sourceID.isEmpty {
-            return .connectSource(id: sourceID)
+            return .paymentSource(id: sourceID)
         }
         if let saleID = userInfo["saleId"] as? String, !saleID.isEmpty {
-            return .dashboardPayment(id: saleID)
+            return .payment(id: saleID)
         }
         return .preview(ForegroundPaymentNotification(title: title, body: body))
     }
@@ -316,9 +316,9 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
                 guard let self else { return }
                 NotificationCenter.default.post(name: .chaChingSaleReceived, object: nil)
                 switch destination {
-                case let .dashboardPayment(id):
+                case let .payment(id):
                     openedSaleID = id
-                case let .connectSource(id):
+                case let .paymentSource(id):
                     openedCustomSourceID = id
                 case let .preview(notification):
                     foregroundNotification = notification

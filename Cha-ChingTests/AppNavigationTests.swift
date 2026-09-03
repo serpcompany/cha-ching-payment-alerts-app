@@ -4,11 +4,11 @@ import Testing
 
 struct AppNavigationTests {
     @Test @MainActor func signedInNavigationUsesOnlyTheThreeUserDestinations() {
-        #expect(AppTab.allCases.map(\.title) == ["Dashboard", "Connect", "Settings"])
+        #expect(AppTab.allCases.map(\.title) == ["Home", "Payments", "Settings"])
     }
 
-    @Test func dashboardContainsOnlyTheMVPPaymentsSection() {
-        #expect(DashboardSection.allCases == [.payments])
+    @Test func paymentSourcesAreASettingsDrillDown() {
+        #expect(SettingsRoute.paymentSources != SettingsRoute.reportingTimezone)
     }
 
     @Test func dashboardPresentsEveryLoadedPaymentInServerOrder() {
@@ -25,7 +25,7 @@ struct AppNavigationTests {
             )
         }
 
-        let displayedPayments = DashboardPaymentPresentation.rows(from: loadedPayments)
+        let displayedPayments = PaymentsPresentation.rows(from: loadedPayments)
 
         #expect(displayedPayments.map(\.id) == [
             "payment-1",

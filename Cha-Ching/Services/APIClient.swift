@@ -164,6 +164,17 @@ actor APIClient {
         return try decoder.decode(Response.self, from: data)
     }
 
+    func put<Body: Encodable, Response: Decodable>(
+        _ path: String,
+        body: Body
+    ) async throws -> Response {
+        var request = try makeRequest(path: path, method: "PUT")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(body)
+        let (data, _) = try await perform(request)
+        return try decoder.decode(Response.self, from: data)
+    }
+
     func delete(_ path: String) async throws {
         let request = try makeRequest(path: path, method: "DELETE")
         _ = try await perform(request)

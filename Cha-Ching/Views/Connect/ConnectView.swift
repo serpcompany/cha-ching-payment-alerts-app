@@ -1,13 +1,12 @@
 import SwiftUI
 
-struct ConnectView: View {
+struct PaymentSourcesView: View {
     @EnvironmentObject private var connectStore: ConnectStore
     @EnvironmentObject private var notifications: NotificationManager
     @State private var destination: ConnectDestination?
 
     var body: some View {
-        NavigationStack {
-            ZStack {
+        ZStack {
                 Theme.canvas.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 16) {
@@ -28,9 +27,8 @@ struct ConnectView: View {
                     .padding(16)
                 }
             }
-            .navigationTitle("Connect")
-            .refreshable { await connectStore.refresh() }
-        }
+        .navigationTitle("Payment sources")
+        .refreshable { await connectStore.refresh() }
         .sheet(item: $destination) { destination in
             switch destination {
             case .provider(let provider):

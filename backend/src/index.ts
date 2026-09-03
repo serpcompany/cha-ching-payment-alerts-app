@@ -26,6 +26,8 @@ import { processNotificationBatch } from "./notifications";
 import type { NotificationMessage } from "./notifications";
 import { monitorCustomSourceHealth } from "./custom-source-health";
 import { listSales } from "./sales";
+import { getDashboard } from "./dashboard";
+import { getPreferences, updatePreferences } from "./preferences";
 import { handleStripeWebhook } from "./stripe-webhooks";
 import {
   handleAppleSubscriptionNotification,
@@ -123,6 +125,15 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
   if (request.method === "GET" && url.pathname === "/v1/sales") {
     return listSales(env, auth, request);
+  }
+  if (request.method === "GET" && url.pathname === "/v1/dashboard") {
+    return getDashboard(env, auth, request);
+  }
+  if (request.method === "GET" && url.pathname === "/v1/preferences") {
+    return getPreferences(env, auth, request);
+  }
+  if (request.method === "PUT" && url.pathname === "/v1/preferences") {
+    return updatePreferences(env, auth, request);
   }
   if (request.method === "POST" && url.pathname === "/v1/devices") {
     return registerDevice(env, auth, request);

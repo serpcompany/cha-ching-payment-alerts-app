@@ -84,7 +84,7 @@ register `production` tokens instead.
    production event destination.
 3. D1 contains one idempotent sale and one delivery for that device.
 4. APNs reports the delivery as sent, the phone shows the Cha-ching alert, and
-   the same payment appears in Dashboard → Payments.
+   the same payment appears in Payments.
 
 ## TestFlight archive note
 
