@@ -11,11 +11,22 @@ final class DashboardStore: ObservableObject {
     @Published var selectedCurrency: String?
 
     private let loader: Loader
+    private var notificationObserver: NSObjectProtocol?
     private var refreshTask: Task<DashboardResponse, Error>?
     private var refreshGeneration = 0
 
-    init(loader: @escaping Loader) {
+    init(
+        loader: @escaping Loader,
+        notificationCenter: NotificationCenter = .default
+    ) {
         self.loader = loader
+        notificationObserver = notificationCenter.addObserver(
+            forName: .chaChingSaleReceived,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in await self?.refresh() }
+        }
     }
 
     convenience init() {

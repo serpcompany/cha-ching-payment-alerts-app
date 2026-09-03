@@ -32,6 +32,7 @@ interface Window {
 
 interface MoneyTotal {
   currency: string;
+  payments: number;
   grossAmountMinor: number;
   averageAmountMinor: number;
 }
@@ -211,6 +212,7 @@ function moneyTotals(value: Aggregate): MoneyTotal[] {
   return [...value.money.entries()].sort(([left], [right]) => left.localeCompare(right)).map(
     ([currency, value]) => ({
       currency,
+      payments: value.count,
       grossAmountMinor: value.amount,
       averageAmountMinor: Math.round(value.amount / value.count),
     }),
@@ -229,11 +231,14 @@ function addBreakdown(grouped: Map<string, Aggregate>, name: string, row: SaleRo
 }
 
 function breakdown(grouped: Map<string, Aggregate>) {
-  return [...grouped.entries()].map(([name, value]) => ({
+  return [...grouped.entries()]
+    .sort(([leftName, left], [rightName, right]) => (
+      right.payments - left.payments || leftName.localeCompare(rightName)
+    ))
+    .map(([name, value]) => ({
     label: name,
-    payments: value.payments,
     amounts: moneyTotals(value),
-  })).sort((left, right) => right.payments - left.payments || left.label.localeCompare(right.label));
+  }));
 }
 
 type BucketUnit = "day" | "week" | "month" | "year";
@@ -283,6 +288,7 @@ function bucketsResponse(buckets: BucketAggregate[], currencies: string[]) {
       payments: bucket.payments,
       amounts: currencies.map((currency) => moneyTotals(bucket).find((value) => value.currency === currency) ?? ({
         currency,
+        payments: 0,
         grossAmountMinor: 0,
         averageAmountMinor: 0,
       })),

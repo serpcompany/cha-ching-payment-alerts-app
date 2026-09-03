@@ -69,6 +69,12 @@ struct RootTabView: View {
                 Task { await dashboard.refresh() }
             }
         }
+        .task(id: notifications.openedSaleID) {
+            if notifications.openedSaleID != nil {
+                applyNotificationRoute()
+                await dashboard.refresh()
+            }
+        }
         .onChange(of: notifications.openedCustomSourceID) { _, sourceID in
             if sourceID != nil { applyNotificationRoute() }
         }
@@ -114,6 +120,7 @@ private struct SettingsView: View {
                     NavigationLink(value: SettingsRoute.paymentSources) {
                         Label("Payment sources", systemImage: "link")
                     }
+                    .accessibilityIdentifier("settings.paymentSources")
                 }
                 Section("Reporting") {
                     NavigationLink(value: SettingsRoute.reportingTimezone) {

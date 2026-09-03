@@ -14,6 +14,7 @@ struct DashboardTests {
             #expect(response.reportingTimezone == "Asia/Tokyo")
             #expect(response.today.payments == 2)
             #expect(response.today.currencies.first?.grossAmountMinor == 2700)
+            #expect(response.today.currencies.first?.payments == 2)
             #expect(response.report.currentSeries.first?.amounts.amount(for: "USD") == 2700)
             #expect(response.report.products.first?.label == "Widget")
         }
@@ -33,6 +34,8 @@ struct DashboardTests {
         #expect(usd.contains("213.50"))
         #expect(yen.contains("21,350"))
         #expect(usd != yen)
+        #expect(CurrencyAmount.exponent(for: "BHD") == 3)
+        #expect(CurrencyAmount.exponent(for: "jpy") == 0)
     }
 
     @MainActor
@@ -91,6 +94,27 @@ struct DashboardTests {
     }
 
     @MainActor
+    @Test func foregroundSaleNotificationsRefreshHomeAndCoalesce() async throws {
+        let response = try decodedResponse()
+        let center = NotificationCenter()
+        let loader = ControlledDashboardLoader(first: response, second: response)
+        let store = DashboardStore(
+            loader: { period in try await loader.load(period) },
+            notificationCenter: center
+        )
+
+        center.post(name: .chaChingSaleReceived, object: nil)
+        center.post(name: .chaChingSaleReceived, object: nil)
+        while loader.callCount == 0 { await Task.yield() }
+        #expect(loader.callCount == 1)
+        loader.finishFirst()
+        while store.dashboard == nil { await Task.yield() }
+
+        #expect(store.dashboard?.today.payments == 2)
+        #expect(loader.callCount == 1)
+    }
+
+    @MainActor
     @Test func loadingEmptyAndInitialErrorStatesAreExplicit() async throws {
         let response = try decodedResponse(isEmpty: true)
         let loader = ControlledDashboardLoader(first: response, second: response)
@@ -143,19 +167,19 @@ struct DashboardTests {
         let currentPayments = isEmpty ? 0 : 2
         let currencies = isEmpty
             ? "[]"
-            : "[{\"currency\":\"USD\",\"grossAmountMinor\":2700,\"averageAmountMinor\":1350}]"
+            : "[{\"currency\":\"USD\",\"payments\":2,\"grossAmountMinor\":2700,\"averageAmountMinor\":1350}]"
         let comparedCurrencies = isEmpty
             ? "[]"
             : "[{\"currency\":\"USD\",\"currentAmountMinor\":2700,\"previousAmountMinor\":1000,\"comparison\":{\"state\":\"percent\",\"percent\":170}}]"
         let series = isEmpty
             ? "[]"
-            : "[{\"start\":\"2026-09-02T15:00:00Z\",\"end\":\"2026-09-03T12:00:00Z\",\"payments\":2,\"amounts\":[{\"currency\":\"USD\",\"grossAmountMinor\":2700,\"averageAmountMinor\":1350}]}]"
+            : "[{\"start\":\"2026-09-02T15:00:00Z\",\"end\":\"2026-09-03T12:00:00Z\",\"payments\":2,\"amounts\":[{\"currency\":\"USD\",\"payments\":2,\"grossAmountMinor\":2700,\"averageAmountMinor\":1350}]}]"
         let products = isEmpty
             ? "[]"
-            : "[{\"label\":\"Widget\",\"payments\":2,\"amounts\":[{\"currency\":\"USD\",\"grossAmountMinor\":2700,\"averageAmountMinor\":1350}]}]"
+            : "[{\"label\":\"Widget\",\"amounts\":[{\"currency\":\"USD\",\"payments\":2,\"grossAmountMinor\":2700,\"averageAmountMinor\":1350}]}]"
         let sources = isEmpty
             ? "[]"
-            : "[{\"label\":\"Stripe\",\"payments\":2,\"amounts\":[{\"currency\":\"USD\",\"grossAmountMinor\":2700,\"averageAmountMinor\":1350}]}]"
+            : "[{\"label\":\"Stripe\",\"amounts\":[{\"currency\":\"USD\",\"payments\":2,\"grossAmountMinor\":2700,\"averageAmountMinor\":1350}]}]"
         return """
         {
           "reportingTimezone": "\(timezone)",

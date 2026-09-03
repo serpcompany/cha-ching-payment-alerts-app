@@ -38,6 +38,7 @@
 		9C60FAA7DB48DEEABAABEA71 /* LocalStoreKitIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 509125BBFE0DDFCA50E5FA99 /* LocalStoreKitIntegrationTests.swift */; };
 		A0039B73D3CA4C97E635C7AA /* PaymentNotificationPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B698CD26E86058C88F518AE /* PaymentNotificationPresentationTests.swift */; };
 		A18C3C775864A1B0EB0A332C /* WebhookNotificationDesignerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCD00236DD5AC8B94480C943 /* WebhookNotificationDesignerTests.swift */; };
+		A5AA6ECEB6BEC4608DCFA38C /* CurrencyAmount.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7BB94C6058ABD68E3FDB356 /* CurrencyAmount.swift */; };
 		AF01ED49D8033099991F6BBF /* CustomWebhookDeveloperPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = C702CA5FCE9B85FA055A62E1 /* CustomWebhookDeveloperPrompt.swift */; };
 		B15D512565372F588A4ED383 /* SalesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9ABCE1E07393E5E7E9E2C3 /* SalesStore.swift */; };
 		B3D6BBF6C86A0346C40D76CE /* SubscriptionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 321139328020A6C4640818BE /* SubscriptionStoreTests.swift */; };
@@ -87,6 +88,7 @@
 		AA321C7A5BA4FBE69295C95C /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		B1AE6B5C771C2724A0D0CB73 /* DashboardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardStore.swift; sourceTree = "<group>"; };
 		B4B800513E0052C6450AFC2B /* Cha-Ching.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Cha-Ching.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B7BB94C6058ABD68E3FDB356 /* CurrencyAmount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyAmount.swift; sourceTree = "<group>"; };
 		BEBA6FCB9D4D20B2ACB4B83D /* SalesStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalesStoreTests.swift; sourceTree = "<group>"; };
 		C0FD894F5B73CA31CF884DA9 /* ChaChing.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ChaChing.entitlements; sourceTree = "<group>"; };
 		C1C71457800107B5F9063C4E /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
@@ -210,6 +212,7 @@
 		CBA791CA6365D6E5B901E196 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				B7BB94C6058ABD68E3FDB356 /* CurrencyAmount.swift */,
 				468DDF9F4DEF74FC897AF682 /* CustomPaymentSource.swift */,
 				C702CA5FCE9B85FA055A62E1 /* CustomWebhookDeveloperPrompt.swift */,
 				7353CC4CF109A910EB725D45 /* Dashboard.swift */,
@@ -381,6 +384,7 @@
 				E67C106D234520815AC76138 /* ConnectSheet.swift in Sources */,
 				991C548A38405CB88DC6704C /* ConnectStore.swift in Sources */,
 				80CEDB095F8C9808067CBFAC /* ConnectView.swift in Sources */,
+				A5AA6ECEB6BEC4608DCFA38C /* CurrencyAmount.swift in Sources */,
 				577767016C99FC718193832E /* CustomNotificationSettingsView.swift in Sources */,
 				4500C3B0EEBBE88F08C7AD8A /* CustomPaymentSource.swift in Sources */,
 				7336998C7ED8AB0D08878F80 /* CustomSourceSheet.swift in Sources */,

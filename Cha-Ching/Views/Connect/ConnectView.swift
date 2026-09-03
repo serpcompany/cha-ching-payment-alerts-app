@@ -3,7 +3,7 @@ import SwiftUI
 struct PaymentSourcesView: View {
     @EnvironmentObject private var connectStore: ConnectStore
     @EnvironmentObject private var notifications: NotificationManager
-    @State private var destination: ConnectDestination?
+    @State private var destination: PaymentSourceDestination?
 
     var body: some View {
         ZStack {
@@ -16,11 +16,13 @@ struct PaymentSourcesView: View {
                                 state: state,
                                 isAvailable: connectStore.isAvailable(state.provider)
                             ) { destination = .provider(state.provider) }
+                            .accessibilityIdentifier("paymentSources.provider.\(state.provider.rawValue)")
                         }
                         ForEach(connectStore.customSources) { source in
                             CustomSourceCard(source: source) {
                                 destination = .customSource(source.id)
                             }
+                            .accessibilityIdentifier("paymentSources.custom.\(source.id)")
                         }
                         addCustomSourceCard
                     }
@@ -87,10 +89,11 @@ struct PaymentSourcesView: View {
             .cardStyle(padding: 0)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("paymentSources.add")
     }
 }
 
-private enum ConnectDestination: Identifiable {
+enum PaymentSourceDestination: Identifiable {
     case provider(Provider)
     case newCustomSource
     case customSource(String)

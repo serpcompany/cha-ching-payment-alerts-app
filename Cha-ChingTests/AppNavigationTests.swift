@@ -20,4 +20,58 @@ struct AppNavigationTests {
         let target = AppNavigation.target(openedSaleID: nil, openedSourceID: "source")
         #expect(target == AppNavigationTarget(tab: .settings, settingsPath: [.paymentSources]))
     }
+
+    @Test func coldLaunchPaymentRouteFindsTheMatchingPaymentDetail() throws {
+        let payments = [
+            Sale(
+                id: "other",
+                product: "Other",
+                amountMinor: 100,
+                currency: "USD",
+                source: .stripe,
+                date: .distantPast,
+                isSubscription: false,
+                countryCode: nil
+            ),
+            Sale(
+                id: "opened",
+                product: "Opened",
+                amountMinor: 200,
+                currency: "USD",
+                source: .custom,
+                date: .now,
+                isSubscription: false,
+                countryCode: nil
+            )
+        ]
+
+        let path = PaymentsNavigation.path(openedSaleID: "opened", sales: payments)
+        #expect(path.map(\.id) == ["opened"])
+        #expect(PaymentsNavigation.path(openedSaleID: "missing", sales: payments).isEmpty)
+    }
+
+    @Test func paymentSourceControlsRemainReachableForEachConnectionState() {
+        #expect(PaymentSourceDestination.newCustomSource.id == "custom-new")
+        #expect(PaymentSourceDestination.provider(.stripe).id == "provider-stripe")
+        #expect(PaymentSourceDestination.customSource("source").id == "custom-source")
+
+        let disconnected = ProviderConnectionCapabilities(provider: .stripe, isConnected: false)
+        #expect(disconnected.canConnect)
+        #expect(disconnected.canConfigure)
+        #expect(!disconnected.canTogglePayments)
+        #expect(!disconnected.canClearHistory)
+        #expect(!disconnected.canDisconnect)
+
+        let stripe = ProviderConnectionCapabilities(provider: .stripe, isConnected: true)
+        #expect(!stripe.canConnect)
+        #expect(stripe.canConfigure)
+        #expect(stripe.canTogglePayments)
+        #expect(stripe.canClearHistory)
+        #expect(stripe.canDisconnect)
+
+        let paypal = ProviderConnectionCapabilities(provider: .paypal, isConnected: true)
+        #expect(paypal.canTogglePayments)
+        #expect(!paypal.canClearHistory)
+        #expect(paypal.canDisconnect)
+    }
 }

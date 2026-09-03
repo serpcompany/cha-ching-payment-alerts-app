@@ -1,5 +1,14 @@
 import SwiftUI
 
+enum PaymentsNavigation {
+    static func path(openedSaleID: String?, sales: [Sale]) -> [Sale] {
+        guard let openedSaleID, let sale = sales.first(where: { $0.id == openedSaleID }) else {
+            return []
+        }
+        return [sale]
+    }
+}
+
 struct PaymentsView: View {
     @EnvironmentObject private var store: SalesStore
     @EnvironmentObject private var notifications: NotificationManager
@@ -26,9 +35,7 @@ struct PaymentsView: View {
             .task(id: notifications.openedSaleID) {
                 guard let saleID = notifications.openedSaleID else { return }
                 await store.refresh()
-                if let sale = store.sales.first(where: { $0.id == saleID }) {
-                    path = [sale]
-                }
+                path = PaymentsNavigation.path(openedSaleID: saleID, sales: store.sales)
                 notifications.consumeOpenedSale(saleID)
             }
             .navigationTitle("Payments")

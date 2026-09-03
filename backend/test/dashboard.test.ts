@@ -204,12 +204,30 @@ describe("dashboard preferences and aggregation", () => {
       expect.objectContaining({ currency: "JPY", currentAmountMinor: 500 }),
     ]));
     expect(body.report.products).toEqual(expect.arrayContaining([
-      expect.objectContaining({ label: "Stripe payment", payments: 503 }),
-      expect.objectContaining({ label: "Widget", payments: 502 }),
+      expect.objectContaining({
+        label: "Stripe payment",
+        amounts: expect.arrayContaining([
+          expect.objectContaining({ currency: "USD", payments: 502 }),
+          expect.objectContaining({ currency: "JPY", payments: 1 }),
+        ]),
+      }),
+      expect.objectContaining({
+        label: "Widget",
+        amounts: [expect.objectContaining({ currency: "USD", payments: 502 })],
+      }),
     ]));
     expect(body.report.sources).toEqual(expect.arrayContaining([
-      expect.objectContaining({ label: "Stripe", payments: 503 }),
-      expect.objectContaining({ label: "SERP Store", payments: 502 }),
+      expect.objectContaining({
+        label: "Stripe",
+        amounts: expect.arrayContaining([
+          expect.objectContaining({ currency: "USD", payments: 502 }),
+          expect.objectContaining({ currency: "JPY", payments: 1 }),
+        ]),
+      }),
+      expect.objectContaining({
+        label: "SERP Store",
+        amounts: [expect.objectContaining({ currency: "USD", payments: 502 })],
+      }),
     ]));
     expect(body.report.currentSeries).toHaveLength(7);
     expect(body.report.currentSeries[0]).toEqual(expect.objectContaining({ payments: 0 }));

@@ -18,7 +18,7 @@ Settings → **Payment sources** contains the existing Stripe, PayPal, and custo
 
 The fixed **Today** summary uses the saved reporting timezone and shows Gross volume, Payments, and Average payment. Counts may span currencies; monetary totals and averages never do.
 
-Reports default to **4 weeks**. A native menu offers 1 week, 4 weeks, 1 year, month to date, quarter to date, year to date, and all time. Gross volume and Payments include current and previous values, percentage-change state, and current/previous Swift Charts line series. Product and payment-source sections show payment count and gross amount for the selected currency.
+Reports default to **4 weeks**. A native menu offers 1 week, 4 weeks, 1 year, month to date, quarter to date, year to date, and all time. Gross volume and Payments include current and previous values, percentage-change state, and current/previous Swift Charts line series. Product and payment-source sections show both payment count and gross amount for the selected currency; neither value mixes currencies.
 
 Gross volume is the sum of normalized succeeded payments. It is not revenue, earnings, net, or a balance. Setup samples, ignored events, retries, refunded rows, and source-scoped duplicates do not count. Refunds are excluded rather than subtracted because complete adjustment ingestion is not available. Product grouping uses the retained label, including the honest generic `Stripe payment` label. Custom-source grouping uses the user-defined source name.
 

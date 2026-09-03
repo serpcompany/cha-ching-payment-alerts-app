@@ -216,10 +216,11 @@ struct DashboardView: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                        let selectedTotal = row.amounts.total(for: selectedCurrency)
                         LabeledContent {
                             VStack(alignment: .trailing) {
-                                Text("\(row.payments) payments")
-                                Text(DashboardFormatting.money(minor: row.amounts.amount(for: selectedCurrency), currency: selectedCurrency))
+                                Text("\(selectedTotal?.payments ?? 0) payments")
+                                Text(DashboardFormatting.money(minor: selectedTotal?.grossAmountMinor ?? 0, currency: selectedCurrency))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

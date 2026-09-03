@@ -51,8 +51,6 @@ struct ChaChingApp: App {
                 if auth.isSignedIn {
                     subscription.startListeningForTransactions()
                     await subscription.refresh()
-                    guard subscription.presentation == .fullAccess else { return }
-                    await refreshFullAccessData()
                 }
             }
             .onChange(of: auth.isSignedIn) { _, isSignedIn in

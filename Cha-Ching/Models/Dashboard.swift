@@ -41,6 +41,7 @@ struct DashboardToday: Decodable {
 
 struct DashboardMoneyTotal: Decodable, Identifiable {
     let currency: String
+    let payments: Int
     let grossAmountMinor: Int
     let averageAmountMinor: Int
     var id: String { currency }
@@ -124,7 +125,6 @@ struct DashboardBucket: Decodable, Identifiable {
 
 struct DashboardBreakdown: Decodable, Identifiable {
     let label: String
-    let payments: Int
     let amounts: [DashboardMoneyTotal]
     var id: String { label }
 
@@ -132,17 +132,7 @@ struct DashboardBreakdown: Decodable, Identifiable {
 
 enum DashboardFormatting {
     static func money(minor: Int, currency: String) -> String {
-        let exponent = currencyExponent(currency)
-        let amount = Double(minor) / pow(10, Double(exponent))
-        return amount.formatted(.currency(code: currency).precision(.fractionLength(exponent)))
-    }
-
-    private static func currencyExponent(_ currency: String) -> Int {
-        let zeroDecimal = ["BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW", "MGA", "PYG", "RWF", "UGX", "VND", "VUV", "XAF", "XOF", "XPF"]
-        let threeDecimal = ["BHD", "JOD", "KWD", "OMR", "TND"]
-        if zeroDecimal.contains(currency.uppercased()) { return 0 }
-        if threeDecimal.contains(currency.uppercased()) { return 3 }
-        return 2
+        CurrencyAmount.formatted(minor: minor, currency: currency)
     }
 }
 

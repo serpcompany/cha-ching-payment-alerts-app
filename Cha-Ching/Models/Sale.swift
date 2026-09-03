@@ -112,7 +112,7 @@ struct Sale: Identifiable, Hashable {
     }
 
     var amount: Double {
-        Double(amountMinor) / pow(10, Double(currencyExponent))
+        CurrencyAmount.value(minor: amountMinor, currency: currency)
     }
 
     var country: String {
@@ -134,19 +134,7 @@ struct Sale: Identifiable, Hashable {
         return "\(source.title) · \(country)"
     }
 
-    private var currencyExponent: Int {
-        let zeroDecimal = ["BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW", "MGA", "PYG", "RWF", "UGX", "VND", "VUV", "XAF", "XOF", "XPF"]
-        let threeDecimal = ["BHD", "JOD", "KWD", "OMR", "TND"]
-        if zeroDecimal.contains(currency.uppercased()) { return 0 }
-        if threeDecimal.contains(currency.uppercased()) { return 3 }
-        return 2
-    }
-
     var formattedAmount: String {
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.currencyCode = currency
-        f.maximumFractionDigits = amount.truncatingRemainder(dividingBy: 1) == 0 ? 0 : 2
-        return f.string(from: NSNumber(value: amount)) ?? "$\(amount)"
+        CurrencyAmount.formatted(minor: amountMinor, currency: currency, trimWholeUnits: true)
     }
 }
