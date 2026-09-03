@@ -316,11 +316,6 @@ private struct DailySummaryCard: View {
             }
         }
         .contentShape(.rect)
-        .accessibilityAction(named: "Previous day", onPreviousDay)
-        .accessibilityAction(named: "Next day") {
-            guard dayOffset > 0 else { return }
-            onNextDay()
-        }
     }
 
     private var title: String {
