@@ -2,7 +2,7 @@ import { Miniflare } from "miniflare";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { Auth } from "../src/auth";
-import { comparison, getDashboard, reportWindows } from "../src/dashboard";
+import { comparison, dashboardDayWindow, getDashboard, reportWindows } from "../src/dashboard";
 import type { Env } from "../src/env";
 import { getPreferences, updatePreferences } from "../src/preferences";
 import { applyMigration } from "./apply-migration";
@@ -40,6 +40,22 @@ describe("dashboard date windows", () => {
 
     const skippedMidnightDay = reportWindows("1w", "America/Santiago", epoch("2019-09-14T12:00:00Z"));
     expect(new Date(skippedMidnightDay.current.start * 1_000).toISOString()).toBe("2019-09-08T04:00:00.000Z");
+  });
+
+  it("moves the daily summary through complete reporting-timezone days", () => {
+    const now = epoch("2026-03-09T16:00:00Z");
+    expect(dashboardDayWindow("America/New_York", now, 0)).toEqual({
+      start: epoch("2026-03-09T04:00:00Z"),
+      end: now,
+    });
+    expect(dashboardDayWindow("America/New_York", now, 1)).toEqual({
+      start: epoch("2026-03-08T05:00:00Z"),
+      end: epoch("2026-03-09T04:00:00Z"),
+    });
+    expect(dashboardDayWindow("America/New_York", now, 2)).toEqual({
+      start: epoch("2026-03-07T05:00:00Z"),
+      end: epoch("2026-03-08T05:00:00Z"),
+    });
   });
 
   it("clamps leap day and finds quarter and year boundaries", () => {
@@ -129,6 +145,55 @@ describe("dashboard preferences and aggregation", () => {
     expect(await replacement.json()).toEqual({ reportingTimezone: "America/New_York" });
     const second = await getPreferences(env, authFor("two"), new Request("https://api.test/v1/preferences"));
     expect(await second.json()).toEqual({ reportingTimezone: "Europe/London" });
+  });
+
+  it("rejects future, fractional, and unbounded daily-summary offsets", async () => {
+    for (const dayOffset of ["-1", "1.5", "36501", "tomorrow"]) {
+      const response = await getDashboard(
+        env,
+        authFor("one"),
+        new Request(`https://api.test/v1/dashboard?dayOffset=${dayOffset}`),
+      );
+      expect(response.status, dayOffset).toBe(400);
+      expect(await response.json(), dayOffset).toEqual({ error: "Invalid dashboard day offset" });
+    }
+  });
+
+  it("returns the selected prior day while leaving the report window current", async () => {
+    const now = epoch("2026-09-03T12:00:00Z");
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO user_preferences (user_id, reporting_timezone) VALUES ('one', 'UTC')"),
+      env.DB.prepare(
+        `INSERT INTO sales
+         (id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
+          amount_minor, currency, product_label, occurred_at)
+         VALUES ('today', 'one', 'stripe', 'acct', 'today-event', 'today-payment',
+                 300, 'USD', 'Today', ?1)`,
+      ).bind(now - 1),
+      env.DB.prepare(
+        `INSERT INTO sales
+         (id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
+          amount_minor, currency, product_label, occurred_at)
+         VALUES ('yesterday', 'one', 'stripe', 'acct', 'yesterday-event', 'yesterday-payment',
+                 200, 'USD', 'Yesterday', ?1)`,
+      ).bind(epoch("2026-09-02T10:00:00Z")),
+    ]);
+
+    const response = await getDashboard(
+      env,
+      authFor("one"),
+      new Request("https://api.test/v1/dashboard?period=1w&dayOffset=1"),
+      now,
+    );
+    const body = await response.json<any>();
+    expect(body.dayOffset).toBe(1);
+    expect(body.today).toEqual(expect.objectContaining({
+      start: "2026-09-02T00:00:00.000Z",
+      end: "2026-09-03T00:00:00.000Z",
+      payments: 1,
+      currencies: [expect.objectContaining({ currency: "USD", grossAmountMinor: 200 })],
+    }));
+    expect(body.report.totals.payments.current).toBe(2);
   });
 
   it("aggregates every succeeded payment with currency, product, source, and zero-filled buckets", async () => {

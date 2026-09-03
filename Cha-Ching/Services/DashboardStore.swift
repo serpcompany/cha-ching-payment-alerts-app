@@ -2,12 +2,14 @@ import Foundation
 
 @MainActor
 final class DashboardStore: ObservableObject {
-    typealias Loader = @MainActor (DashboardPeriod) async throws -> DashboardResponse
+    typealias Loader = @MainActor (DashboardPeriod, Int) async throws -> DashboardResponse
 
     @Published private(set) var dashboard: DashboardResponse?
     @Published private(set) var isLoading = false
+    @Published private(set) var isRefreshing = false
     @Published var errorMessage: String?
     @Published var period: DashboardPeriod = .fourWeeks
+    @Published private(set) var dayOffset = 0
     @Published var selectedCurrency: String?
 
     private let loader: Loader
@@ -31,10 +33,13 @@ final class DashboardStore: ObservableObject {
     }
 
     convenience init() {
-        self.init { period in
+        self.init { period, dayOffset in
             try await APIClient.shared.get(
                 "/v1/dashboard",
-                queryItems: [URLQueryItem(name: "period", value: period.rawValue)]
+                queryItems: [
+                    URLQueryItem(name: "period", value: period.rawValue),
+                    URLQueryItem(name: "dayOffset", value: String(dayOffset))
+                ]
             )
         }
     }
@@ -54,19 +59,24 @@ final class DashboardStore: ObservableObject {
             return
         }
         isLoading = dashboard == nil
+        isRefreshing = true
         errorMessage = nil
         let requestedPeriod = period
+        let requestedDayOffset = dayOffset
         refreshGeneration += 1
         let generation = refreshGeneration
-        let task = Task { try await loader(requestedPeriod) }
+        let task = Task { try await loader(requestedPeriod, requestedDayOffset) }
         refreshTask = task
         do {
             let response = try await task.value
-            if generation == refreshGeneration, requestedPeriod == period {
+            guard response.dayOffset == requestedDayOffset else { throw APIError.invalidResponse }
+            if generation == refreshGeneration,
+               requestedPeriod == period,
+               requestedDayOffset == dayOffset {
                 dashboard = response
-                let available = response.report.totals.currencies.map(\.currency)
+                let available = availableCurrencies(in: response)
                 if selectedCurrency == nil || !available.contains(selectedCurrency ?? "") {
-                    selectedCurrency = available.first ?? response.today.currencies.first?.currency
+                    selectedCurrency = available.first ?? response.dailySummary.currencies.first?.currency
                 }
             }
         } catch is CancellationError {
@@ -81,6 +91,7 @@ final class DashboardStore: ObservableObject {
         guard generation == refreshGeneration else { return }
         refreshTask = nil
         isLoading = false
+        isRefreshing = false
         let shouldRefreshAgain = needsTrailingRefresh
         needsTrailingRefresh = false
         if shouldRefreshAgain { await refresh() }
@@ -96,6 +107,31 @@ final class DashboardStore: ObservableObject {
         await refresh()
     }
 
+    func selectPreviousDay() async {
+        guard !isRefreshing else { return }
+        await selectDayOffset(dayOffset + 1)
+    }
+
+    func selectNextDay() async {
+        guard !isRefreshing, dayOffset > 0 else { return }
+        await selectDayOffset(dayOffset - 1)
+    }
+
+    private func selectDayOffset(_ newDayOffset: Int) async {
+        let previousDayOffset = dayOffset
+        refreshTask?.cancel()
+        refreshTask = nil
+        refreshGeneration += 1
+        needsTrailingRefresh = false
+        dayOffset = newDayOffset
+        await refresh()
+        if errorMessage != nil,
+           dayOffset == newDayOffset,
+           dashboard?.dayOffset != newDayOffset {
+            dayOffset = previousDayOffset
+        }
+    }
+
     func reloadForReportingTimezoneChange() async {
         refreshTask?.cancel()
         refreshTask = nil
@@ -107,7 +143,7 @@ final class DashboardStore: ObservableObject {
     var loadState: DashboardLoadState {
         if isLoading, dashboard == nil { return .loading }
         guard let dashboard else { return .unavailable }
-        let isEmpty = dashboard.today.payments == 0
+        let isEmpty = dashboard.dailySummary.payments == 0
             && dashboard.report.totals.payments.current == 0
             && dashboard.report.products.isEmpty
             && dashboard.report.sources.isEmpty
@@ -115,7 +151,15 @@ final class DashboardStore: ObservableObject {
     }
 
     var availableCurrencies: [String] {
-        dashboard?.report.totals.currencies.map(\.currency) ?? []
+        guard let dashboard else { return [] }
+        return availableCurrencies(in: dashboard)
+    }
+
+    private func availableCurrencies(in dashboard: DashboardResponse) -> [String] {
+        let reportCurrencies = dashboard.report.totals.currencies.map(\.currency)
+        return reportCurrencies + dashboard.dailySummary.currencies.map(\.currency).filter {
+            !reportCurrencies.contains($0)
+        }
     }
 
     func selectCurrency(_ currency: String) {
@@ -135,8 +179,10 @@ final class DashboardStore: ObservableObject {
         dashboard = nil
         errorMessage = nil
         period = .fourWeeks
+        dayOffset = 0
         selectedCurrency = nil
         isLoading = false
+        isRefreshing = false
     }
 }
 

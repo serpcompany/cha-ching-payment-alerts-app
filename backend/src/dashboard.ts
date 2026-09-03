@@ -149,6 +149,19 @@ function localMidnight(epochSeconds: number, timeZone: string): number {
   return epochForCivil({ ...civil, hour: 0, minute: 0, second: 0 }, timeZone);
 }
 
+export function dashboardDayWindow(
+  timeZone: string,
+  now: number,
+  dayOffset: number,
+): Window {
+  const todayCivil = { ...civilAt(now, timeZone), hour: 0, minute: 0, second: 0 };
+  const start = epochForCivil(shiftedDate(todayCivil, { days: -dayOffset }), timeZone);
+  const end = dayOffset === 0
+    ? now
+    : epochForCivil(shiftedDate(todayCivil, { days: 1 - dayOffset }), timeZone);
+  return { start, end };
+}
+
 export function reportWindows(
   period: DashboardPeriod,
   timeZone: string,
@@ -371,6 +384,14 @@ export async function getDashboard(
   if (!dashboardPeriods.includes(periodValue as DashboardPeriod)) {
     return Response.json({ error: "Invalid dashboard period" }, { status: 400 });
   }
+  const dayOffsetValue = url.searchParams.get("dayOffset") ?? "0";
+  if (!/^\d+$/.test(dayOffsetValue)) {
+    return Response.json({ error: "Invalid dashboard day offset" }, { status: 400 });
+  }
+  const dayOffset = Number(dayOffsetValue);
+  if (!Number.isSafeInteger(dayOffset) || dayOffset > 36_500) {
+    return Response.json({ error: "Invalid dashboard day offset" }, { status: 400 });
+  }
   const preference = await env.DB.prepare(
     "SELECT reporting_timezone FROM user_preferences WHERE user_id = ?1",
   ).bind(user.id).first<{ reporting_timezone: string }>();
@@ -391,7 +412,7 @@ export async function getDashboard(
     now,
     earliest?.occurred_at ?? undefined,
   );
-  const todayWindow = { start: localMidnight(now, preference.reporting_timezone), end: now };
+  const selectedDayWindow = dashboardDayWindow(preference.reporting_timezone, now, dayOffset);
   const unit = bucketUnit(period, windows.current);
   const currentBuckets = bucketWindows(windows.current, unit, preference.reporting_timezone);
   const previousWindow = windows.previous ?? { start: 0, end: 0 };
@@ -403,8 +424,8 @@ export async function getDashboard(
       `SELECT MIN(occurred_at) AS occurred_at FROM sales
        WHERE user_id = ?1 AND status = 'succeeded' AND occurred_at < ?2`,
     ).bind(user.id, now),
-    countStatement(env.DB, user.id, todayWindow),
-    currencyStatement(env.DB, user.id, todayWindow),
+    countStatement(env.DB, user.id, selectedDayWindow),
+    currencyStatement(env.DB, user.id, selectedDayWindow),
     countStatement(env.DB, user.id, windows.current),
     currencyStatement(env.DB, user.id, windows.current),
     countStatement(env.DB, user.id, previousWindow),
@@ -422,8 +443,8 @@ export async function getDashboard(
     }
     return getDashboard(env, auth, request, now, consistencyAttempt + 1);
   }
-  const todayPayments = rows<CountRow>(1)[0]?.payments ?? 0;
-  const todayMoney = moneyTotals(rows<CurrencyAggregateRow>(2));
+  const selectedDayPayments = rows<CountRow>(1)[0]?.payments ?? 0;
+  const selectedDayMoney = moneyTotals(rows<CurrencyAggregateRow>(2));
   const currentPayments = rows<CountRow>(3)[0]?.payments ?? 0;
   const currentMoney = moneyTotals(rows<CurrencyAggregateRow>(4));
   const previousPayments = rows<CountRow>(5)[0]?.payments ?? 0;
@@ -436,11 +457,13 @@ export async function getDashboard(
     reportingTimezone: preference.reporting_timezone,
     generatedAt: new Date(now * 1_000).toISOString(),
     period,
+    dayOffset,
+    // Keep the original wire key so build 31 remains compatible during rollout.
     today: {
-      start: new Date(todayWindow.start * 1_000).toISOString(),
-      end: new Date(todayWindow.end * 1_000).toISOString(),
-      payments: todayPayments,
-      currencies: todayMoney,
+      start: new Date(selectedDayWindow.start * 1_000).toISOString(),
+      end: new Date(selectedDayWindow.end * 1_000).toISOString(),
+      payments: selectedDayPayments,
+      currencies: selectedDayMoney,
     },
     report: {
       current: {

@@ -30,7 +30,15 @@ struct DashboardView: View {
         case .loaded:
             if let dashboard = store.dashboard {
                 if let error = store.errorMessage { refreshError(error) }
-                todayCard(dashboard.today)
+                DailySummaryCard(
+                    summary: dashboard.dailySummary,
+                    dayOffset: dashboard.dayOffset,
+                    reportingTimezone: dashboard.reportingTimezone,
+                    selectedCurrency: selectedCurrency,
+                    isRefreshing: store.isRefreshing,
+                    onPreviousDay: { Task { await store.selectPreviousDay() } },
+                    onNextDay: { Task { await store.selectNextDay() } }
+                )
                 reportsHeader(dashboard)
                 grossVolumeCard(dashboard)
                 paymentsCard(dashboard)
@@ -47,41 +55,6 @@ struct DashboardView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 520)
         }
-    }
-
-    private func todayCard(_ today: DashboardToday) -> some View {
-        GroupBox("Today") {
-            let money = today.currencies.total(for: selectedCurrency)
-            let metrics = [
-                TodayMetric(
-                    title: "Gross volume",
-                    value: money.map { DashboardFormatting.money(minor: $0.grossAmountMinor, currency: $0.currency) } ?? "—"
-                ),
-                TodayMetric(title: "Payments", value: today.payments.formatted()),
-                TodayMetric(
-                    title: "Average payment",
-                    value: money.map { DashboardFormatting.money(minor: $0.averageAmountMinor, currency: $0.currency) } ?? "—"
-                )
-            ]
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 24) {
-                    ForEach(metrics) { metric($0) }
-                }
-                VStack(alignment: .leading, spacing: 14) {
-                    ForEach(metrics) { metric($0) }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private func metric(_ metric: TodayMetric) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(metric.title).font(.caption).foregroundStyle(.secondary)
-            Text(metric.value).font(.title3.bold()).foregroundStyle(Theme.ink)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
     }
 
     private func reportsHeader(_ dashboard: DashboardResponse) -> some View {
@@ -267,10 +240,130 @@ struct DashboardView: View {
     }
 }
 
-private struct TodayMetric: Identifiable {
+private struct DailySummaryMetric: Identifiable {
     let title: String
     let value: String
     var id: String { title }
+}
+
+private struct DailySummaryCard: View {
+    let summary: DashboardDailySummary
+    let dayOffset: Int
+    let reportingTimezone: String
+    let selectedCurrency: String
+    let isRefreshing: Bool
+    let onPreviousDay: () -> Void
+    let onNextDay: () -> Void
+
+    @GestureState private var dragTranslation = CGFloat.zero
+
+    var body: some View {
+        GroupBox {
+            let money = summary.currencies.total(for: selectedCurrency)
+            let metrics = [
+                DailySummaryMetric(
+                    title: "Gross volume",
+                    value: money.map {
+                        DashboardFormatting.money(minor: $0.grossAmountMinor, currency: $0.currency)
+                    } ?? "—"
+                ),
+                DailySummaryMetric(title: "Payments", value: summary.payments.formatted()),
+                DailySummaryMetric(
+                    title: "Average payment",
+                    value: money.map {
+                        DashboardFormatting.money(minor: $0.averageAmountMinor, currency: $0.currency)
+                    } ?? "—"
+                )
+            ]
+            VStack(alignment: .leading, spacing: 12) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 24) {
+                        ForEach(metrics) { metric($0) }
+                    }
+                    VStack(alignment: .leading, spacing: 14) {
+                        ForEach(metrics) { metric($0) }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(dayOffset == 0 ? "Swipe left for previous days" : "Swipe left for earlier, right for newer")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Button(action: onPreviousDay) {
+                    Image(systemName: "chevron.left")
+                }
+                .accessibilityLabel("Previous day")
+                .disabled(isRefreshing)
+
+                Text(title)
+                    .contentTransition(.numericText())
+
+                Spacer()
+
+                if isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("Loading daily summary")
+                }
+
+                Button(action: onNextDay) {
+                    Image(systemName: "chevron.right")
+                }
+                .accessibilityLabel("Next day")
+                .disabled(dayOffset == 0 || isRefreshing)
+            }
+        }
+        .contentShape(.rect)
+        .offset(x: resistedDragTranslation)
+        .simultaneousGesture(daySwipe)
+    }
+
+    private var title: String {
+        guard dayOffset > 0 else { return "Today" }
+        guard let timeZone = TimeZone(identifier: reportingTimezone) else {
+            return summary.start.formatted(date: .abbreviated, time: .omitted)
+        }
+        var style = Date.FormatStyle.dateTime.weekday(.abbreviated).month(.abbreviated).day()
+        style.timeZone = timeZone
+        return summary.start.formatted(style)
+    }
+
+    private var resistedDragTranslation: CGFloat {
+        if dayOffset == 0, dragTranslation > 0 { return dragTranslation * 0.15 }
+        return dragTranslation * 0.35
+    }
+
+    private var daySwipe: some Gesture {
+        DragGesture(minimumDistance: 20)
+            .updating($dragTranslation) { value, state, _ in
+                guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                state = value.translation.width
+            }
+            .onEnded { value in
+                guard !isRefreshing,
+                      abs(value.translation.width) > abs(value.translation.height),
+                      abs(value.predictedEndTranslation.width) >= 70
+                else { return }
+                if value.predictedEndTranslation.width < 0 {
+                    onPreviousDay()
+                } else if dayOffset > 0 {
+                    onNextDay()
+                }
+            }
+    }
+
+    private func metric(_ metric: DailySummaryMetric) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(metric.title).font(.caption).foregroundStyle(.secondary)
+            Text(metric.value).font(.title3.bold()).foregroundStyle(Theme.ink)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
 }
 
 #Preview {

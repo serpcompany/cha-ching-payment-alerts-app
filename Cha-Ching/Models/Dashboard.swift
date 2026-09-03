@@ -28,11 +28,21 @@ struct DashboardResponse: Decodable {
     let reportingTimezone: String
     let generatedAt: Date
     let period: DashboardPeriod
-    let today: DashboardToday
+    let dayOffset: Int
+    let dailySummary: DashboardDailySummary
     let report: DashboardReport
+
+    private enum CodingKeys: String, CodingKey {
+        case reportingTimezone
+        case generatedAt
+        case period
+        case dayOffset
+        case dailySummary = "today"
+        case report
+    }
 }
 
-struct DashboardToday: Decodable {
+struct DashboardDailySummary: Decodable {
     let start: Date
     let end: Date
     let payments: Int
