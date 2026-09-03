@@ -255,8 +255,6 @@ private struct DailySummaryCard: View {
     let onPreviousDay: () -> Void
     let onNextDay: () -> Void
 
-    @GestureState private var dragTranslation = CGFloat.zero
-
     var body: some View {
         GroupBox {
             let money = summary.currencies.total(for: selectedCurrency)
@@ -286,7 +284,7 @@ private struct DailySummaryCard: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                Text(dayOffset == 0 ? "Swipe left for previous days" : "Swipe left for earlier, right for newer")
+                Text(dayOffset == 0 ? "Choose Previous for earlier days" : "Choose Previous for earlier days or Next toward Today")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .accessibilityHidden(true)
@@ -318,8 +316,11 @@ private struct DailySummaryCard: View {
             }
         }
         .contentShape(.rect)
-        .offset(x: resistedDragTranslation)
-        .simultaneousGesture(daySwipe)
+        .accessibilityAction(named: "Previous day", onPreviousDay)
+        .accessibilityAction(named: "Next day") {
+            guard dayOffset > 0 else { return }
+            onNextDay()
+        }
     }
 
     private var title: String {
@@ -330,30 +331,6 @@ private struct DailySummaryCard: View {
         var style = Date.FormatStyle.dateTime.weekday(.abbreviated).month(.abbreviated).day()
         style.timeZone = timeZone
         return summary.start.formatted(style)
-    }
-
-    private var resistedDragTranslation: CGFloat {
-        if dayOffset == 0, dragTranslation > 0 { return dragTranslation * 0.15 }
-        return dragTranslation * 0.35
-    }
-
-    private var daySwipe: some Gesture {
-        DragGesture(minimumDistance: 20)
-            .updating($dragTranslation) { value, state, _ in
-                guard abs(value.translation.width) > abs(value.translation.height) else { return }
-                state = value.translation.width
-            }
-            .onEnded { value in
-                guard !isRefreshing,
-                      abs(value.translation.width) > abs(value.translation.height),
-                      abs(value.predictedEndTranslation.width) >= 70
-                else { return }
-                if value.predictedEndTranslation.width < 0 {
-                    onPreviousDay()
-                } else if dayOffset > 0 {
-                    onNextDay()
-                }
-            }
     }
 
     private func metric(_ metric: DailySummaryMetric) -> some View {
