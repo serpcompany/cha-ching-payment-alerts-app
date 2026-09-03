@@ -63,23 +63,17 @@ struct RootTabView: View {
                 .tabItem { Label(AppTab.settings.title, systemImage: AppTab.settings.systemImage) }
                 .tag(AppTab.settings)
         }
-        .onChange(of: notifications.openedSaleID) { _, saleID in
-            if saleID != nil {
-                applyNotificationRoute()
-                Task { await dashboard.refresh() }
-            }
+        .onChange(of: notifications.openedSaleID) { _, _ in
+            Task { await routeOpenedPayment() }
         }
         .task(id: notifications.openedSaleID) {
-            if notifications.openedSaleID != nil {
-                applyNotificationRoute()
-                await dashboard.refresh()
-            }
+            await routeOpenedPayment()
         }
-        .onChange(of: notifications.openedCustomSourceID) { _, sourceID in
-            if sourceID != nil { applyNotificationRoute() }
+        .onChange(of: notifications.openedCustomSourceID) { _, _ in
+            routeOpenedSource()
         }
         .task(id: notifications.openedCustomSourceID) {
-            if notifications.openedCustomSourceID != nil { applyNotificationRoute() }
+            routeOpenedSource()
         }
         .sheet(item: foregroundNotificationBinding) { notification in
             ForegroundPaymentNotificationView(notification: notification)
@@ -102,6 +96,17 @@ struct RootTabView: View {
         ) else { return }
         selectedTab = target.tab
         settingsPath = target.settingsPath
+    }
+
+    private func routeOpenedPayment() async {
+        guard notifications.openedSaleID != nil else { return }
+        applyNotificationRoute()
+        await dashboard.refresh()
+    }
+
+    private func routeOpenedSource() {
+        guard notifications.openedCustomSourceID != nil else { return }
+        applyNotificationRoute()
     }
 }
 

@@ -97,25 +97,35 @@ final class SalesStore: ObservableObject {
     private let client: SalesClient
     private var notificationObserver: NSObjectProtocol?
     private var refreshOperation: RefreshOperation?
+    private var needsTrailingRefresh = false
 
     convenience init() {
         self.init(client: .live)
     }
 
-    init(client: SalesClient) {
+    init(client: SalesClient, notificationCenter: NotificationCenter = .default) {
         self.client = client
-        notificationObserver = NotificationCenter.default.addObserver(
+        notificationObserver = notificationCenter.addObserver(
             forName: .chaChingPaymentsChanged,
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in await self?.refresh() }
+            Task { @MainActor in await self?.refreshAfterPaymentsChanged() }
         }
     }
 
     func refresh() async {
+        await refresh(markDirtyWhenCoalesced: false)
+    }
+
+    private func refreshAfterPaymentsChanged() async {
+        await refresh(markDirtyWhenCoalesced: true)
+    }
+
+    private func refresh(markDirtyWhenCoalesced: Bool) async {
         let operation: RefreshOperation
         if let existing = refreshOperation {
+            if markDirtyWhenCoalesced { needsTrailingRefresh = true }
             operation = existing
         } else {
             isLoading = true
@@ -146,6 +156,9 @@ final class SalesStore: ObservableObject {
         guard refreshOperation?.id == operation.id else { return }
         refreshOperation = nil
         isLoading = false
+        let shouldRefreshAgain = needsTrailingRefresh
+        needsTrailingRefresh = false
+        if shouldRefreshAgain { await refresh() }
     }
 
     func dismissLoadError() {
@@ -155,6 +168,7 @@ final class SalesStore: ObservableObject {
     func reset() {
         refreshOperation?.task.cancel()
         refreshOperation = nil
+        needsTrailingRefresh = false
         sales = []
         isLoading = false
         errorMessage = nil
@@ -168,7 +182,6 @@ final class SalesStore: ObservableObject {
         if let loaded = sale(id: id) { return .found(loaded) }
         do {
             guard let exact = try await client.loadByID(id) else { return .missing }
-            if !sales.contains(where: { $0.id == exact.id }) { sales.insert(exact, at: 0) }
             return .found(exact)
         } catch {
             return .failed

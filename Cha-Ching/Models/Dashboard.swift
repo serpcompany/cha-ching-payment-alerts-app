@@ -80,14 +80,14 @@ struct DashboardTotals: Decodable {
 struct DashboardCountComparison: Decodable {
     let current: Int
     let previous: Int
-    let comparison: DashboardComparison
+    let comparison: DashboardComparison?
 }
 
 struct DashboardCurrencyComparison: Decodable, Identifiable {
     let currency: String
     let currentAmountMinor: Int
     let previousAmountMinor: Int
-    let comparison: DashboardComparison
+    let comparison: DashboardComparison?
     var id: String { currency }
 }
 

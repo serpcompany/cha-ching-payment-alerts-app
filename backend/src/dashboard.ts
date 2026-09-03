@@ -296,7 +296,7 @@ function bucketsResponse(buckets: BucketAggregate[], currencies: string[]) {
   }));
 }
 
-function reportTotals(current: Aggregate, previous: Aggregate) {
+function reportTotals(current: Aggregate, previous: Aggregate, hasPrevious: boolean) {
   const currentMoney = moneyTotals(current);
   const previousMoney = moneyTotals(previous);
   const currencyCodes = new Set([...currentMoney, ...previousMoney].map((value) => value.currency));
@@ -304,7 +304,7 @@ function reportTotals(current: Aggregate, previous: Aggregate) {
     payments: {
       current: current.payments,
       previous: previous.payments,
-      comparison: comparison(current.payments, previous.payments),
+      comparison: hasPrevious ? comparison(current.payments, previous.payments) : null,
     },
     currencies: [...currencyCodes].sort().map((currency) => {
       const currentAmount = currentMoney.find((value) => value.currency === currency)?.grossAmountMinor ?? 0;
@@ -313,7 +313,7 @@ function reportTotals(current: Aggregate, previous: Aggregate) {
         currency,
         currentAmountMinor: currentAmount,
         previousAmountMinor: previousAmount,
-        comparison: comparison(currentAmount, previousAmount),
+        comparison: hasPrevious ? comparison(currentAmount, previousAmount) : null,
       };
     }),
   };
@@ -435,7 +435,7 @@ export async function getDashboard(
         start: new Date(windows.previous.start * 1_000).toISOString(),
         end: new Date(windows.previous.end * 1_000).toISOString(),
       } : null,
-      totals: reportTotals(current, previous),
+      totals: reportTotals(current, previous, windows.previous !== null),
       currentSeries: bucketsResponse(currentBuckets, reportCurrencies),
       previousSeries: bucketsResponse(previousBuckets, reportCurrencies),
       products: breakdown(products),

@@ -33,6 +33,10 @@ private final class ControlledSalesLoader {
         return true
     }
 
+    func succeedOldest(with sales: [Sale]) {
+        pending.removeFirst().resume(returning: sales)
+    }
+
     func succeedRemainingRequests() {
         let remaining = pending
         pending.removeAll()
@@ -97,18 +101,22 @@ struct SalesStoreTests {
 
     @Test @MainActor func notificationResolutionFetchesAnExactPaymentOutsideTheLoadedPage() async {
         let payment = testPayment(id: "older-than-100")
+        let feed = [testPayment(id: "newest"), testPayment(id: "second")]
         var requestedID: String?
         let store = SalesStore(client: SalesClient(
-            load: { [] },
+            load: { feed },
             loadByID: { id in
                 requestedID = id
                 return payment
             }
         ))
+        await store.refresh()
 
         #expect(await store.resolveNotificationSale(id: payment.id) == .found(payment))
         #expect(requestedID == payment.id)
-        #expect(store.sale(id: payment.id) == payment)
+        #expect(store.sales.map(\.id) == ["newest", "second"])
+        #expect(store.sales.count == feed.count)
+        #expect(store.sale(id: payment.id) == nil)
     }
 
     @Test @MainActor func notificationResolutionDistinguishesMissingFromTemporaryFailure() async {
@@ -120,6 +128,32 @@ struct SalesStoreTests {
 
         #expect(await missing.resolveNotificationSale(id: "missing") == .missing)
         #expect(await failing.resolveNotificationSale(id: "retry-later") == .failed)
+    }
+
+    @Test @MainActor func paymentChangesDuringRefreshCoalesceIntoOneTrailingRefresh() async {
+        let center = NotificationCenter()
+        let loader = ControlledSalesLoader()
+        let store = SalesStore(
+            client: SalesClient(load: { try await loader.load() }),
+            notificationCenter: center
+        )
+        let stale = testPayment(id: "stale")
+        let fresh = testPayment(id: "fresh")
+        let initial = Task { await store.refresh() }
+        for _ in 0..<100 where loader.callCount < 1 { await Task.yield() }
+
+        PaymentHistoryEvents.changed(notificationCenter: center)
+        PaymentHistoryEvents.changed(notificationCenter: center)
+        for _ in 0..<20 { await Task.yield() }
+        loader.succeedOldest(with: [stale])
+        for _ in 0..<100 where loader.callCount < 2 { await Task.yield() }
+        #expect(loader.callCount == 2)
+        loader.succeedOldest(with: [fresh])
+        await initial.value
+        for _ in 0..<100 where store.sales.first?.id != "fresh" { await Task.yield() }
+
+        #expect(store.sales.map(\.id) == ["fresh"])
+        #expect(loader.callCount == 2)
     }
 
     @Test @MainActor func aPaymentRefreshFailurePreservesPaymentsAndIsDismissible() async {

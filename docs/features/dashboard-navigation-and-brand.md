@@ -12,7 +12,7 @@ The signed-in app has exactly three top-level tabs:
 2. **Payments** — the existing transaction list and payment details.
 3. **Settings** — Payment sources, reporting timezone, notifications, subscription, account, and legal actions.
 
-Settings → **Payment sources** contains the existing Stripe, PayPal, and custom-webhook connection flows. It is not a top-level tab. Payment notifications select Payments and open the matching detail. Source-health notifications select Settings, push Payment sources, and open the affected source.
+Settings → **Payment sources** contains the existing Stripe, PayPal, and custom-webhook connection flows. It is not a top-level tab. Payment notifications select Payments and open the matching detail. Source-health notifications select Settings and push Payment sources; the app opens the affected source only after an owner-scoped load succeeds. A transient failure preserves the route with Retry, while a confirmed missing source ends it with an unavailable message.
 
 ## Home dashboard
 
@@ -39,9 +39,9 @@ The phone's current IANA timezone initializes the account preference once. The f
 
 ## Payments
 
-Payments presents every payment returned by `/v1/sales` in server order and opens the existing detail screen. Its list API remains capped independently from dashboard aggregation. A notification for a payment outside that latest-100 page uses the exact, user-scoped `/v1/sales/:id` endpoint before the route is consumed. A confirmed missing payment ends the route; a temporary request failure retains it for retry. Pull-to-refresh keeps loaded rows on failure, provides Retry and Dismiss, and shares an in-flight request across concurrent callers.
+Payments presents exactly the latest-100 response from `/v1/sales` in server order and opens the existing detail screen. A notification for a payment outside that page uses the exact, user-scoped `/v1/sales/:id` response only as navigation detail; it does not insert that payment into, resize, or reorder the feed. A confirmed missing payment ends the route; a temporary request failure retains it for retry. Pull-to-refresh keeps loaded rows on failure, provides Retry and Dismiss, and shares an in-flight request across concurrent callers.
 
-Foreground payment delivery and successful source-history clearing publish the same neutral payment-history-changed event. Payments and Home independently coalesce their refreshes, ensuring removed rows leave totals and charts as well as the list.
+Foreground payment delivery and successful source-history clearing publish the same neutral payment-history-changed event. Payments and Home independently coalesce bursts and mark an in-flight snapshot dirty so one trailing refresh follows it, ensuring a stale pre-event response cannot win and removed rows leave totals and charts as well as the list.
 
 ## Native design
 

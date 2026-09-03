@@ -250,5 +250,66 @@ describe("dashboard preferences and aggregation", () => {
     expect(await env.DB.prepare(
       "SELECT sequence FROM sales_ingestion_order WHERE sale_id = 'deleted-high-water'",
     ).first()).toBeNull();
+
+    const allResponse = await getDashboard(
+      env,
+      authFor("one"),
+      new Request("https://api.test/v1/dashboard?period=all"),
+      now,
+    );
+    const allBody = await allResponse.json<any>();
+    expect(allBody.report.previous).toBeNull();
+    expect(allBody.report.totals.payments.comparison).toBeNull();
+    expect(allBody.report.totals.currencies.every(
+      (value: { comparison: unknown }) => value.comparison === null,
+    )).toBe(true);
+  }, 15_000);
+
+  it("returns adaptive day, month, and year bucket shapes for All", async () => {
+    const now = epoch("2026-09-03T12:00:00Z");
+    const cases = [
+      { user: "span-day", earliest: now - 10 * 86_400, range: [10, 12] },
+      { user: "span-month", earliest: now - 400 * 86_400, range: [13, 15] },
+      { user: "span-year", earliest: now - 4 * 365 * 86_400, range: [4, 6] },
+    ];
+    for (const item of cases) {
+      await env.DB.batch([
+        env.DB.prepare(
+          "INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?1, 'Founder', ?2, ?3, ?3)",
+        ).bind(item.user, `${item.user}@example.test`, Date.now()),
+        env.DB.prepare(
+          "INSERT INTO user_preferences (user_id, reporting_timezone) VALUES (?1, 'UTC')",
+        ).bind(item.user),
+      ]);
+      await env.DB.batch([item.earliest, now - 1].map((occurredAt, index) => env.DB.prepare(
+        `INSERT INTO sales
+         (id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
+          amount_minor, currency, product_label, occurred_at)
+         VALUES (?1, ?2, 'stripe', 'acct', ?3, ?4, 100, 'USD', 'Payment', ?5)`,
+      ).bind(
+        `${item.user}-${index}`,
+        item.user,
+        `${item.user}-event-${index}`,
+        `${item.user}-payment-${index}`,
+        occurredAt,
+      )));
+
+      const response = await getDashboard(
+        env,
+        authFor(item.user),
+        new Request("https://api.test/v1/dashboard?period=all"),
+        now,
+      );
+      const body = await response.json<any>();
+      const series = body.report.currentSeries as Array<{ start: string; end: string; payments: number }>;
+      expect(series.length, item.user).toBeGreaterThanOrEqual(item.range[0]);
+      expect(series.length, item.user).toBeLessThanOrEqual(item.range[1]);
+      expect(series[0].start, item.user).toBe(new Date(item.earliest * 1_000).toISOString());
+      expect(series.at(-1)?.end, item.user).toBe(new Date(now * 1_000).toISOString());
+      expect(series.reduce((total, bucket) => total + bucket.payments, 0), item.user).toBe(2);
+      for (let index = 1; index < series.length; index += 1) {
+        expect(series[index - 1].end, item.user).toBe(series[index].start);
+      }
+    }
   }, 15_000);
 });

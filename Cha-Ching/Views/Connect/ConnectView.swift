@@ -4,6 +4,7 @@ struct PaymentSourcesView: View {
     @EnvironmentObject private var connectStore: ConnectStore
     @EnvironmentObject private var notifications: NotificationManager
     @State private var destination: PaymentSourceDestination?
+    @State private var routeAlert: PaymentSourceRouteAlert?
 
     var body: some View {
         ZStack {
@@ -49,9 +50,26 @@ struct PaymentSourcesView: View {
         .task { await connectStore.refresh() }
         .task(id: notifications.openedCustomSourceID) {
             guard let sourceID = notifications.openedCustomSourceID else { return }
-            await connectStore.refresh()
-            destination = .customSource(sourceID)
-            notifications.consumeOpenedCustomSource(sourceID)
+            await resolveNotificationSource(sourceID)
+        }
+        .alert(item: $routeAlert) { alert in
+            switch alert {
+            case .retry(let sourceID):
+                Alert(
+                    title: Text("Payment source couldn't load"),
+                    message: Text("Check your connection and try again."),
+                    primaryButton: .default(Text("Retry")) {
+                        Task { await resolveNotificationSource(sourceID) }
+                    },
+                    secondaryButton: .cancel()
+                )
+            case .missing:
+                Alert(
+                    title: Text("Payment source unavailable"),
+                    message: Text("This payment source no longer exists or isn't available to this account."),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
         }
     }
 
@@ -65,6 +83,19 @@ struct PaymentSourcesView: View {
                 .foregroundStyle(Theme.ink.opacity(0.6))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func resolveNotificationSource(_ sourceID: String) async {
+        switch await connectStore.resolveCustomSourceRoute(id: sourceID) {
+        case .found(let resolvedID):
+            destination = .customSource(resolvedID)
+            notifications.consumeOpenedCustomSource(sourceID)
+        case .missing:
+            routeAlert = .missing
+            notifications.consumeOpenedCustomSource(sourceID)
+        case .failed:
+            routeAlert = .retry(sourceID)
+        }
     }
 
     private var addCustomSourceCard: some View {
@@ -90,6 +121,18 @@ struct PaymentSourcesView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("paymentSources.add")
+    }
+}
+
+private enum PaymentSourceRouteAlert: Identifiable {
+    case retry(String)
+    case missing
+
+    var id: String {
+        switch self {
+        case .retry(let id): "retry-\(id)"
+        case .missing: "missing"
+        }
     }
 }
 

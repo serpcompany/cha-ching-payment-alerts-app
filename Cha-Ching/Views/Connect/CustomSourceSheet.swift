@@ -31,8 +31,16 @@ struct CustomSourceSheet: View {
                     } else {
                         managementSections(source)
                     }
-                } else {
+                } else if CustomSourceSheetMode.showsNewSourceForm(sourceID: sourceID) {
                     newSourceSections
+                } else {
+                    Section {
+                        ContentUnavailableView(
+                            "Payment source unavailable",
+                            systemImage: "link.badge.plus",
+                            description: Text("This source couldn't be loaded. Close this screen and try again.")
+                        )
+                    }
                 }
 
                 if let errorMessage {
@@ -351,6 +359,10 @@ struct CustomSourceSheet: View {
         guard let id = source?.id else { return }
         await run { source = try await store.regenerateCustomSourceURL(id: id) }
     }
+}
+
+enum CustomSourceSheetMode {
+    static func showsNewSourceForm(sourceID: String?) -> Bool { sourceID == nil }
 }
 
 private enum CopiedItem {
