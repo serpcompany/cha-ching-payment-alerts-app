@@ -43,7 +43,7 @@ struct SalesClient: Sendable {
             guard APIClient.shared.hasAuthToken else { return nil }
             do {
                 let response: SaleResponseEnvelope = try await APIClient.shared.get(
-                    "/v1/sales/\(id.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? id)"
+                    pathComponents: ["v1", "sales", id]
                 )
                 return payment(from: response.sale)
             } catch APIError.notFound {

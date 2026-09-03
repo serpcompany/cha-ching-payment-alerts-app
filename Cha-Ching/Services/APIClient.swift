@@ -147,6 +147,21 @@ actor APIClient {
         return try decoder.decode(Response.self, from: data)
     }
 
+    func get<Response: Decodable>(
+        _ path: String,
+        queryItems: [URLQueryItem]
+    ) async throws -> Response {
+        let request = try makeRequest(path: path, method: "GET", queryItems: queryItems)
+        let (data, _) = try await perform(request)
+        return try decoder.decode(Response.self, from: data)
+    }
+
+    func get<Response: Decodable>(pathComponents: [String]) async throws -> Response {
+        let request = try makeRequest(pathComponents: pathComponents, method: "GET")
+        let (data, _) = try await perform(request)
+        return try decoder.decode(Response.self, from: data)
+    }
+
     func post<Response: Decodable>(_ path: String) async throws -> Response {
         var request = try makeRequest(path: path, method: "POST")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -195,9 +210,38 @@ actor APIClient {
         KeychainToken.delete()
     }
 
-    private func makeRequest(path: String, method: String, authorized: Bool = true) throws -> URLRequest {
-        let relativePath = path.hasPrefix("/") ? String(path.dropFirst()) : path
-        var request = URLRequest(url: try baseURL.appendingPathComponent(relativePath))
+    private func makeRequest(
+        path: String,
+        method: String,
+        authorized: Bool = true,
+        queryItems: [URLQueryItem] = []
+    ) throws -> URLRequest {
+        let request = URLRequest(url: try Self.requestURL(
+            baseURL: baseURL,
+            path: path,
+            queryItems: queryItems
+        ))
+        return configured(request, method: method, authorized: authorized)
+    }
+
+    private func makeRequest(
+        pathComponents: [String],
+        method: String,
+        authorized: Bool = true
+    ) throws -> URLRequest {
+        let request = URLRequest(url: Self.requestURL(
+            baseURL: try baseURL,
+            pathComponents: pathComponents
+        ))
+        return configured(request, method: method, authorized: authorized)
+    }
+
+    private func configured(
+        _ initialRequest: URLRequest,
+        method: String,
+        authorized: Bool
+    ) -> URLRequest {
+        var request = initialRequest
         request.httpMethod = method
         // Better Auth returns a bearer token for the native client. Do not let
         // URLSession attach a stale browser-style cookie to a later sign-in.
@@ -207,6 +251,28 @@ actor APIClient {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         return request
+    }
+
+    nonisolated static func requestURL(
+        baseURL: URL,
+        path: String,
+        queryItems: [URLQueryItem] = []
+    ) throws -> URL {
+        let relativePath = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        let url = baseURL.appendingPathComponent(relativePath)
+        guard !queryItems.isEmpty else { return url }
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            throw APIError.invalidConfiguration
+        }
+        components.queryItems = queryItems
+        guard let result = components.url else { throw APIError.invalidConfiguration }
+        return result
+    }
+
+    nonisolated static func requestURL(baseURL: URL, pathComponents: [String]) -> URL {
+        pathComponents.reduce(baseURL) { partial, component in
+            partial.appendingPathComponent(component)
+        }
     }
 
     private func perform(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {

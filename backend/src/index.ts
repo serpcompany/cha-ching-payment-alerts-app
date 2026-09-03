@@ -25,7 +25,7 @@ import { homePage, privacyPage, supportPage, termsPage } from "./legal";
 import { processNotificationBatch } from "./notifications";
 import type { NotificationMessage } from "./notifications";
 import { monitorCustomSourceHealth } from "./custom-source-health";
-import { getSale, listSales } from "./sales";
+import { getSale, listSales, saleIDFromPath } from "./sales";
 import { getDashboard } from "./dashboard";
 import { getPreferences, updatePreferences } from "./preferences";
 import { handleStripeWebhook } from "./stripe-webhooks";
@@ -126,9 +126,9 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (request.method === "GET" && url.pathname === "/v1/sales") {
     return listSales(env, auth, request);
   }
-  const saleMatch = url.pathname.match(/^\/v1\/sales\/([^/]+)$/);
-  if (request.method === "GET" && saleMatch) {
-    return getSale(env, auth, request, decodeURIComponent(saleMatch[1]));
+  const saleID = saleIDFromPath(url.pathname);
+  if (request.method === "GET" && saleID) {
+    return getSale(env, auth, request, saleID);
   }
   if (request.method === "GET" && url.pathname === "/v1/dashboard") {
     return getDashboard(env, auth, request);

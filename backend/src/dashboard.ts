@@ -8,6 +8,7 @@ export type DashboardPeriod = typeof dashboardPeriods[number];
 
 interface SaleRow {
   id: string;
+  ingestion_sequence: number;
   amount_minor: number;
   currency: string;
   product_label: string;
@@ -339,10 +340,12 @@ export async function getDashboard(
   }
 
   const snapshot = await env.DB.prepare(
-    `SELECT COALESCE(MAX(rowid), 0) AS rowid, MIN(occurred_at) AS earliest
+    `SELECT COALESCE(MAX(sales_ingestion_order.sequence), 0) AS sequence,
+            MIN(sales.occurred_at) AS earliest
      FROM sales
-     WHERE user_id = ?1 AND status = 'succeeded' AND occurred_at < ?2`,
-  ).bind(user.id, now).first<{ rowid: number; earliest: number | null }>();
+     JOIN sales_ingestion_order ON sales_ingestion_order.sale_id = sales.id
+     WHERE sales.user_id = ?1 AND sales.status = 'succeeded' AND sales.occurred_at < ?2`,
+  ).bind(user.id, now).first<{ sequence: number; earliest: number | null }>();
   const period = periodValue as DashboardPeriod;
   const windows = reportWindows(
     period,
@@ -367,30 +370,30 @@ export async function getDashboard(
   const pageSize = readOptions.pageSize ?? 1_000;
   let page = 0;
   const scanStart = windows.previous?.start ?? windows.current.start;
-  let cursorOccurredAt = scanStart - 1;
-  let cursorID = "";
+  let cursorSequence = 0;
   while (true) {
     const result = await env.DB.prepare(
-      `SELECT sales.id, sales.amount_minor, sales.currency, sales.product_label, sales.provider,
+      `SELECT sales.id, sales_ingestion_order.sequence AS ingestion_sequence,
+              sales.amount_minor, sales.currency, sales.product_label, sales.provider,
               sales.occurred_at, custom_payment_sources.name AS source_name
        FROM sales
+       JOIN sales_ingestion_order ON sales_ingestion_order.sale_id = sales.id
        LEFT JOIN custom_payment_sources
          ON sales.provider = 'custom'
         AND custom_payment_sources.id = sales.provider_account_id
         AND custom_payment_sources.user_id = sales.user_id
        WHERE sales.user_id = ?1 AND sales.status = 'succeeded' AND sales.occurred_at < ?2
-         AND sales.rowid <= ?3
+         AND sales_ingestion_order.sequence <= ?3
          AND sales.occurred_at >= ?4
-         AND (sales.occurred_at > ?5 OR (sales.occurred_at = ?5 AND sales.id > ?6))
-       ORDER BY sales.occurred_at, sales.id
-       LIMIT ?7`,
+         AND sales_ingestion_order.sequence > ?5
+       ORDER BY sales_ingestion_order.sequence
+       LIMIT ?6`,
     ).bind(
       user.id,
       now,
-      snapshot?.rowid ?? 0,
+      snapshot?.sequence ?? 0,
       scanStart,
-      cursorOccurredAt,
-      cursorID,
+      cursorSequence,
       pageSize,
     ).all<SaleRow>();
     for (const row of result.results) {
@@ -409,8 +412,7 @@ export async function getDashboard(
     page += 1;
     if (result.results.length < pageSize) break;
     const last = result.results[result.results.length - 1];
-    cursorOccurredAt = last.occurred_at;
-    cursorID = last.id;
+    cursorSequence = last.ingestion_sequence;
   }
   const reportCurrencies = [...new Set([...current.money.keys(), ...previous.money.keys()])].sort();
 

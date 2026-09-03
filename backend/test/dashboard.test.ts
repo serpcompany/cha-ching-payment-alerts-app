@@ -1,6 +1,3 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-
 import { Miniflare } from "miniflare";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -8,6 +5,7 @@ import type { Auth } from "../src/auth";
 import { comparison, getDashboard, reportWindows } from "../src/dashboard";
 import type { Env } from "../src/env";
 import { getPreferences, updatePreferences } from "../src/preferences";
+import { applyMigration } from "./apply-migration";
 
 function authFor(userId: string): Auth {
   return {
@@ -96,14 +94,10 @@ describe("dashboard preferences and aggregation", () => {
       "0010_reconcile_custom_payment_history_presentation.sql", "0011_retain_custom_payment_field_values.sql",
       "0012_custom_source_health.sql", "0013_product_entitlements.sql",
       "0014_apple_account_deletion_credentials.sql", "0015_user_preferences.sql",
+      "0016_sales_ingestion_order.sql",
     ];
     for (const migration of migrations) {
-      const statements = (await readFile(join(process.cwd(), "migrations", migration), "utf8"))
-        .replace(/--.*$/gm, "")
-        .split(";")
-        .map((statement) => statement.trim())
-        .filter((statement) => statement && !statement.startsWith("PRAGMA foreign_keys"));
-      for (const statement of statements) await db.prepare(statement).run();
+      await applyMigration(db, migration);
     }
     await db.batch(["one", "two"].map((id) => db.prepare(
       "INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?1, 'Founder', ?2, ?3, ?3)",
@@ -177,6 +171,16 @@ describe("dashboard preferences and aggregation", () => {
     for (let index = 0; index < statements.length; index += 75) {
       await env.DB.batch(statements.slice(index, index + 75));
     }
+    await env.DB.prepare(
+      `INSERT INTO sales
+       (id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
+        amount_minor, currency, status, product_label, occurred_at)
+       VALUES ('deleted-high-water', 'one', 'stripe', 'acct', 'high-event', 'high-payment',
+               1, 'USD', 'succeeded', 'Outside report', 1)`,
+    ).run();
+    const highWater = await env.DB.prepare(
+      "SELECT sequence FROM sales_ingestion_order WHERE sale_id = 'deleted-high-water'",
+    ).first<{ sequence: number }>();
 
     const response = await getDashboard(
       env,
@@ -186,6 +190,7 @@ describe("dashboard preferences and aggregation", () => {
       {
         onPage: async (page) => {
           if (page !== 0) return;
+          await env.DB.prepare("DELETE FROM sales WHERE id = 'deleted-high-water'").run();
           await env.DB.prepare(
             `INSERT INTO sales
              (id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
@@ -238,5 +243,12 @@ describe("dashboard preferences and aggregation", () => {
     expect(body.report.products).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ label: "Late" }),
     ]));
+    const lateOrder = await env.DB.prepare(
+      "SELECT sequence FROM sales_ingestion_order WHERE sale_id = 'late-backfill'",
+    ).first<{ sequence: number }>();
+    expect(lateOrder!.sequence).toBeGreaterThan(highWater!.sequence);
+    expect(await env.DB.prepare(
+      "SELECT sequence FROM sales_ingestion_order WHERE sale_id = 'deleted-high-water'",
+    ).first()).toBeNull();
   }, 15_000);
 });

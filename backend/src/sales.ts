@@ -21,6 +21,16 @@ interface SaleDetailField {
   value: string;
 }
 
+export function saleIDFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/v1\/sales\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
+}
+
 function notificationFields(value: string | null): SaleDetailField[] | undefined {
   if (!value) return undefined;
   try {

@@ -94,7 +94,7 @@ struct DashboardTests {
     }
 
     @MainActor
-    @Test func foregroundSaleNotificationsRefreshHomeAndCoalesce() async throws {
+    @Test func foregroundSaleNotificationsDuringFetchCoalesceIntoOneTrailingRefresh() async throws {
         let response = try decodedResponse()
         let center = NotificationCenter()
         let loader = ControlledDashboardLoader(first: response, second: response)
@@ -108,10 +108,10 @@ struct DashboardTests {
         while loader.callCount == 0 { await Task.yield() }
         #expect(loader.callCount == 1)
         loader.finishFirst()
-        while store.dashboard == nil { await Task.yield() }
+        while loader.callCount < 2 { await Task.yield() }
 
         #expect(store.dashboard?.today.payments == 2)
-        #expect(loader.callCount == 1)
+        #expect(loader.callCount == 2)
     }
 
     @MainActor
@@ -126,11 +126,9 @@ struct DashboardTests {
         )
         let initial = Task { await store.refresh() }
         while loader.callCount == 0 { await Task.yield() }
+        PaymentHistoryEvents.changed(notificationCenter: center)
         loader.finishFirst()
         await initial.value
-        #expect(store.dashboard?.today.payments == 2)
-
-        PaymentHistoryEvents.changed(notificationCenter: center)
         while loader.callCount < 2 || store.dashboard?.today.payments != 0 { await Task.yield() }
 
         #expect(store.dashboard?.today.payments == 0)

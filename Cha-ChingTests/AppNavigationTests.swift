@@ -58,14 +58,12 @@ struct AppNavigationTests {
 
         let disconnected = ProviderConnectionCapabilities(provider: .stripe, isConnected: false)
         #expect(disconnected.canConnect)
-        #expect(disconnected.canConfigure)
         #expect(!disconnected.canTogglePayments)
         #expect(!disconnected.canClearHistory)
         #expect(!disconnected.canDisconnect)
 
         let stripe = ProviderConnectionCapabilities(provider: .stripe, isConnected: true)
         #expect(!stripe.canConnect)
-        #expect(stripe.canConfigure)
         #expect(stripe.canTogglePayments)
         #expect(stripe.canClearHistory)
         #expect(stripe.canDisconnect)

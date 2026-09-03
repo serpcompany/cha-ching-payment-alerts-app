@@ -14,6 +14,7 @@ final class DashboardStore: ObservableObject {
     private var notificationObserver: NSObjectProtocol?
     private var refreshTask: Task<DashboardResponse, Error>?
     private var refreshGeneration = 0
+    private var needsTrailingRefresh = false
 
     init(
         loader: @escaping Loader,
@@ -25,18 +26,30 @@ final class DashboardStore: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in await self?.refresh() }
+            Task { @MainActor in await self?.refreshAfterPaymentsChanged() }
         }
     }
 
     convenience init() {
         self.init { period in
-            try await APIClient.shared.get("/v1/dashboard?period=\(period.rawValue)")
+            try await APIClient.shared.get(
+                "/v1/dashboard",
+                queryItems: [URLQueryItem(name: "period", value: period.rawValue)]
+            )
         }
     }
 
     func refresh() async {
+        await refresh(markDirtyWhenCoalesced: false)
+    }
+
+    private func refreshAfterPaymentsChanged() async {
+        await refresh(markDirtyWhenCoalesced: true)
+    }
+
+    private func refresh(markDirtyWhenCoalesced: Bool) async {
         if let refreshTask {
+            if markDirtyWhenCoalesced { needsTrailingRefresh = true }
             _ = await refreshTask.result
             return
         }
@@ -47,27 +60,30 @@ final class DashboardStore: ObservableObject {
         let generation = refreshGeneration
         let task = Task { try await loader(requestedPeriod) }
         refreshTask = task
-        defer {
-            if generation == refreshGeneration {
-                refreshTask = nil
-                isLoading = false
-            }
-        }
         do {
             let response = try await task.value
-            guard generation == refreshGeneration, requestedPeriod == period else { return }
-            dashboard = response
-            let available = response.report.totals.currencies.map(\.currency)
-            if selectedCurrency == nil || !available.contains(selectedCurrency ?? "") {
-                selectedCurrency = available.first ?? response.today.currencies.first?.currency
+            if generation == refreshGeneration, requestedPeriod == period {
+                dashboard = response
+                let available = response.report.totals.currencies.map(\.currency)
+                if selectedCurrency == nil || !available.contains(selectedCurrency ?? "") {
+                    selectedCurrency = available.first ?? response.today.currencies.first?.currency
+                }
             }
         } catch is CancellationError {
-            return
+            // A period/timezone/reset generation owns the replacement state.
         } catch {
-            errorMessage = dashboard == nil
-                ? "Dashboard couldn't load."
-                : "Dashboard couldn't refresh."
+            if generation == refreshGeneration {
+                errorMessage = dashboard == nil
+                    ? "Dashboard couldn't load."
+                    : "Dashboard couldn't refresh."
+            }
         }
+        guard generation == refreshGeneration else { return }
+        refreshTask = nil
+        isLoading = false
+        let shouldRefreshAgain = needsTrailingRefresh
+        needsTrailingRefresh = false
+        if shouldRefreshAgain { await refresh() }
     }
 
     func selectPeriod(_ newPeriod: DashboardPeriod) async {
@@ -75,6 +91,7 @@ final class DashboardStore: ObservableObject {
         refreshTask?.cancel()
         refreshTask = nil
         refreshGeneration += 1
+        needsTrailingRefresh = false
         period = newPeriod
         await refresh()
     }
@@ -83,6 +100,7 @@ final class DashboardStore: ObservableObject {
         refreshTask?.cancel()
         refreshTask = nil
         refreshGeneration += 1
+        needsTrailingRefresh = false
         await refresh()
     }
 
@@ -113,6 +131,7 @@ final class DashboardStore: ObservableObject {
         refreshTask?.cancel()
         refreshTask = nil
         refreshGeneration += 1
+        needsTrailingRefresh = false
         dashboard = nil
         errorMessage = nil
         period = .fourWeeks

@@ -1,12 +1,10 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-
 import { Miniflare } from "miniflare";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { Auth } from "../src/auth";
 import type { Env } from "../src/env";
-import { getSale, listSales } from "../src/sales";
+import { getSale, listSales, saleIDFromPath } from "../src/sales";
+import { applyMigration } from "./apply-migration";
 
 function authFor(userID: string): Auth {
   return {
@@ -38,14 +36,10 @@ describe("payment history API", () => {
       "0010_reconcile_custom_payment_history_presentation.sql", "0011_retain_custom_payment_field_values.sql",
       "0012_custom_source_health.sql", "0013_product_entitlements.sql",
       "0014_apple_account_deletion_credentials.sql", "0015_user_preferences.sql",
+      "0016_sales_ingestion_order.sql",
     ];
     for (const migration of migrations) {
-      const statements = (await readFile(join(process.cwd(), "migrations", migration), "utf8"))
-        .replace(/--.*$/gm, "")
-        .split(";")
-        .map((statement) => statement.trim())
-        .filter((statement) => statement && !statement.startsWith("PRAGMA foreign_keys"));
-      for (const statement of statements) await db.prepare(statement).run();
+      await applyMigration(db, migration);
     }
     await db.batch(["owner", "other"].map((id) => db.prepare(
       "INSERT INTO user (id, name, email, created_at, updated_at) VALUES (?1, 'Founder', ?2, ?3, ?3)",
@@ -54,6 +48,15 @@ describe("payment history API", () => {
   });
 
   afterEach(async () => miniflare.dispose());
+
+  it("routes real provider and custom IDs with exactly one decode", () => {
+    expect(saleIDFromPath("/v1/sales/stripe%3Ach_3Pabc123")).toBe("stripe:ch_3Pabc123");
+    expect(saleIDFromPath("/v1/sales/custom%3Aorder_42")).toBe("custom:order_42");
+    expect(saleIDFromPath("/v1/sales/stripe:ch_literal")).toBe("stripe:ch_literal");
+    expect(saleIDFromPath("/v1/sales/bad%2Fsegment")).toBe("bad/segment");
+    expect(saleIDFromPath("/v1/sales/bad%ZZ")).toBeNull();
+    expect(saleIDFromPath("/v1/sales/one/more")).toBeNull();
+  });
 
   it("fetches an exact owned payment even when it is outside the latest 100", async () => {
     const statements = [];

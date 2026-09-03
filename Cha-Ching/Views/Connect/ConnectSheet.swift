@@ -162,7 +162,6 @@ struct ConnectSheet: View {
 
 struct ProviderConnectionCapabilities: Equatable {
     let canConnect: Bool
-    let canConfigure = true
     let canTogglePayments: Bool
     let canClearHistory: Bool
     let canDisconnect: Bool

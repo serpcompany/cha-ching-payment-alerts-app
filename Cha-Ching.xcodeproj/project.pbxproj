@@ -32,6 +32,7 @@
 		8399313615A5AFDEF9670C54 /* PreferencesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C744EC0BB5FE4B44BA2CBB2D /* PreferencesStore.swift */; };
 		869FC8CAC123C3A8C732E633 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 14CD4631A44997104C853CB0 /* Assets.xcassets */; };
 		8A8F669D936FF52942D8E531 /* ChaChing.storekit in Resources */ = {isa = PBXBuildFile; fileRef = E95E2AB87DD76A96216DABCE /* ChaChing.storekit */; };
+		8C47922D23B83D16B9DCFC28 /* APIClientURLTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 772CD038CCF54212967BC482 /* APIClientURLTests.swift */; };
 		8DC3CF4F0C9989CBD83F8A36 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BEAE7900E64409AE45942B /* HomeView.swift */; };
 		991C548A38405CB88DC6704C /* ConnectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0867D67A73EEC4496B1399C /* ConnectStore.swift */; };
 		9BC6000CB2089BA771D0381C /* DashboardStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1AE6B5C771C2724A0D0CB73 /* DashboardStore.swift */; };
@@ -77,6 +78,7 @@
 		6972DE6CF7473B461CAFC8D9 /* SubscriptionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionStore.swift; sourceTree = "<group>"; };
 		7353CC4CF109A910EB725D45 /* Dashboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dashboard.swift; sourceTree = "<group>"; };
 		75CD9FC697BAB28269D3B464 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		772CD038CCF54212967BC482 /* APIClientURLTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClientURLTests.swift; sourceTree = "<group>"; };
 		7996CF08A2EAA4E22A254C26 /* CustomWebhookDeveloperPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomWebhookDeveloperPromptTests.swift; sourceTree = "<group>"; };
 		97EE9023C77A95B6CC382CC6 /* ChaChingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChaChingApp.swift; sourceTree = "<group>"; };
 		98B798CAE74B6C1187335690 /* AccountDeletionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountDeletionView.swift; sourceTree = "<group>"; };
@@ -178,6 +180,7 @@
 		AD68785C2D1A4C9883DDFA4C /* Cha-ChingTests */ = {
 			isa = PBXGroup;
 			children = (
+				772CD038CCF54212967BC482 /* APIClientURLTests.swift */,
 				A5BFDF9B844EE38D865B037E /* AppNavigationTests.swift */,
 				7996CF08A2EAA4E22A254C26 /* CustomWebhookDeveloperPromptTests.swift */,
 				C7C6369E30F863F2869F6669 /* CustomWebhookHealthTests.swift */,
@@ -361,6 +364,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8C47922D23B83D16B9DCFC28 /* APIClientURLTests.swift in Sources */,
 				7FF6A62D26FE5A1B2DEF4248 /* AppNavigationTests.swift in Sources */,
 				63FF238A5F0308F390742C0F /* CustomWebhookDeveloperPromptTests.swift in Sources */,
 				B6814146399AD6D569992EDF /* CustomWebhookHealthTests.swift in Sources */,

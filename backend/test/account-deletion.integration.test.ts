@@ -1,6 +1,3 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-
 import { Miniflare } from "miniflare";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +5,7 @@ import { handleAccountDeletion, handleAppleCredentialRequest } from "../src/acco
 import type { AppleCredentialClient } from "../src/account-deletion";
 import type { Auth } from "../src/auth";
 import type { Env } from "../src/env";
+import { applyMigration } from "./apply-migration";
 
 const encryptionKey = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
 
@@ -44,13 +42,9 @@ describe("authenticated account deletion", () => {
       "0011_retain_custom_payment_field_values.sql", "0012_custom_source_health.sql",
       "0013_product_entitlements.sql", "0014_apple_account_deletion_credentials.sql",
       "0015_user_preferences.sql",
+      "0016_sales_ingestion_order.sql",
     ]) {
-      const statements = (await readFile(join(process.cwd(), "migrations", migration), "utf8"))
-        .replace(/--.*$/gm, "")
-        .split(";")
-        .map((statement) => statement.trim())
-        .filter((statement) => statement && !statement.startsWith("PRAGMA foreign_keys"));
-      for (const statement of statements) await db.prepare(statement).run();
+      await applyMigration(db, migration);
     }
     await db.prepare(
       "INSERT INTO user (id, name, email, created_at, updated_at) VALUES ('owner', 'Founder', 'founder@example.test', ?1, ?1)",
@@ -118,6 +112,7 @@ describe("authenticated account deletion", () => {
       "provider_events", "custom_payment_sources", "product_entitlements", "device_tokens",
       "sales", "notification_deliveries", "apple_account_credentials",
       "user_preferences",
+      "sales_ingestion_order",
     ]) {
       const row = await env.DB.prepare(`SELECT COUNT(*) AS count FROM ${table}`).first<{ count: number }>();
       expect(row?.count, table).toBe(0);
