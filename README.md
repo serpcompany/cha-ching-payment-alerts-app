@@ -104,9 +104,10 @@ For ordinary production promotion, follow
 ```bash
 cd backend
 pnpm promote:check
-pnpm db:migrate:remote
-pnpm db:migrations:remote:status
+CONFIRM_PRODUCTION_MIGRATIONS=cha-ching-prod pnpm db:migrate:production
+pnpm db:migrations:production:status
 pnpm run deploy
+CHA_CHING_SMOKE_BEARER_TOKEN='<redacted>' pnpm smoke:production
 ```
 
 Production infrastructure is deployed at `https://cha-ching-api.serpcompany.workers.dev` with D1 database `cha-ching-prod`, queue `cha-ching-notifications`, and dead-letter queue `cha-ching-notifications-dlq`. Public provider-review pages are available at `/privacy` and `/terms`. `/health` reports each externally configured capability without exposing secrets. Change `PAYPAL_ENVIRONMENT` to `live` only after PayPal approves Log in with PayPal.

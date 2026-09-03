@@ -43,6 +43,9 @@ jobs:
       - name: Check types and tests
         run: pnpm check
 
+      - name: Replay D1 migrations from empty local state
+        run: pnpm db:migrations:verify
+
       - name: Verify generated Worker bindings
         run: pnpm exec wrangler types --check
 

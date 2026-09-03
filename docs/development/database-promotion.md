@@ -12,6 +12,8 @@ The current schema authority is the ordered SQL files in
 `backend/migrations/`. The project does not yet use Drizzle as the schema
 authority. Do not introduce Drizzle-generated migrations until the current D1
 schema has been ported and reviewed as a single TypeScript schema model.
+The architectural split is recorded in
+[`ADR-0011`](../adr/0011-drizzle-d1-schema-ownership.md).
 
 Wrangler applies migrations locally or remotely:
 
@@ -19,8 +21,8 @@ Wrangler applies migrations locally or remotely:
 cd backend
 pnpm db:migrate:local
 pnpm db:migrations:local:status
-pnpm db:migrations:remote:status
-pnpm db:migrate:remote
+pnpm db:migrations:production:status
+CONFIRM_PRODUCTION_MIGRATIONS=cha-ching-prod pnpm db:migrate:production
 ```
 
 Remote migration status and apply commands require a Cloudflare account/API
@@ -68,9 +70,10 @@ exercise a production/TestFlight build that depends on new backend schema:
 ```bash
 cd backend
 pnpm promote:check
-pnpm db:migrate:remote
-pnpm db:migrations:remote:status
+CONFIRM_PRODUCTION_MIGRATIONS=cha-ching-prod pnpm db:migrate:production
+pnpm db:migrations:production:status
 pnpm deploy
+CHA_CHING_SMOKE_BEARER_TOKEN='<redacted>' pnpm smoke:production
 ```
 
 Then run the product-specific production smoke tests. For authenticated app
@@ -102,7 +105,7 @@ schemas.
 
 For Home dashboard and reporting-timezone changes, verify all of the following:
 
-1. `pnpm db:migrations:remote:status` reports no pending migrations.
+1. `pnpm db:migrations:production:status` reports no pending migrations.
 2. `GET /health` returns HTTP 200.
 3. A signed-in full-access TestFlight account can initialize Settings →
    Reporting timezone.
@@ -113,6 +116,13 @@ For Home dashboard and reporting-timezone changes, verify all of the following:
    “Dashboard unavailable.”
 
 Do not use production sample data to satisfy these checks.
+
+`pnpm smoke:production` performs the read-only HTTP portion with a dedicated
+full-access smoke account. It reads the bearer token only from
+`CHA_CHING_SMOKE_BEARER_TOKEN`, never prints it, and validates `/health`,
+identity, subscription, connection, sales, preference, and dashboard response
+shapes. The migration apply wrapper accepts no arguments and requires the exact
+`CONFIRM_PRODUCTION_MIGRATIONS=cha-ching-prod` confirmation value.
 
 ## Drizzle adoption plan
 
