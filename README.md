@@ -96,8 +96,18 @@ pnpm exec wrangler secret put PAYPAL_CLIENT_ID
 pnpm exec wrangler secret put PAYPAL_CLIENT_SECRET
 pnpm exec wrangler queues create cha-ching-notifications
 pnpm exec wrangler queues create cha-ching-notifications-dlq
-pnpm db:migrate:remote
+```
+
+For ordinary production promotion, follow
+[`docs/development/database-promotion.md`](docs/development/database-promotion.md):
+
+```bash
+cd backend
+pnpm promote:check
+CONFIRM_PRODUCTION_MIGRATIONS=cha-ching-prod pnpm db:migrate:production
+pnpm db:migrations:production:status
 pnpm run deploy
+CHA_CHING_SMOKE_BEARER_TOKEN='<redacted>' pnpm smoke:production
 ```
 
 Production infrastructure is deployed at `https://cha-ching-api.serpcompany.workers.dev` with D1 database `cha-ching-prod`, queue `cha-ching-notifications`, and dead-letter queue `cha-ching-notifications-dlq`. Public provider-review pages are available at `/privacy` and `/terms`. `/health` reports each externally configured capability without exposing secrets. Change `PAYPAL_ENVIRONMENT` to `live` only after PayPal approves Log in with PayPal.
