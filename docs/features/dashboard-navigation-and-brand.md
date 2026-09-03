@@ -45,7 +45,7 @@ Foreground payment delivery and successful source-history clearing publish the s
 
 ## Native design
 
-The app uses Apple's `TabView`, one `NavigationStack` per tab, `Form`, `Section`, `NavigationLink`, `LabeledContent`, native `Picker` styles, searchable `List`, `GroupBox`, `ContentUnavailableView`, `ProgressView`, `.refreshable`, SF Symbols, Dynamic Type, and Swift Charts. Cha-Ching's mint and gold theme remains an accent; there is no custom tab bar, chip control, timezone control, or chart engine.
+The app uses Apple's `TabView`, one `NavigationStack` per tab, `Form`, `Section`, `NavigationLink`, `LabeledContent`, native `Picker` styles, searchable `List`, `GroupBox`, `ContentUnavailableView`, `ProgressView`, `.refreshable`, SF Symbols, Dynamic Type, and Swift Charts. Home relies on `.refreshable` for its refresh progress presentation and does not insert or remove navigation-toolbar content while the scroll view is settling. Cha-Ching's mint and gold theme remains an accent; there is no custom tab bar, chip control, timezone control, or chart engine.
 
 ## Settings and notification identity
 

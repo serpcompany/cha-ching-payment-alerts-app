@@ -24,6 +24,9 @@ struct ChaChingApp: App {
         if ProcessInfo.processInfo.arguments.contains("-ui-testing-summary-cards") {
             SummaryCardUITestFixture()
                 .tint(Theme.accent)
+        } else if ProcessInfo.processInfo.arguments.contains("-ui-testing-dashboard-refresh") {
+            DashboardRefreshUITestFixture()
+                .tint(Theme.accent)
         } else {
             authenticatedContent
         }
