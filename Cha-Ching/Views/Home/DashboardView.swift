@@ -61,23 +61,14 @@ struct DashboardView: View {
     }
 
     private var dailySummaryCarousel: some View {
-        ScrollView(.horizontal) {
-            LazyHStack(spacing: 12) {
-                ForEach(store.carouselDayOffsets, id: \.self) { dayOffset in
-                    DailySummaryCard(
-                        summary: store.dailySummary(for: dayOffset),
-                        selectedCurrency: selectedCurrency
-                    )
-                    .containerRelativeFrame(.horizontal, count: 10, span: 9, spacing: 12)
-                    .id(dayOffset)
-                }
-            }
-            .scrollTargetLayout()
-        }
-        .scrollIndicators(.hidden)
-        .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
-        .scrollPosition(id: $carouselPosition, anchor: .center)
-        .contentMargins(.horizontal, 16, for: .scrollContent)
+        DailySummaryCarousel(
+            pages: store.carouselDayOffsets.map {
+                DailySummaryPage(id: $0, summary: store.dailySummary(for: $0))
+            },
+            selectedCurrency: selectedCurrency,
+            selection: $carouselPosition
+        )
+        .padding(.horizontal, -16)
         .accessibilityLabel("Daily payment summaries")
         .onAppear { carouselPosition = store.dayOffset }
         .onChange(of: store.dayOffset) { _, newOffset in
@@ -413,62 +404,6 @@ struct DashboardView: View {
         await preferences.initializeIfNeeded()
         guard preferences.reportingTimezone != nil else { return }
         await store.refresh()
-    }
-}
-
-private struct DailySummaryMetric: Identifiable {
-    let title: String
-    let value: String
-    var id: String { title }
-}
-
-private struct DailySummaryCard: View {
-    let summary: DashboardDailySummary?
-    let selectedCurrency: String
-
-    var body: some View {
-        GroupBox {
-            let money = summary?.currencies.total(for: selectedCurrency)
-            let metrics = [
-                DailySummaryMetric(
-                    title: "Gross volume",
-                    value: money.map {
-                        DashboardFormatting.money(minor: $0.grossAmountMinor, currency: $0.currency)
-                    } ?? "—"
-                ),
-                DailySummaryMetric(title: "Payments", value: summary?.payments.formatted() ?? "—"),
-                DailySummaryMetric(
-                    title: "Avg. $",
-                    value: money.map {
-                        DashboardFormatting.money(minor: $0.averageAmountMinor, currency: $0.currency)
-                    } ?? "—"
-                )
-            ]
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    ForEach(metrics) { metric in
-                        Text(metric.title)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    ForEach(metrics) { metric in
-                        Text(metric.value)
-                            .font(.title3.bold())
-                            .foregroundStyle(Theme.ink)
-                            .lineLimit(2)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 4)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(metrics.map { "\($0.title), \($0.value)" }.joined(separator: ". "))
-        }
-        .accessibilityValue(summary == nil ? "Loading" : "Loaded")
     }
 }
 

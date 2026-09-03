@@ -14,7 +14,26 @@ struct ChaChingApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
+            launchContent
+        }
+    }
+
+    @ViewBuilder
+    private var launchContent: some View {
+#if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-ui-testing-summary-cards") {
+            SummaryCardUITestFixture()
+                .tint(Theme.accent)
+        } else {
+            authenticatedContent
+        }
+#else
+        authenticatedContent
+#endif
+    }
+
+    private var authenticatedContent: some View {
+        Group {
                 if auth.isLoading {
                     ZStack {
                         Theme.canvas.ignoresSafeArea()
@@ -77,7 +96,6 @@ struct ChaChingApp: App {
                     guard subscription.presentation == .fullAccess else { return }
                     await refreshFullAccessData()
                 }
-            }
         }
     }
 
