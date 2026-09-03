@@ -3,6 +3,95 @@ import Vision
 
 final class DailySummaryCarouselUITests: XCTestCase {
     @MainActor
+    func testOneHorizontalSwipeSelectsExactlyOneCalendarDay() throws {
+        let app = launchPagingFixture()
+        let selectedOffset = app.staticTexts["summary-paging-selected-offset"]
+        XCTAssertTrue(selectedOffset.waitForExistence(timeout: 5))
+        XCTAssertEqual(selectedOffset.label, "Day offset: 0")
+
+        card(in: app, id: 0).swipeRight(velocity: .slow)
+
+        wait(for: selectedOffset, toHaveLabel: "Day offset: 1")
+        XCTAssertEqual(selectedOffset.label, "Day offset: 1")
+        retainScreenshot(of: app, named: "one-swipe-offset-1")
+    }
+
+    @MainActor
+    func testDebouncedFallbackSelectsExactlyOneCalendarDay() throws {
+        let app = launchPagingFixture(forceDebouncedCommit: true)
+        let selectedOffset = app.staticTexts["summary-paging-selected-offset"]
+        XCTAssertTrue(selectedOffset.waitForExistence(timeout: 5))
+
+        card(in: app, id: 0).swipeRight(velocity: .slow)
+
+        wait(for: selectedOffset, toHaveLabel: "Day offset: 1")
+        XCTAssertTrue(card(in: app, id: 1).waitForExistence(timeout: 2))
+        XCTAssertEqual(selectedOffset.label, "Day offset: 1")
+    }
+
+    @MainActor
+    func testTodayIsTheForwardPagingBoundary() throws {
+        let app = launchPagingFixture()
+        let selectedOffset = app.staticTexts["summary-paging-selected-offset"]
+        XCTAssertTrue(selectedOffset.waitForExistence(timeout: 5))
+
+        card(in: app, id: 0).swipeLeft(velocity: .slow)
+        waitForPagingToSettle()
+
+        XCTAssertEqual(selectedOffset.label, "Day offset: 0")
+        XCTAssertFalse(card(in: app, id: -1).exists)
+    }
+
+    @MainActor
+    func testRapidAlternatingSwipesStayMonotonicOneDayAtATime() throws {
+        let app = launchPagingFixture()
+        let selectedOffset = app.staticTexts["summary-paging-selected-offset"]
+        XCTAssertTrue(selectedOffset.waitForExistence(timeout: 5))
+
+        for (current, expected, direction) in [
+            (0, 1, CGVector(dx: 1, dy: 0)),
+            (1, 0, CGVector(dx: -1, dy: 0)),
+            (0, 1, CGVector(dx: 1, dy: 0)),
+            (1, 0, CGVector(dx: -1, dy: 0)),
+        ] {
+            XCTAssertEqual(selectedOffset.label, "Day offset: \(current)")
+            let currentCard = card(in: app, id: current)
+            let start = currentCard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            let end = currentCard.coordinate(withNormalizedOffset: CGVector(
+                dx: direction.dx > 0 ? 0.9 : 0.1,
+                dy: 0.5
+            ))
+            start.press(forDuration: 0.01, thenDragTo: end, withVelocity: .fast, thenHoldForDuration: 0)
+            wait(for: selectedOffset, toHaveLabel: "Day offset: \(expected)")
+            XCTAssertTrue(card(in: app, id: expected).waitForExistence(timeout: 2))
+            XCTAssertEqual(selectedOffset.label, "Day offset: \(expected)")
+        }
+        retainScreenshot(of: app, named: "rapid-alternating-back-at-today")
+    }
+
+    @MainActor
+    func testVerticalPullAndScrollDoNotChangeTheSelectedDay() throws {
+        let app = launchPagingFixture()
+        let selectedOffset = app.staticTexts["summary-paging-selected-offset"]
+        XCTAssertTrue(selectedOffset.waitForExistence(timeout: 5))
+        XCTAssertEqual(selectedOffset.label, "Day offset: 0")
+
+        let todayCard = card(in: app, id: 0)
+        todayCard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+            .press(
+                forDuration: 0.05,
+                thenDragTo: todayCard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)),
+                withVelocity: .slow,
+                thenHoldForDuration: 0
+            )
+        app.swipeUp(velocity: .fast)
+        waitForPagingToSettle()
+
+        XCTAssertEqual(selectedOffset.label, "Day offset: 0")
+        retainScreenshot(of: app, named: "vertical-gestures-still-today")
+    }
+
+    @MainActor
     func testSummaryCardsUseOneResponsiveGeometryForLoadingShortAndLongContent() throws {
         var app = launchSummaryCardFixture(initialPage: 1)
         let shortCard = card(in: app, id: 1)
@@ -108,10 +197,48 @@ final class DailySummaryCarouselUITests: XCTestCase {
     }
 
     @MainActor
+    private func launchPagingFixture(forceDebouncedCommit: Bool = false) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-ui-testing-summary-paging",
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US",
+        ]
+        if forceDebouncedCommit {
+            app.launchArguments.append("-ui-testing-summary-paging-debounced")
+        }
+        app.launch()
+        return app
+    }
+
+    @MainActor
     private func card(in app: XCUIApplication, id: Int) -> XCUIElement {
         app.descendants(matching: .any)
             .matching(identifier: "daily-summary-card.\(id)")
             .firstMatch
+    }
+
+    @MainActor
+    private func wait(for element: XCUIElement, toHaveLabel label: String) {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@", label),
+            object: element
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 3), .completed)
+    }
+
+    private func waitForPagingToSettle() {
+        let expectation = XCTestExpectation(description: "Paging remains stable after deceleration")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { expectation.fulfill() }
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 2), .completed)
+    }
+
+    @MainActor
+    private func retainScreenshot(of app: XCUIApplication, named name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     private func crop(_ image: UIImage, to frame: CGRect, in appFrame: CGRect) throws -> CGImage {
