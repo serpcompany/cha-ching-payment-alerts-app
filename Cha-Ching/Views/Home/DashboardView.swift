@@ -7,32 +7,28 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch store.loadState {
-                case .loading:
-                    ProgressView("Loading dashboard…")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                case .loaded:
-                    if let dashboard = store.dashboard { dashboardContent(dashboard) }
-                case .unavailable:
-                    ContentUnavailableView {
-                        Label("Dashboard unavailable", systemImage: "chart.xyaxis.line")
-                    } description: {
-                        Text("Cha-Ching couldn't load your payment overview.")
-                    } actions: {
-                        Button("Retry") { Task { await load() } }
-                    }
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 18) {
+                    dashboardStateContent
                 }
+                .padding()
+                .frame(maxWidth: .infinity)
             }
+            .refreshable { await load() }
             .background(Theme.canvas.ignoresSafeArea())
             .navigationTitle("Home")
             .task { await load() }
         }
     }
 
-    private func dashboardContent(_ dashboard: DashboardResponse) -> some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 18) {
+    @ViewBuilder
+    private var dashboardStateContent: some View {
+        switch store.loadState {
+        case .loading:
+            ProgressView("Loading dashboard…")
+                .frame(maxWidth: .infinity, minHeight: 520)
+        case .loaded:
+            if let dashboard = store.dashboard {
                 if let error = store.errorMessage { refreshError(error) }
                 todayCard(dashboard.today)
                 reportsHeader(dashboard)
@@ -41,9 +37,16 @@ struct DashboardView: View {
                 breakdownCard(title: "Payments by product", rows: dashboard.report.products)
                 breakdownCard(title: "Payments by source", rows: dashboard.report.sources)
             }
-            .padding()
+        case .unavailable:
+            ContentUnavailableView {
+                Label("Dashboard unavailable", systemImage: "chart.xyaxis.line")
+            } description: {
+                Text("Cha-Ching couldn't load your payment overview.")
+            } actions: {
+                Button("Retry") { Task { await load() } }
+            }
+            .frame(maxWidth: .infinity, minHeight: 520)
         }
-        .refreshable { await store.refresh() }
     }
 
     private func todayCard(_ today: DashboardToday) -> some View {
@@ -84,20 +87,20 @@ struct DashboardView: View {
     private func reportsHeader(_ dashboard: DashboardResponse) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Reports overview").font(.title2.bold())
-                Text(dashboard.reportingTimezone.replacingOccurrences(of: "_", with: " "))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Picker("Report period", selection: Binding(
-                get: { store.period },
-                set: { period in Task { await store.selectPeriod(period) } }
-            )) {
-                ForEach(DashboardPeriod.allCases) { period in Text(period.title).tag(period) }
-            }
-            .pickerStyle(.menu)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Reports overview").font(.title2.bold())
+                    Text(dashboard.reportingTimezone.replacingOccurrences(of: "_", with: " "))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Picker("Report period", selection: Binding(
+                    get: { store.period },
+                    set: { period in Task { await store.selectPeriod(period) } }
+                )) {
+                    ForEach(DashboardPeriod.allCases) { period in Text(period.title).tag(period) }
+                }
+                .pickerStyle(.menu)
             }
             let currencies = store.availableCurrencies
             if currencies.count > 1 {
