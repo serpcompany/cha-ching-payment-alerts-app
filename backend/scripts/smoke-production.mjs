@@ -1,15 +1,12 @@
 #!/usr/bin/env node
 
-const baseURL = process.env.CHA_CHING_SMOKE_BASE_URL
-  ?? "https://cha-ching-api.serpcompany.workers.dev";
 const bearerToken = process.env.CHA_CHING_SMOKE_BEARER_TOKEN;
-const expectedEnvironment = process.env.CHA_CHING_SMOKE_EXPECTED_ENVIRONMENT ?? "production";
+const origin = new URL("https://cha-ching-api.serpcompany.workers.dev");
+const expectedEnvironment = "production";
 
 if (!bearerToken) {
   throw new Error("Set CHA_CHING_SMOKE_BEARER_TOKEN to a dedicated signed-in smoke account session");
 }
-const origin = new URL(baseURL);
-if (origin.protocol !== "https:") throw new Error("Smoke tests require an HTTPS origin");
 
 async function getJSON(pathname, validate) {
   const response = await fetch(new URL(pathname, origin), {

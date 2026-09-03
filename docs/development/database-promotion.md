@@ -121,7 +121,9 @@ Do not use production sample data to satisfy these checks.
 full-access smoke account. It reads the bearer token only from
 `CHA_CHING_SMOKE_BEARER_TOKEN`, never prints it, and validates `/health`,
 identity, subscription, connection, sales, preference, and dashboard response
-shapes. The migration apply wrapper accepts no arguments and requires the exact
+shapes against the hard-coded production origin. A future staging environment
+must add a separately named smoke command rather than overriding this target.
+The migration apply wrapper accepts no arguments and requires the exact
 `CONFIRM_PRODUCTION_MIGRATIONS=cha-ching-prod` confirmation value.
 
 ## Drizzle adoption plan
