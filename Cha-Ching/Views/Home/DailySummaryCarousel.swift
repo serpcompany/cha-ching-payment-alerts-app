@@ -53,12 +53,6 @@ private struct DailySummaryCard: View {
                     } ?? "—"
                 ),
                 DailySummaryMetric(title: "Payments", value: summary?.payments.formatted() ?? "—"),
-                DailySummaryMetric(
-                    title: "Avg. $",
-                    value: money.map {
-                        DashboardFormatting.money(minor: $0.averageAmountMinor, currency: $0.currency)
-                    } ?? "—"
-                ),
             ]
             Group {
                 if dynamicTypeSize.isAccessibilitySize {
@@ -72,17 +66,7 @@ private struct DailySummaryCard: View {
                         }
                     }
                 } else {
-                    ViewThatFits(in: .horizontal) {
-                        DailySummaryCompactMetrics(metrics: metrics, valueFont: .title3.bold())
-                        DailySummaryCompactMetrics(metrics: metrics, valueFont: .body.bold())
-                        DailySummaryCompactMetrics(metrics: metrics, valueFont: .subheadline.bold())
-                        DailySummaryCompactMetrics(metrics: metrics, valueFont: .caption.bold())
-                        DailySummaryCompactMetrics(
-                            metrics: metrics,
-                            valueFont: .caption2.bold(),
-                            usesIntrinsicWidth: false
-                        )
-                    }
+                    DailySummaryCompactMetrics(metrics: metrics)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -114,30 +98,35 @@ private struct DailySummaryCard: View {
 
 private struct DailySummaryCompactMetrics: View {
     let metrics: [DailySummaryMetric]
-    let valueFont: Font
-    var usesIntrinsicWidth = true
 
     var body: some View {
-        Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 5) {
-            GridRow {
-                ForEach(metrics) { metric in
+        HStack(alignment: .top, spacing: 0) {
+            ForEach(metrics) { metric in
+                VStack(alignment: .center, spacing: 5) {
                     Text(metric.title)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: usesIntrinsicWidth, vertical: true)
+
+                    ViewThatFits(in: .horizontal) {
+                        fittedValue(metric.value, font: .title3.bold())
+                        fittedValue(metric.value, font: .body.bold())
+                        fittedValue(metric.value, font: .subheadline.bold())
+                        fittedValue(metric.value, font: .caption.bold())
+                        fittedValue(metric.value, font: .caption2.bold())
+                    }
                 }
-            }
-            GridRow(alignment: .firstTextBaseline) {
-                ForEach(metrics) { metric in
-                    Text(metric.value)
-                        .font(valueFont)
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.ink)
-                        .fixedSize(horizontal: usesIntrinsicWidth, vertical: true)
-                }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
         }
-        .fixedSize(horizontal: usesIntrinsicWidth, vertical: false)
+    }
+
+    private func fittedValue(_ value: String, font: Font) -> some View {
+        Text(value)
+            .font(font)
+            .monospacedDigit()
+            .foregroundStyle(Theme.ink)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
     }
 }
 

@@ -40,12 +40,20 @@ final class DailySummaryCarouselUITests: XCTestCase {
         let recognizedText = try recognizeText(in: croppedImage)
         let normalizedText = recognizedText.filter { !$0.isWhitespace }
 
-        for literal in ["$1,234,567.89", "1,234,567", "$987,654.32"] {
+        for literal in ["$1,234,567.89", "1,234,567"] {
             XCTAssertTrue(
                 normalizedText.contains(literal),
                 "Expected fully rendered literal \(literal) in Vision output: \(recognizedText)"
             )
         }
+        XCTAssertFalse(
+            recognizedText.contains("Avg. $"),
+            "Average payment must not appear in the two-metric summary: \(recognizedText)"
+        )
+        XCTAssertFalse(
+            recognizedText.contains("$987,654.32"),
+            "Average payment value must not appear in the two-metric summary: \(recognizedText)"
+        )
         XCTAssertFalse(recognizedText.contains("…"), "Unexpected ellipsis in Vision output: \(recognizedText)")
         XCTAssertNil(
             recognizedText.range(of: #"\.{3,}"#, options: .regularExpression),
