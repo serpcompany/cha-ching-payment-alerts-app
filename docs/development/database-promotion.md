@@ -45,6 +45,10 @@ must not be treated as production evidence.
 Local seeds are opt-in fixtures. Seed scripts must include `--local` and
 `--persist-to .wrangler/state`. Do not add a package script that seeds remote D1.
 
+Migration filenames use a unique, increasing numeric prefix. The existing
+four-digit `0001`–`0015` history remains contiguous; the eventual Drizzle
+baseline may use a longer generated prefix after its output format is verified.
+
 ## Staging and preview
 
 Before a feature needs production-like promotion rehearsal, add a separate D1

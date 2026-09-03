@@ -1,6 +1,6 @@
 # Drizzle declares schema; Wrangler executes D1 migrations
 
-Status: accepted
+Status: proposed
 
 Cha-Ching will adopt Drizzle incrementally as the TypeScript schema and query
 layer while keeping Wrangler as the sole executor and ledger for local, staging,
