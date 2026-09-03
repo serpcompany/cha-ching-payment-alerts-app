@@ -26,6 +26,7 @@ final class DailySummaryCarouselUITests: XCTestCase {
 
         wait(for: selectedOffset, toHaveLabel: "Day offset: 1")
         XCTAssertTrue(card(in: app, id: 1).waitForExistence(timeout: 2))
+        waitForPagingToSettle()
         XCTAssertEqual(selectedOffset.label, "Day offset: 1")
     }
 
@@ -67,6 +68,34 @@ final class DailySummaryCarouselUITests: XCTestCase {
             XCTAssertEqual(selectedOffset.label, "Day offset: \(expected)")
         }
         retainScreenshot(of: app, named: "rapid-alternating-back-at-today")
+    }
+
+    @MainActor
+    func testOverlappingFallbackSwipesCannotCascadeAcrossDays() throws {
+        let app = launchPagingFixture(forceDebouncedCommit: true)
+        let selectedOffset = app.staticTexts["summary-paging-selected-offset"]
+        let selectionHistory = app.staticTexts["summary-paging-selection-history"]
+        XCTAssertTrue(selectedOffset.waitForExistence(timeout: 5))
+        XCTAssertTrue(selectionHistory.waitForExistence(timeout: 2))
+
+        let left = app.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.20))
+        let right = app.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.20))
+        for (start, end) in [(left, right), (right, left), (left, right), (right, left)] {
+            start.press(forDuration: 0.01, thenDragTo: end, withVelocity: .fast, thenHoldForDuration: 0)
+        }
+        waitForPagingToSettle()
+
+        let offsets = selectionHistory.label.split(separator: ",").compactMap { Int($0) }
+        XCTAssertFalse(offsets.isEmpty)
+        XCTAssertTrue(offsets.allSatisfy { (0...1).contains($0) }, "Unexpected history: \(offsets)")
+        XCTAssertTrue(
+            zip(offsets, offsets.dropFirst()).allSatisfy { abs($0 - $1) <= 1 },
+            "Every committed gesture must move by at most one day: \(offsets)"
+        )
+        XCTAssertTrue(
+            ["Day offset: 0", "Day offset: 1"].contains(selectedOffset.label),
+            "Overlapping input must be ignored or resolve one day at most; got \(selectedOffset.label)"
+        )
     }
 
     @MainActor

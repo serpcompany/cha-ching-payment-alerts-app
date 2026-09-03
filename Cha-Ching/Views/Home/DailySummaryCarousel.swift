@@ -11,6 +11,7 @@ struct DailySummaryCarousel: View {
     @State private var pendingSelection: PageSlot?
     @State private var isScrollIdle = true
     @State private var isPaging = false
+    @State private var isScrollLocked = false
     @State private var fallbackCommitTask: Task<Void, Never>?
 
     private enum PageSlot: Int, Identifiable {
@@ -62,13 +63,13 @@ struct DailySummaryCarousel: View {
         .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
         .scrollPosition(id: $selection, anchor: .center)
         .contentMargins(.horizontal, 16, for: .scrollContent)
-        .scrollDisabled(isPaging)
+        .scrollDisabled(isScrollLocked)
         .onAppear {
             displayedDayOffset = selectedDayOffset
             selection = .selected
         }
         .onChange(of: selectedDayOffset) { _, newOffset in
-            guard !isPaging else { return }
+            guard !isPaging, !isScrollLocked else { return }
             displayedDayOffset = newOffset
         }
         .onChange(of: selection) { _, requestedSlot in
@@ -80,6 +81,10 @@ struct DailySummaryCarousel: View {
             if #available(iOS 18.0, *), !forceDebouncedCommit {
                 if isScrollIdle { commitPendingSelection() }
             } else {
+                // iOS 17 cannot report scroll phase. Lock as soon as the first
+                // semantic target is selected so residual momentum cannot
+                // select that slot again after its represented date changes.
+                isScrollLocked = true
                 scheduleFallbackCommit(for: requestedSlot)
             }
         }
@@ -94,7 +99,7 @@ struct DailySummaryCarousel: View {
         }
     }
 
-    private func commitPendingSelection() {
+    private func commitPendingSelection(fallbackSettleDelay: Duration? = nil) {
         guard !isPaging,
               let requestedSlot = pendingSelection,
               requestedSlot != .selected
@@ -104,14 +109,24 @@ struct DailySummaryCarousel: View {
         let requestedOffset = dayOffset(for: requestedSlot)
         guard requestedOffset >= 0 else {
             recenter(on: displayedDayOffset)
+            isScrollLocked = false
             return
         }
         isPaging = true
+        isScrollLocked = true
         Task { @MainActor in
             let resolvedOffset = await selectDayOffset(requestedOffset)
             recenter(on: resolvedOffset)
+            if let fallbackSettleDelay {
+                // iOS 17 does not expose scroll phase. Keep scrolling disabled
+                // while queued position updates drain, then reassert the center
+                // slot before accepting another gesture.
+                try? await Task.sleep(for: fallbackSettleDelay)
+                recenter(on: resolvedOffset)
+            }
             await Task.yield()
             isPaging = false
+            isScrollLocked = false
         }
     }
 
@@ -119,8 +134,8 @@ struct DailySummaryCarousel: View {
         fallbackCommitTask?.cancel()
         fallbackCommitTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(350))
-            guard !Task.isCancelled, selection == requestedSlot else { return }
-            commitPendingSelection()
+            guard !Task.isCancelled, pendingSelection == requestedSlot else { return }
+            commitPendingSelection(fallbackSettleDelay: .milliseconds(750))
         }
     }
 
@@ -319,6 +334,7 @@ struct SummaryCardUITestFixture: View {
 
 struct SummaryPagingUITestFixture: View {
     @State private var selectedDayOffset = 0
+    @State private var selectionHistory = [0]
 
     private var forceDebouncedCommit: Bool {
         ProcessInfo.processInfo.arguments.contains("-ui-testing-summary-paging-debounced")
@@ -343,6 +359,8 @@ struct SummaryPagingUITestFixture: View {
             VStack(spacing: 12) {
                 Text("Day offset: \(selectedDayOffset)")
                     .accessibilityIdentifier("summary-paging-selected-offset")
+                Text(selectionHistory.map(String.init).joined(separator: ","))
+                    .accessibilityIdentifier("summary-paging-selection-history")
                 ScrollView {
                     VStack(spacing: 24) {
                         DailySummaryCarousel(
@@ -352,6 +370,9 @@ struct SummaryPagingUITestFixture: View {
                             selectDayOffset: { requestedOffset in
                                 try? await Task.sleep(for: .milliseconds(20))
                                 selectedDayOffset = requestedOffset
+                                if selectionHistory.last != requestedOffset {
+                                    selectionHistory.append(requestedOffset)
+                                }
                                 return requestedOffset
                             },
                             forceDebouncedCommit: forceDebouncedCommit

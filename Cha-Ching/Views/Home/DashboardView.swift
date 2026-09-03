@@ -384,6 +384,81 @@ struct DashboardView: View {
 }
 
 #if DEBUG
+struct DashboardPagingUITestFixture: View {
+    @StateObject private var store: DashboardStore
+    @StateObject private var preferences: PreferencesStore
+
+    @MainActor
+    init() {
+        let preferences = PreferencesStore()
+        preferences.setReportingTimezoneForUITesting("Asia/Tokyo")
+        _preferences = StateObject(wrappedValue: preferences)
+        _store = StateObject(wrappedValue: DashboardStore { _, dayOffset in
+            if dayOffset > 0 {
+                try await Task.sleep(for: .milliseconds(500))
+            }
+            if dayOffset == 2 {
+                throw URLError(.notConnectedToInternet)
+            }
+            return Self.response(dayOffset: dayOffset)
+        })
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("Dashboard day offset: \(store.dayOffset)")
+                .accessibilityIdentifier("dashboard-paging-selected-offset")
+            DashboardView()
+                .environmentObject(store)
+                .environmentObject(preferences)
+        }
+    }
+
+    private static func response(dayOffset: Int) -> DashboardResponse {
+        let day = Date(timeIntervalSince1970: 1_788_427_800 - TimeInterval(dayOffset * 86_400))
+        let money = DashboardMoneyTotal(
+            currency: "USD",
+            payments: dayOffset + 1,
+            grossAmountMinor: 59_110 + dayOffset * 37_230,
+            averageAmountMinor: 59_110
+        )
+        let window = DashboardWindow(start: day.addingTimeInterval(-27 * 86_400), end: day)
+        return DashboardResponse(
+            reportingTimezone: "Asia/Tokyo",
+            generatedAt: day,
+            period: .fourWeeks,
+            dayOffset: dayOffset,
+            dailySummary: DashboardDailySummary(
+                start: day,
+                end: day.addingTimeInterval(86_400),
+                payments: money.payments,
+                currencies: [money]
+            ),
+            report: DashboardReport(
+                current: window,
+                previous: nil,
+                totals: DashboardTotals(
+                    payments: DashboardCountComparison(
+                        current: money.payments,
+                        previous: 0,
+                        comparison: nil
+                    ),
+                    currencies: [DashboardCurrencyComparison(
+                        currency: "USD",
+                        currentAmountMinor: money.grossAmountMinor,
+                        previousAmountMinor: 0,
+                        comparison: nil
+                    )]
+                ),
+                currentSeries: [],
+                previousSeries: [],
+                products: [],
+                sources: []
+            )
+        )
+    }
+}
+
 struct DashboardRefreshUITestFixture: View {
     @State private var completedRefreshCount = 0
 

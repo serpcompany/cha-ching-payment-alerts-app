@@ -11,6 +11,7 @@
 		041BE9C54475ED31FA588CF2 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D115B8103FF1439A0C2E6D3D /* Theme.swift */; };
 		0C438D6BA6CBAB117E77E8B0 /* DailySummaryCarouselUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4558D5759887A824DD73E32C /* DailySummaryCarouselUITests.swift */; };
 		2081778642AD4EE2DB0FB871 /* HomeComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A58B251927E5F6F4FFFE6915 /* HomeComponents.swift */; };
+		20D14318E08A84A8CC2660AB /* SubscriptionConsentUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A90A24972DC7456C482DF87 /* SubscriptionConsentUITests.swift */; };
 		210EF9A32A4E48EC67C203F8 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75CD9FC697BAB28269D3B464 /* APIClient.swift */; };
 		219D7A3BB6D0D9D4AA468F75 /* ChaChingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97EE9023C77A95B6CC382CC6 /* ChaChingApp.swift */; };
 		23542ADAAD9DA16A4C29E5DB /* DailySummaryCarousel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9D4A9A664F432C736EC3AFB /* DailySummaryCarousel.swift */; };
@@ -23,6 +24,7 @@
 		4500C3B0EEBBE88F08C7AD8A /* CustomPaymentSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 468DDF9F4DEF74FC897AF682 /* CustomPaymentSource.swift */; };
 		4BFC9D438C135FDD2C3CA473 /* SalesStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEBA6FCB9D4D20B2ACB4B83D /* SalesStoreTests.swift */; };
 		577767016C99FC718193832E /* CustomNotificationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F89BF279E44EEFE4CF4B7558 /* CustomNotificationSettingsView.swift */; };
+		6192777AB620186064D3CC3C /* DashboardPagingIntegrationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7AF28C1B64A3576627E2618 /* DashboardPagingIntegrationUITests.swift */; };
 		63FF238A5F0308F390742C0F /* CustomWebhookDeveloperPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7996CF08A2EAA4E22A254C26 /* CustomWebhookDeveloperPromptTests.swift */; };
 		6887DC54A2B68216D2EFAE95 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA321C7A5BA4FBE69295C95C /* RootTabView.swift */; };
 		69948E549340E6EE519B3471 /* SaleRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30DF41A590E1799F2D791252 /* SaleRow.swift */; };
@@ -76,6 +78,7 @@
 		0B698CD26E86058C88F518AE /* PaymentNotificationPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentNotificationPresentationTests.swift; sourceTree = "<group>"; };
 		0ECEEA344D12969329CC034A /* Sale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sale.swift; sourceTree = "<group>"; };
 		14CD4631A44997104C853CB0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		1A90A24972DC7456C482DF87 /* SubscriptionConsentUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionConsentUITests.swift; sourceTree = "<group>"; };
 		1D1792A1F3D214B7B66527E1 /* CustomSourceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomSourceSheet.swift; sourceTree = "<group>"; };
 		2CB164CED3893053EFA8ABC3 /* SubscriptionGateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionGateView.swift; sourceTree = "<group>"; };
 		2DE4FF55125FA287FFF07BA9 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
@@ -103,6 +106,7 @@
 		AA321C7A5BA4FBE69295C95C /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		B1AE6B5C771C2724A0D0CB73 /* DashboardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardStore.swift; sourceTree = "<group>"; };
 		B4B800513E0052C6450AFC2B /* Cha-Ching.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Cha-Ching.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B7AF28C1B64A3576627E2618 /* DashboardPagingIntegrationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardPagingIntegrationUITests.swift; sourceTree = "<group>"; };
 		B7BB94C6058ABD68E3FDB356 /* CurrencyAmount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyAmount.swift; sourceTree = "<group>"; };
 		BEBA6FCB9D4D20B2ACB4B83D /* SalesStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalesStoreTests.swift; sourceTree = "<group>"; };
 		C0FD894F5B73CA31CF884DA9 /* ChaChing.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ChaChing.entitlements; sourceTree = "<group>"; };
@@ -195,7 +199,9 @@
 			isa = PBXGroup;
 			children = (
 				4558D5759887A824DD73E32C /* DailySummaryCarouselUITests.swift */,
+				B7AF28C1B64A3576627E2618 /* DashboardPagingIntegrationUITests.swift */,
 				9540A0EEF8251BE9276BB32F /* DashboardRefreshUITests.swift */,
+				1A90A24972DC7456C482DF87 /* SubscriptionConsentUITests.swift */,
 			);
 			path = "Cha-ChingUITests";
 			sourceTree = "<group>";
@@ -432,7 +438,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				0C438D6BA6CBAB117E77E8B0 /* DailySummaryCarouselUITests.swift in Sources */,
+				6192777AB620186064D3CC3C /* DashboardPagingIntegrationUITests.swift in Sources */,
 				C29B5D3A4DD44ED04DCBC198 /* DashboardRefreshUITests.swift in Sources */,
+				20D14318E08A84A8CC2660AB /* SubscriptionConsentUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

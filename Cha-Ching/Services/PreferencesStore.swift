@@ -54,4 +54,10 @@ final class PreferencesStore: ObservableObject {
         errorMessage = nil
         isSaving = false
     }
+
+#if DEBUG
+    func setReportingTimezoneForUITesting(_ identifier: String) {
+        reportingTimezone = identifier
+    }
+#endif
 }

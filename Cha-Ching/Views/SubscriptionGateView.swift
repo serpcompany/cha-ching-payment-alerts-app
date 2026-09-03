@@ -48,7 +48,6 @@ struct SubscriptionGateView: View {
                 primaryAction
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
-                    .disabled(subscription.isWorking)
                     .disabled(subscription.isWorking || subscription.offer == nil)
 
                 Button("Restore Purchases") {
@@ -149,6 +148,67 @@ struct SubscriptionGateView: View {
         subscription.offer?.displayPrice ?? "the displayed price"
     }
 }
+
+#if DEBUG
+@MainActor
+private final class SubscriptionPurchaseProbe: ObservableObject {
+    @Published var invocationCount = 0
+}
+
+struct SubscriptionConsentUITestFixture: View {
+    @StateObject private var auth: AuthManager
+    @StateObject private var probe: SubscriptionPurchaseProbe
+    @StateObject private var subscription: SubscriptionStore
+
+    @MainActor
+    init() {
+        let probe = SubscriptionPurchaseProbe()
+        let action: SubscriptionAction = ProcessInfo.processInfo.environment["SUBSCRIPTION_CONSENT_ACTION"]
+            == SubscriptionAction.subscribeAgain.rawValue
+            ? .subscribeAgain
+            : .startFreeTrial
+        let status = SubscriptionStatus(
+            access: .subscriptionRequired,
+            action: action,
+            appAccountToken: UUID(uuidString: "62B8F821-D8E3-41C8-AE10-0DAB0129B114")!,
+            productId: "com.serpcompany.chaching.annual"
+        )
+        _auth = StateObject(wrappedValue: AuthManager())
+        _probe = StateObject(wrappedValue: probe)
+        _subscription = StateObject(wrappedValue: SubscriptionStore(
+            accessClient: SubscriptionAccessClient(
+                status: { status },
+                sync: { _ in status }
+            ),
+            storeKit: SubscriptionStoreKitClient(
+                offer: { _ in SubscriptionOffer(
+                    displayPrice: "$14.99",
+                    isEligibleForTrial: action == .startFreeTrial
+                ) },
+                purchase: { _, _ in
+                    probe.invocationCount += 1
+                    return .cancelled
+                },
+                currentEntitlement: { _ in nil },
+                sync: {},
+                finish: { _ in },
+                updates: { AsyncStream { $0.finish() } }
+            )
+        ))
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("Purchase invocations: \(probe.invocationCount)")
+                .accessibilityIdentifier("subscription-purchase-invocations")
+            SubscriptionGateView()
+                .environmentObject(subscription)
+                .environmentObject(auth)
+        }
+        .task { await subscription.refresh() }
+    }
+}
+#endif
 
 struct SubscriptionUnavailableView: View {
     @EnvironmentObject private var subscription: SubscriptionStore
