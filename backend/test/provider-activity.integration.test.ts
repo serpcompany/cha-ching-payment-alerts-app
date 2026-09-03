@@ -1,6 +1,3 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-
 import { Miniflare } from "miniflare";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +6,7 @@ import { clearProviderPayments, listConnections, setConnectionActivity } from ".
 import type { Env } from "../src/env";
 import { listSales } from "../src/sales";
 import { handleStripeWebhook, stripeSignature } from "../src/stripe-webhooks";
+import { applyMigration } from "./apply-migration";
 
 function authFor(userId: string): Auth {
   return {
@@ -47,13 +45,10 @@ describe("connected provider activity", () => {
       "0011_retain_custom_payment_field_values.sql",
       "0012_custom_source_health.sql",
       "0013_product_entitlements.sql",
+      "0014_apple_account_deletion_credentials.sql",
+      "0015_user_preferences.sql",
     ]) {
-      const statements = (await readFile(join(process.cwd(), "migrations", migration), "utf8"))
-        .replace(/--.*$/gm, "")
-        .split(";")
-        .map((statement) => statement.trim())
-        .filter((statement) => statement && !statement.startsWith("PRAGMA foreign_keys"));
-      for (const statement of statements) await db.prepare(statement).run();
+      await applyMigration(db, migration);
     }
     await db.prepare(
       "INSERT INTO user (id, name, email, created_at, updated_at) VALUES ('owner', 'Owner', 'owner@example.test', 1, 1)",

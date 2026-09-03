@@ -33,6 +33,10 @@ private final class ControlledSalesLoader {
         return true
     }
 
+    func succeedOldest(with sales: [Sale]) {
+        pending.removeFirst().resume(returning: sales)
+    }
+
     func succeedRemainingRequests() {
         let remaining = pending
         pending.removeAll()
@@ -77,6 +81,79 @@ struct SalesStoreTests {
         ])
         #expect(payment.cardSymbol == "dollarsign.circle.fill")
         #expect(payment.cardSubtitle == "Buyer Email: buyer@example.com")
+    }
+
+    @Test @MainActor func notificationResolutionUsesLoadedPaymentWithoutAnotherRequest() async {
+        let payment = testPayment(id: "loaded")
+        var exactRequests = 0
+        let store = SalesStore(client: SalesClient(
+            load: { [payment] },
+            loadByID: { _ in
+                exactRequests += 1
+                return nil
+            }
+        ))
+        await store.refresh()
+
+        #expect(await store.resolveNotificationSale(id: "loaded") == .found(payment))
+        #expect(exactRequests == 0)
+    }
+
+    @Test @MainActor func notificationResolutionFetchesAnExactPaymentOutsideTheLoadedPage() async {
+        let payment = testPayment(id: "older-than-100")
+        let feed = [testPayment(id: "newest"), testPayment(id: "second")]
+        var requestedID: String?
+        let store = SalesStore(client: SalesClient(
+            load: { feed },
+            loadByID: { id in
+                requestedID = id
+                return payment
+            }
+        ))
+        await store.refresh()
+
+        #expect(await store.resolveNotificationSale(id: payment.id) == .found(payment))
+        #expect(requestedID == payment.id)
+        #expect(store.sales.map(\.id) == ["newest", "second"])
+        #expect(store.sales.count == feed.count)
+        #expect(store.sale(id: payment.id) == nil)
+    }
+
+    @Test @MainActor func notificationResolutionDistinguishesMissingFromTemporaryFailure() async {
+        let missing = SalesStore(client: SalesClient(load: { [] }, loadByID: { _ in nil }))
+        let failing = SalesStore(client: SalesClient(
+            load: { [] },
+            loadByID: { _ in throw URLError(.notConnectedToInternet) }
+        ))
+
+        #expect(await missing.resolveNotificationSale(id: "missing") == .missing)
+        #expect(await failing.resolveNotificationSale(id: "retry-later") == .failed)
+    }
+
+    @Test @MainActor func paymentChangesDuringRefreshCoalesceIntoOneTrailingRefresh() async {
+        let center = NotificationCenter()
+        let loader = ControlledSalesLoader()
+        let store = SalesStore(
+            client: SalesClient(load: { try await loader.load() }),
+            notificationCenter: center
+        )
+        let stale = testPayment(id: "stale")
+        let fresh = testPayment(id: "fresh")
+        let initial = Task { await store.refresh() }
+        for _ in 0..<100 where loader.callCount < 1 { await Task.yield() }
+
+        PaymentHistoryEvents.changed(notificationCenter: center)
+        PaymentHistoryEvents.changed(notificationCenter: center)
+        for _ in 0..<20 { await Task.yield() }
+        loader.succeedOldest(with: [stale])
+        for _ in 0..<100 where loader.callCount < 2 { await Task.yield() }
+        #expect(loader.callCount == 2)
+        loader.succeedOldest(with: [fresh])
+        await initial.value
+        for _ in 0..<100 where store.sales.first?.id != "fresh" { await Task.yield() }
+
+        #expect(store.sales.map(\.id) == ["fresh"])
+        #expect(loader.callCount == 2)
     }
 
     @Test @MainActor func aPaymentRefreshFailurePreservesPaymentsAndIsDismissible() async {
@@ -163,4 +240,18 @@ struct SalesStoreTests {
         await store.refresh()
         #expect(try #require(store.sale(id: "sale")).details == updated.details)
     }
+}
+
+@MainActor
+private func testPayment(id: String) -> Sale {
+    Sale(
+        id: id,
+        product: "Product",
+        amountMinor: 1_000,
+        currency: "USD",
+        source: .stripe,
+        date: .now,
+        isSubscription: false,
+        countryCode: nil
+    )
 }

@@ -6,10 +6,13 @@ struct ConnectSheet: View {
     let isActive: Bool
 
     @EnvironmentObject private var connectStore: ConnectStore
-    @EnvironmentObject private var salesStore: SalesStore
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingClearHistory = false
     @State private var clearResultMessage: String?
+
+    private var capabilities: ProviderConnectionCapabilities {
+        ProviderConnectionCapabilities(provider: provider, isConnected: isConnected)
+    }
 
     var body: some View {
         NavigationStack {
@@ -25,7 +28,7 @@ struct ConnectSheet: View {
                     }
                 }
 
-                if !isConnected {
+                if capabilities.canConnect {
                     Section {
                         Button {
                             Task { await connect() }
@@ -46,6 +49,7 @@ struct ConnectSheet: View {
                             !connectStore.isEntitled(to: provider) ||
                             !connectStore.isAvailable(provider)
                         )
+                        .accessibilityIdentifier("paymentSources.connect.\(provider.rawValue)")
                     }
                     if !connectStore.isEntitled(to: provider) {
                         Section {
@@ -66,7 +70,7 @@ struct ConnectSheet: View {
                     Text(error).font(.footnote).foregroundStyle(.red)
                 }
 
-                if isConnected {
+                if capabilities.canTogglePayments {
                     Section("Payments") {
                         Toggle("Receive payments", isOn: Binding(
                             get: {
@@ -77,14 +81,16 @@ struct ConnectSheet: View {
                                 Task { await connectStore.setProviderActivity(provider: provider, active: active) }
                             }
                         ))
+                        .accessibilityIdentifier("paymentSources.receivePayments.\(provider.rawValue)")
                         Text("Turn this off to stop new payments and notifications without disconnecting \(provider.title).")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
-                        if provider == .stripe {
+                        if capabilities.canClearHistory {
                             Button("Clear payment history", role: .destructive) {
                                 confirmingClearHistory = true
                             }
                             .disabled(connectStore.isBusy)
+                            .accessibilityIdentifier("paymentSources.clearHistory.stripe")
                             Text("Removes Stripe payments from Cha-Ching. Your Stripe connection stays in place.")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
@@ -95,14 +101,17 @@ struct ConnectSheet: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    Section {
-                        Button("Disconnect \(provider.title)", role: .destructive) {
-                            Task {
-                                await connectStore.disconnect(provider: provider)
-                                dismiss()
+                    if capabilities.canDisconnect {
+                        Section {
+                            Button("Disconnect \(provider.title)", role: .destructive) {
+                                Task {
+                                    await connectStore.disconnect(provider: provider)
+                                    dismiss()
+                                }
                             }
+                            .disabled(connectStore.isBusy)
+                            .accessibilityIdentifier("paymentSources.disconnect.\(provider.rawValue)")
                         }
-                        .disabled(connectStore.isBusy)
                     }
                 }
 
@@ -125,7 +134,7 @@ struct ConnectSheet: View {
                     Task { await clearPaymentHistory() }
                 }
             } message: {
-                Text("Remove all Stripe payments from your Dashboard? This can't be undone. Your Stripe connection and paused setting will stay unchanged.")
+                Text("Remove all Stripe payments from Payments? This can't be undone. Your Stripe connection and paused setting will stay unchanged.")
             }
         }
     }
@@ -137,7 +146,7 @@ struct ConnectSheet: View {
 
     private func clearPaymentHistory() async {
         guard let cleared = await connectStore.clearPayments(provider: provider) else { return }
-        await salesStore.refresh()
+        PaymentHistoryEvents.changed()
         clearResultMessage = cleared == 1 ? "1 payment removed." : "\(cleared) payments removed."
     }
 
@@ -148,5 +157,19 @@ struct ConnectSheet: View {
         default:
             "Authorization happens on \(provider.title). Provider tokens are encrypted by Cha-Ching's backend and are never stored on this device."
         }
+    }
+}
+
+struct ProviderConnectionCapabilities: Equatable {
+    let canConnect: Bool
+    let canTogglePayments: Bool
+    let canClearHistory: Bool
+    let canDisconnect: Bool
+
+    init(provider: Provider, isConnected: Bool) {
+        canConnect = !isConnected
+        canTogglePayments = isConnected
+        canClearHistory = isConnected && provider == .stripe
+        canDisconnect = isConnected
     }
 }

@@ -4,37 +4,90 @@ import Testing
 
 struct AppNavigationTests {
     @Test @MainActor func signedInNavigationUsesOnlyTheThreeUserDestinations() {
-        #expect(AppTab.allCases.map(\.title) == ["Dashboard", "Connect", "Settings"])
+        #expect(AppTab.allCases.map(\.title) == ["Home", "Payments", "Settings"])
     }
 
-    @Test func dashboardContainsOnlyTheMVPPaymentsSection() {
-        #expect(DashboardSection.allCases == [.payments])
+    @Test func paymentSourcesAreASettingsDrillDown() {
+        #expect(SettingsRoute.paymentSources != SettingsRoute.reportingTimezone)
     }
 
-    @Test func dashboardPresentsEveryLoadedPaymentInServerOrder() {
-        let loadedPayments = (1...7).map { index in
+    @Test func paymentDeepLinkSelectsPaymentsWithoutASettingsPath() {
+        let target = AppNavigation.target(openedSaleID: "sale", openedSourceID: nil)
+        #expect(target == AppNavigationTarget(tab: .payments, settingsPath: []))
+    }
+
+    @Test func sourceHealthDeepLinkSelectsThePaymentSourceDrillDown() {
+        let target = AppNavigation.target(openedSaleID: nil, openedSourceID: "source")
+        #expect(target == AppNavigationTarget(tab: .settings, settingsPath: [.paymentSources]))
+    }
+
+    @Test func notificationLifecycleRoutesOncePerColdOrSubsequentEvent() {
+        var lifecycle = NotificationRouteLifecycle()
+        #expect(lifecycle.paymentTarget(for: "cold")?.tab == .payments)
+        #expect(lifecycle.paymentTarget(for: "cold") == nil)
+        #expect(lifecycle.paymentTarget(for: nil) == nil)
+        #expect(lifecycle.paymentTarget(for: "cold")?.tab == .payments)
+
+        #expect(lifecycle.sourceTarget(for: "source")?.settingsPath == [.paymentSources])
+        #expect(lifecycle.sourceTarget(for: "source") == nil)
+        #expect(lifecycle.sourceTarget(for: nil) == nil)
+        #expect(lifecycle.sourceTarget(for: "next")?.settingsPath == [.paymentSources])
+    }
+
+    @Test func coldLaunchPaymentRouteFindsTheMatchingPaymentDetail() throws {
+        let payments = [
             Sale(
-                id: "payment-\(index)",
-                product: "Product \(index)",
-                amountMinor: index * 100,
+                id: "other",
+                product: "Other",
+                amountMinor: 100,
                 currency: "USD",
                 source: .stripe,
-                date: Date(timeIntervalSince1970: TimeInterval(8 - index)),
+                date: .distantPast,
+                isSubscription: false,
+                countryCode: nil
+            ),
+            Sale(
+                id: "opened",
+                product: "Opened",
+                amountMinor: 200,
+                currency: "USD",
+                source: .custom,
+                date: .now,
                 isSubscription: false,
                 countryCode: nil
             )
-        }
+        ]
 
-        let displayedPayments = DashboardPaymentPresentation.rows(from: loadedPayments)
+        let path = PaymentsNavigation.path(for: .found(payments[1]))
+        #expect(path?.map(\.id) == ["opened"])
+        #expect(PaymentsNavigation.path(for: .missing)?.isEmpty == true)
+        #expect(PaymentsNavigation.path(for: .failed) == nil)
+        let failure = PaymentNotificationFailure(saleID: "opened")
+        #expect(failure.title == "Payment couldn't open")
+        #expect(failure.message.contains("try loading this payment again"))
+        #expect(failure.id == "opened")
+    }
 
-        #expect(displayedPayments.map(\.id) == [
-            "payment-1",
-            "payment-2",
-            "payment-3",
-            "payment-4",
-            "payment-5",
-            "payment-6",
-            "payment-7"
-        ])
+    @Test func paymentSourceControlsRemainReachableForEachConnectionState() {
+        #expect(PaymentSourceDestination.newCustomSource.id == "custom-new")
+        #expect(PaymentSourceDestination.provider(.stripe).id == "provider-stripe")
+        #expect(PaymentSourceDestination.customSource("source").id == "custom-source")
+
+        let disconnected = ProviderConnectionCapabilities(provider: .stripe, isConnected: false)
+        #expect(disconnected.canConnect)
+        #expect(!disconnected.canTogglePayments)
+        #expect(!disconnected.canClearHistory)
+        #expect(!disconnected.canDisconnect)
+
+        let stripe = ProviderConnectionCapabilities(provider: .stripe, isConnected: true)
+        #expect(!stripe.canConnect)
+        #expect(stripe.canTogglePayments)
+        #expect(stripe.canClearHistory)
+        #expect(stripe.canDisconnect)
+
+        let paypal = ProviderConnectionCapabilities(provider: .paypal, isConnected: true)
+        #expect(paypal.canTogglePayments)
+        #expect(!paypal.canClearHistory)
+        #expect(paypal.canDisconnect)
     }
 }

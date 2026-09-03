@@ -5,6 +5,7 @@ enum APIError: LocalizedError {
     case invalidConfiguration
     case invalidResponse
     case unauthorized
+    case notFound
     case server(String)
 
     var errorDescription: String? {
@@ -12,6 +13,7 @@ enum APIError: LocalizedError {
         case .invalidConfiguration: "The API URL isn't configured."
         case .invalidResponse: "The server returned an invalid response."
         case .unauthorized: "Your session expired. Please sign in again."
+        case .notFound: "The requested item was not found."
         case .server(let message): message
         }
     }
@@ -145,6 +147,21 @@ actor APIClient {
         return try decoder.decode(Response.self, from: data)
     }
 
+    func get<Response: Decodable>(
+        _ path: String,
+        queryItems: [URLQueryItem]
+    ) async throws -> Response {
+        let request = try makeRequest(path: path, method: "GET", queryItems: queryItems)
+        let (data, _) = try await perform(request)
+        return try decoder.decode(Response.self, from: data)
+    }
+
+    func get<Response: Decodable>(pathComponents: [String]) async throws -> Response {
+        let request = try makeRequest(pathComponents: pathComponents, method: "GET")
+        let (data, _) = try await perform(request)
+        return try decoder.decode(Response.self, from: data)
+    }
+
     func post<Response: Decodable>(_ path: String) async throws -> Response {
         var request = try makeRequest(path: path, method: "POST")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -158,6 +175,17 @@ actor APIClient {
         body: Body
     ) async throws -> Response {
         var request = try makeRequest(path: path, method: "POST")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(body)
+        let (data, _) = try await perform(request)
+        return try decoder.decode(Response.self, from: data)
+    }
+
+    func put<Body: Encodable, Response: Decodable>(
+        _ path: String,
+        body: Body
+    ) async throws -> Response {
+        var request = try makeRequest(path: path, method: "PUT")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(body)
         let (data, _) = try await perform(request)
@@ -182,9 +210,38 @@ actor APIClient {
         KeychainToken.delete()
     }
 
-    private func makeRequest(path: String, method: String, authorized: Bool = true) throws -> URLRequest {
-        let relativePath = path.hasPrefix("/") ? String(path.dropFirst()) : path
-        var request = URLRequest(url: try baseURL.appendingPathComponent(relativePath))
+    private func makeRequest(
+        path: String,
+        method: String,
+        authorized: Bool = true,
+        queryItems: [URLQueryItem] = []
+    ) throws -> URLRequest {
+        let request = URLRequest(url: try Self.requestURL(
+            baseURL: baseURL,
+            path: path,
+            queryItems: queryItems
+        ))
+        return configured(request, method: method, authorized: authorized)
+    }
+
+    private func makeRequest(
+        pathComponents: [String],
+        method: String,
+        authorized: Bool = true
+    ) throws -> URLRequest {
+        let request = URLRequest(url: Self.requestURL(
+            baseURL: try baseURL,
+            pathComponents: pathComponents
+        ))
+        return configured(request, method: method, authorized: authorized)
+    }
+
+    private func configured(
+        _ initialRequest: URLRequest,
+        method: String,
+        authorized: Bool
+    ) -> URLRequest {
+        var request = initialRequest
         request.httpMethod = method
         // Better Auth returns a bearer token for the native client. Do not let
         // URLSession attach a stale browser-style cookie to a later sign-in.
@@ -196,11 +253,34 @@ actor APIClient {
         return request
     }
 
+    nonisolated static func requestURL(
+        baseURL: URL,
+        path: String,
+        queryItems: [URLQueryItem] = []
+    ) throws -> URL {
+        let relativePath = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        let url = baseURL.appendingPathComponent(relativePath)
+        guard !queryItems.isEmpty else { return url }
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            throw APIError.invalidConfiguration
+        }
+        components.queryItems = queryItems
+        guard let result = components.url else { throw APIError.invalidConfiguration }
+        return result
+    }
+
+    nonisolated static func requestURL(baseURL: URL, pathComponents: [String]) -> URL {
+        pathComponents.reduce(baseURL) { partial, component in
+            partial.appendingPathComponent(component)
+        }
+    }
+
     private func perform(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
         guard (200..<300).contains(http.statusCode) else {
             if http.statusCode == 401 { throw APIError.unauthorized }
+            if http.statusCode == 404 { throw APIError.notFound }
             try throwServerError(data: data, status: http.statusCode)
         }
         return (data, http)
@@ -220,6 +300,9 @@ private struct StoredAppleCredentialResponse: Decodable {
 private enum KeychainToken {
     private static let service = "com.serpcompany.chaching.auth"
     private static let account = "better-auth-session"
+    #if DEBUG && targetEnvironment(simulator)
+    private static let simulatorDefaultsKey = "debugSimulatorBetterAuthSession"
+    #endif
 
     static func load() -> String? {
         let query: [String: Any] = [
@@ -231,7 +314,13 @@ private enum KeychainToken {
         ]
         var result: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data else { return nil }
+              let data = result as? Data else {
+            #if DEBUG && targetEnvironment(simulator)
+            return UserDefaults.standard.string(forKey: simulatorDefaultsKey)
+            #else
+            return nil
+            #endif
+        }
         return String(data: data, encoding: .utf8)
     }
 
@@ -244,8 +333,14 @@ private enum KeychainToken {
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
             kSecValueData as String: Data(token.utf8)
         ]
-        guard SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess else {
+        let status = SecItemAdd(attributes as CFDictionary, nil)
+        guard status == errSecSuccess else {
+            #if DEBUG && targetEnvironment(simulator)
+            UserDefaults.standard.set(token, forKey: simulatorDefaultsKey)
+            return
+            #else
             throw APIError.server("Couldn't securely save your session.")
+            #endif
         }
     }
 
@@ -256,5 +351,8 @@ private enum KeychainToken {
             kSecAttrAccount as String: account
         ]
         SecItemDelete(query as CFDictionary)
+        #if DEBUG && targetEnvironment(simulator)
+        UserDefaults.standard.removeObject(forKey: simulatorDefaultsKey)
+        #endif
     }
 }

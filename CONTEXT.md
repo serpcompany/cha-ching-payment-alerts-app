@@ -20,7 +20,8 @@ The live MVP proves secure identity, entitlement enforcement, payment-source lin
 - **Connection**: Cha-Ching's revocable, least-privilege authorization to identify and read events for one provider account.
 - **Entitlement**: server-owned permission enabling a feature for a user. UI presentation never grants access.
 - **Subscription**: the commercial relationship Apple reports for Cha-Ching's annual product. It is translated into a provider-independent product entitlement before it can grant access.
-- **Payment**: the normalized successful-payment record shown on the Dashboard. Provider webhooks can verify a payment; custom-webhook payments are sender-reported.
+- **Payment**: the normalized successful-payment record shown in Payments and counted by Home reports. Provider webhooks can verify a payment; custom-webhook payments are sender-reported.
+- **Reporting timezone**: the user's saved IANA timezone that defines day, month, quarter, and year boundaries on Home. Payment timestamps remain UTC.
 - **Payment notification**: the user-visible iPhone notification produced from a payment. “Ping” is not product language.
 
 ## Product invariants

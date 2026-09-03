@@ -21,6 +21,16 @@ interface SaleDetailField {
   value: string;
 }
 
+export function saleIDFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/v1\/sales\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
+}
+
 function notificationFields(value: string | null): SaleDetailField[] | undefined {
   if (!value) return undefined;
   try {
@@ -37,6 +47,23 @@ function notificationFields(value: string | null): SaleDetailField[] | undefined
   }
 }
 
+function saleResponse(sale: SaleRow) {
+  const details = notificationFields(sale.notification_fields_json);
+  return {
+    id: sale.id,
+    provider: sale.provider,
+    amountMinor: sale.amount_minor,
+    currency: sale.currency,
+    productLabel: sale.product_label,
+    plan: sale.plan_label,
+    saleType: sale.sale_type_label,
+    countryCode: sale.country_code,
+    isSubscription: sale.is_subscription === 1,
+    occurredAt: new Date(sale.occurred_at * 1_000).toISOString(),
+    ...(details ? { notificationFields: details } : {}),
+  };
+}
+
 export async function listSales(env: Env, auth: Auth, request: Request): Promise<Response> {
   const user = await requireUser(auth, request);
   const result = await env.DB.prepare(
@@ -49,21 +76,24 @@ export async function listSales(env: Env, auth: Auth, request: Request): Promise
     .bind(user.id)
     .all<SaleRow>();
   return Response.json({
-    sales: result.results.map((sale) => {
-      const details = notificationFields(sale.notification_fields_json);
-      return {
-        id: sale.id,
-        provider: sale.provider,
-        amountMinor: sale.amount_minor,
-        currency: sale.currency,
-        productLabel: sale.product_label,
-        plan: sale.plan_label,
-        saleType: sale.sale_type_label,
-        countryCode: sale.country_code,
-        isSubscription: sale.is_subscription === 1,
-        occurredAt: new Date(sale.occurred_at * 1_000).toISOString(),
-        ...(details ? { notificationFields: details } : {}),
-      };
-    }),
+    sales: result.results.map(saleResponse),
   });
+}
+
+export async function getSale(
+  env: Env,
+  auth: Auth,
+  request: Request,
+  saleID: string,
+): Promise<Response> {
+  const user = await requireUser(auth, request);
+  const sale = await env.DB.prepare(
+    `SELECT id, provider, amount_minor, currency, product_label, plan_label,
+            sale_type_label, country_code, notification_fields_json,
+            is_subscription, occurred_at
+     FROM sales
+     WHERE id = ?1 AND user_id = ?2 AND status = 'succeeded'`,
+  ).bind(saleID, user.id).first<SaleRow>();
+  if (!sale) return Response.json({ error: "Payment not found" }, { status: 404 });
+  return Response.json({ sale: saleResponse(sale) });
 }

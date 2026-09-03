@@ -65,7 +65,7 @@ struct WebhookNotificationDesignerTests {
         let detail = CustomSourceDetail(source: source, sample: nil, mapping: nil)
 
         #expect(detail.connectionPresentation.title == "Active")
-        #expect(detail.connectionPresentation.detail == "New events create Dashboard payments and notifications.")
+        #expect(detail.connectionPresentation.detail == "New events create payments and notifications.")
         #expect(detail.connectionPresentation.receivedAt == nil)
     }
 

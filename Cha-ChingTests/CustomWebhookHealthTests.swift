@@ -46,4 +46,34 @@ struct CustomWebhookHealthTests {
         #expect(source.health?.lastEventDate != nil)
         #expect(source.health?.expectedEventDate != nil)
     }
+
+    @Test @MainActor func notificationSourceRoutingDistinguishesSuccessMissingAndTransientFailure() async throws {
+        let source = try JSONDecoder().decode(CustomPaymentSource.self, from: Data(#"""
+        {
+          "id": "source-health",
+          "name": "SERP Store",
+          "status": "active",
+          "connectionState": "active",
+          "webhookUrl": "https://example.test/private",
+          "createdAt": "2026-08-11 00:00:00",
+          "updatedAt": "2026-08-12 00:00:00"
+        }
+        """#.utf8))
+        let detail = CustomSourceDetail(source: source, sample: nil, mapping: nil)
+        let found = ConnectStore(customSourceDetailLoader: { _ in detail })
+        let missing = ConnectStore(customSourceDetailLoader: { _ in throw APIError.notFound })
+        let failed = ConnectStore(customSourceDetailLoader: { _ in
+            throw URLError(.notConnectedToInternet)
+        })
+
+        #expect(await found.resolveCustomSourceRoute(id: source.id) == .found(source.id))
+        #expect(found.customSources.map(\.id) == [source.id])
+        #expect(await missing.resolveCustomSourceRoute(id: source.id) == .missing)
+        #expect(await failed.resolveCustomSourceRoute(id: source.id) == .failed)
+    }
+
+    @Test func requestedSourceNeverUsesTheNewSourceForm() {
+        #expect(CustomSourceSheetMode.showsNewSourceForm(sourceID: nil))
+        #expect(!CustomSourceSheetMode.showsNewSourceForm(sourceID: "missing-source"))
+    }
 }

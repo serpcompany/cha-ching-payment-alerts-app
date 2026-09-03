@@ -23,7 +23,7 @@ Custom notifications have a fixed `Cha-ching!` title. Their body is deterministi
 ## History and device registration
 
 - `GET /v1/sales` returns at most the signed-in user's 100 newest sales. Stripe entries are provider-verified; custom entries are sender-reported.
-- The Dashboard Payments section reads this API. Each custom sale includes its immutable ordered snapshot of enabled notification label/value fields for drill-down; sample revenue is not part of production behavior.
+- The Payments screen reads the latest-100 list API. If notification routing names a succeeded payment outside that page, an authenticated exact-payment endpoint returns it only to its owner. Each custom sale includes its immutable ordered snapshot of enabled notification label/value fields for drill-down; sample revenue is not part of production behavior.
 - iOS asks for notification permission after a provider is connected, registers its APNs token through `POST /v1/devices`, refreshes it on launch only while the user's Payment notifications preference is on, and removes the device on sign-out or when that preference is turned off.
 - The UI reports payment notifications as on only after both notification permission and backend device registration succeed. Simulator permission alone is not presented as a working push channel; production push acceptance uses a signed iPhone build.
 - Device tokens are never returned by a read API.
@@ -36,11 +36,11 @@ Custom notifications have a fixed `Cha-ching!` title. Their body is deterministi
 - Duplicate Queue messages reuse the persisted delivery row ID as the APNs id, so recovery does not create a second user-visible delivery.
 - Transient APNs failures retry; exhausted messages go to `cha-ching-notifications-dlq`.
 - Invalid APNs tokens are disabled. A stale in-progress claim can be reclaimed after five minutes.
-- Notification taps and foreground delivery trigger a fresh sales-history fetch. A real payment tap selects Dashboard and opens the matching D1-backed payment; a setup test tap opens its standalone preview because no sale exists. The response returns control to UIKit on the main thread so cold-launch state restoration cannot crash the app.
+- Notification taps and foreground delivery trigger a fresh sales-history fetch. A real payment tap selects Payments and opens the matching D1-backed payment; a setup test tap opens its standalone preview because no sale exists. The response returns control to UIKit on the main thread so cold-launch state restoration cannot crash the app.
 - Foreground delivery requests Apple's real banner, list, sound, and badge presentation. Apple limits the abbreviated system preview to a few lines; the in-app payment detail contains every configured custom field saved for that payment.
 - A sample can also be queued as a delayed lock-screen test. The authenticated request validates the current preview, confirms a registered device, and places the exact body on Cloudflare Queue without creating a payment; the Queue consumer sends it after the delay.
 - Live and sample-based test notifications use the bundled, level-checked cash-register sound by default. System mute, Focus, permission, and foreground-presentation rules remain controlled by iOS.
-- Custom-source health warnings use the existing notification Queue and active-device boundary, carry `connectionHealth: true` plus the affected source ID, and use the default system sound. Pressing one selects Connect and opens that source rather than pretending a missing sale exists.
+- Custom-source health warnings use the existing notification Queue and active-device boundary, carry `connectionHealth: true` plus the affected source ID, and use the default system sound. Pressing one selects Settings, pushes Payment sources, and opens that source rather than pretending a missing sale exists.
 
 ## Data retention
 

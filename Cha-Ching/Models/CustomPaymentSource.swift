@@ -391,7 +391,7 @@ struct CustomSourceDetail: Decodable {
         case .active:
             return CustomSourceConnectionPresentation(
                 title: "Active",
-                detail: "New events create Dashboard payments and notifications.",
+                detail: "New events create payments and notifications.",
                 receivedAt: nil
             )
         case .paused:
@@ -435,14 +435,7 @@ struct CustomPaymentPreview: Decodable {
     let notificationBody: String?
 
     var formattedAmount: String {
-        let zeroDecimal = ["BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW", "MGA", "PYG", "RWF", "UGX", "VND", "VUV", "XAF", "XOF", "XPF"]
-        let threeDecimal = ["BHD", "JOD", "KWD", "OMR", "TND"]
-        let exponent = zeroDecimal.contains(currency) ? 0 : threeDecimal.contains(currency) ? 3 : 2
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = currency
-        return formatter.string(from: NSNumber(value: Double(amountMinor) / pow(10, Double(exponent))))
-            ?? "\(amountMinor) \(currency)"
+        CurrencyAmount.formatted(minor: amountMinor, currency: currency)
     }
 }
 

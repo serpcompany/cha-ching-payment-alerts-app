@@ -31,8 +31,16 @@ struct CustomSourceSheet: View {
                     } else {
                         managementSections(source)
                     }
-                } else {
+                } else if CustomSourceSheetMode.showsNewSourceForm(sourceID: sourceID) {
                     newSourceSections
+                } else {
+                    Section {
+                        ContentUnavailableView(
+                            "Payment source unavailable",
+                            systemImage: "link.badge.plus",
+                            description: Text("This source couldn't be loaded. Close this screen and try again.")
+                        )
+                    }
                 }
 
                 if let errorMessage {
@@ -119,7 +127,7 @@ struct CustomSourceSheet: View {
                 await checkConnection()
             }
 
-            Text("The first event configures this source. It does not create a Dashboard payment or send a notification.")
+            Text("The first event configures this source. It does not create a payment or send a notification.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -161,7 +169,7 @@ struct CustomSourceSheet: View {
                 set: { active in Task { await setActive(active) } }
             ))
             Text(source.status == .active
-                 ? "New payments appear on your Dashboard and send notifications."
+                 ? "New payments appear in Payments and send notifications."
                  : "Paused. Your setup and existing payments are kept, but new events are ignored.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -351,6 +359,10 @@ struct CustomSourceSheet: View {
         guard let id = source?.id else { return }
         await run { source = try await store.regenerateCustomSourceURL(id: id) }
     }
+}
+
+enum CustomSourceSheetMode {
+    static func showsNewSourceForm(sourceID: String?) -> Bool { sourceID == nil }
 }
 
 private enum CopiedItem {

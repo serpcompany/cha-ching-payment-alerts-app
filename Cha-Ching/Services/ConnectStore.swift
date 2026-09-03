@@ -69,6 +69,12 @@ struct TestNotificationResponse: Decodable {
     let registered: Int?
 }
 
+enum CustomSourceRouteResolution: Equatable {
+    case found(String)
+    case missing
+    case failed
+}
+
 private struct TestNotificationRequest: Encodable {
     let mapping: WebhookFieldMapping
     let delaySeconds: Int?
@@ -76,6 +82,7 @@ private struct TestNotificationRequest: Encodable {
 
 @MainActor
 final class ConnectStore: ObservableObject {
+    typealias CustomSourceDetailLoader = @MainActor (String) async throws -> CustomSourceDetail
     @Published var connections: [ConnectionState]
     @Published private(set) var entitlements: [String: Bool] = [:]
     @Published private(set) var providerAvailability: [String: Bool] = [:]
@@ -84,8 +91,16 @@ final class ConnectStore: ObservableObject {
     @Published var errorMessage: String?
 
     private let webAuthentication = ProviderWebAuthenticationSession()
+    private let customSourceDetailLoader: CustomSourceDetailLoader
 
-    init() {
+    convenience init() {
+        self.init(customSourceDetailLoader: { id in
+            try await APIClient.shared.get("/v1/custom-sources/\(id)")
+        })
+    }
+
+    init(customSourceDetailLoader: @escaping CustomSourceDetailLoader) {
+        self.customSourceDetailLoader = customSourceDetailLoader
         connections = Provider.mvpProviders.map {
             ConnectionState(provider: $0, isConnected: false, isActive: false, accountLabel: nil)
         }
@@ -139,9 +154,20 @@ final class ConnectStore: ObservableObject {
     }
 
     func customSourceDetail(id: String) async throws -> CustomSourceDetail {
-        let detail: CustomSourceDetail = try await APIClient.shared.get("/v1/custom-sources/\(id)")
+        let detail = try await customSourceDetailLoader(id)
         replaceCustomSource(detail.source)
         return detail
+    }
+
+    func resolveCustomSourceRoute(id: String) async -> CustomSourceRouteResolution {
+        do {
+            let detail = try await customSourceDetail(id: id)
+            return .found(detail.source.id)
+        } catch APIError.notFound {
+            return .missing
+        } catch {
+            return .failed
+        }
     }
 
     func previewCustomSource(id: String, mapping: WebhookFieldMapping) async throws -> CustomPaymentPreview {

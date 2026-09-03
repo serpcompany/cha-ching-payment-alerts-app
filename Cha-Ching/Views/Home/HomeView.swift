@@ -1,19 +1,27 @@
 import SwiftUI
 
-enum DashboardSection: CaseIterable {
-    case payments
-}
-
-enum DashboardPaymentPresentation {
-    static func rows(from loadedPayments: [Sale]) -> [Sale] {
-        loadedPayments
+enum PaymentsNavigation {
+    static func path(for resolution: NotificationSaleResolution) -> [Sale]? {
+        switch resolution {
+        case .found(let sale): [sale]
+        case .missing: []
+        case .failed: nil
+        }
     }
 }
 
-struct HomeView: View {
+struct PaymentNotificationFailure: Identifiable, Equatable {
+    let saleID: String
+    var id: String { saleID }
+    let title = "Payment couldn't open"
+    let message = "Check your connection and try loading this payment again."
+}
+
+struct PaymentsView: View {
     @EnvironmentObject private var store: SalesStore
     @EnvironmentObject private var notifications: NotificationManager
     @State private var path: [Sale] = []
+    @State private var notificationFailure: PaymentNotificationFailure?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -35,14 +43,34 @@ struct HomeView: View {
             }
             .task(id: notifications.openedSaleID) {
                 guard let saleID = notifications.openedSaleID else { return }
-                await store.refresh()
-                if let sale = store.sales.first(where: { $0.id == saleID }) {
-                    path = [sale]
-                }
-                notifications.consumeOpenedSale(saleID)
+                await openNotificationPayment(saleID, refreshingFeed: true)
             }
-            .navigationTitle("Dashboard")
+            .alert(item: $notificationFailure) { failure in
+                Alert(
+                    title: Text(failure.title),
+                    message: Text(failure.message),
+                    primaryButton: .default(Text("Retry")) {
+                        Task { await openNotificationPayment(failure.saleID, refreshingFeed: false) }
+                    },
+                    secondaryButton: .cancel(Text("Dismiss")) {
+                        notifications.consumeOpenedSale(failure.saleID)
+                    }
+                )
+            }
+            .navigationTitle("Payments")
         }
+    }
+
+    private func openNotificationPayment(_ saleID: String, refreshingFeed: Bool) async {
+        if refreshingFeed { await store.refresh() }
+        let resolution = await store.resolveNotificationSale(id: saleID)
+        guard let resolvedPath = PaymentsNavigation.path(for: resolution) else {
+            notificationFailure = PaymentNotificationFailure(saleID: saleID)
+            return
+        }
+        notificationFailure = nil
+        path = resolvedPath
+        notifications.consumeOpenedSale(saleID)
     }
 
     @ViewBuilder
@@ -64,7 +92,7 @@ struct HomeView: View {
                 NoSalesYetView()
             } else {
                 VStack(spacing: 10) {
-                    ForEach(DashboardPaymentPresentation.rows(from: store.sales)) { sale in
+                    ForEach(store.sales) { sale in
                         NavigationLink(value: sale) {
                             SaleRow(sale: sale)
                         }
@@ -109,7 +137,7 @@ enum Formatters {
 }
 
 #Preview {
-    HomeView()
+    PaymentsView()
         .environmentObject(SalesStore())
         .environmentObject(ConnectStore())
         .environmentObject(NotificationManager.shared)

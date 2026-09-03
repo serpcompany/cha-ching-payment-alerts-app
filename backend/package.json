@@ -10,6 +10,7 @@
     "check": "pnpm typecheck && pnpm test",
     "db:migrate:local": "wrangler d1 migrations apply cha-ching-prod --local --persist-to .wrangler/state",
     "db:migrate:remote": "wrangler d1 migrations apply cha-ching-prod --remote",
+    "db:seed:dashboard:local": "wrangler d1 execute cha-ching-prod --local --persist-to .wrangler/state --file ./seeds/dashboard-v1.sql",
     "deploy": "wrangler deploy"
   },
   "dependencies": {

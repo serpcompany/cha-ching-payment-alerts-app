@@ -21,14 +21,14 @@ struct PaymentNotificationPresentationTests {
         #expect(peak >= 0.7)
     }
 
-    @Test func aRealPaymentNotificationTargetsTheDashboardPayment() {
+    @Test func aRealPaymentNotificationTargetsPayments() {
         let destination = PaymentNotificationResponseRouter.destination(
             userInfo: ["saleId": "sale-custom-123"],
             title: "Cha-ching!",
             body: "Amount: $9.00"
         )
 
-        #expect(destination == .dashboardPayment(id: "sale-custom-123"))
+        #expect(destination == .payment(id: "sale-custom-123"))
     }
 
     @Test func aConnectionWarningTargetsTheAffectedSource() {
@@ -38,7 +38,7 @@ struct PaymentNotificationPresentationTests {
             body: "SERP Store has not sent a webhook recently."
         )
 
-        #expect(destination == .connectSource(id: "source-quiet"))
+        #expect(destination == .paymentSource(id: "source-quiet"))
     }
 
     @Test @MainActor func openingANotificationClearsTheAppBadge() async {
