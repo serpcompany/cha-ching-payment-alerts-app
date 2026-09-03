@@ -315,7 +315,6 @@ private struct DailySummaryCard: View {
                 .disabled(dayOffset == 0 || isRefreshing)
             }
         }
-        .contentShape(.rect)
     }
 
     private var title: String {
