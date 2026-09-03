@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 final class DashboardStore: ObservableObject {
-    typealias Loader = (DashboardPeriod) async throws -> DashboardResponse
+    typealias Loader = @MainActor (DashboardPeriod) async throws -> DashboardResponse
 
     @Published private(set) var dashboard: DashboardResponse?
     @Published private(set) var isLoading = false
@@ -44,7 +44,7 @@ final class DashboardStore: ObservableObject {
         }
         do {
             let response = try await task.value
-            guard requestedPeriod == period else { return }
+            guard generation == refreshGeneration, requestedPeriod == period else { return }
             dashboard = response
             let available = response.report.totals.currencies.map(\.currency)
             if selectedCurrency == nil || !available.contains(selectedCurrency ?? "") {
@@ -68,6 +68,32 @@ final class DashboardStore: ObservableObject {
         await refresh()
     }
 
+    func reloadForReportingTimezoneChange() async {
+        refreshTask?.cancel()
+        refreshTask = nil
+        refreshGeneration += 1
+        await refresh()
+    }
+
+    var loadState: DashboardLoadState {
+        if isLoading, dashboard == nil { return .loading }
+        guard let dashboard else { return .unavailable }
+        let isEmpty = dashboard.today.payments == 0
+            && dashboard.report.totals.payments.current == 0
+            && dashboard.report.products.isEmpty
+            && dashboard.report.sources.isEmpty
+        return .loaded(isEmpty: isEmpty)
+    }
+
+    var availableCurrencies: [String] {
+        dashboard?.report.totals.currencies.map(\.currency) ?? []
+    }
+
+    func selectCurrency(_ currency: String) {
+        guard availableCurrencies.contains(currency) else { return }
+        selectedCurrency = currency
+    }
+
     func dismissLoadError() {
         errorMessage = nil
     }
@@ -82,4 +108,10 @@ final class DashboardStore: ObservableObject {
         selectedCurrency = nil
         isLoading = false
     }
+}
+
+enum DashboardLoadState: Equatable {
+    case loading
+    case loaded(isEmpty: Bool)
+    case unavailable
 }

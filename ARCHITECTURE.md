@@ -45,7 +45,7 @@ Every authenticated product API except identity bootstrap (`/v1/me`), subscripti
 1. On the first authenticated full-access launch, iOS submits `TimeZone.current.identifier` as an initialize-only reporting preference. D1's user-keyed insert makes the first device win; later launches and travel do not overwrite it.
 2. The user can explicitly replace that IANA timezone under Settings. Invalid identifiers are rejected by the Worker.
 3. `GET /v1/dashboard` computes local calendar boundaries from the saved timezone while keeping every stored payment timestamp in UTC.
-4. The Worker aggregates all matching succeeded `sales` rows rather than the 100-row Payments feed. Monetary results remain separated by currency, and missing chart buckets are returned as zero.
+4. The Worker takes a stable `sales.rowid` cutoff, reads matching succeeded rows with keyset pagination, and folds each page into report aggregates rather than retaining full history in Worker memory or using the 100-row Payments feed. Backfilled rows inserted after the cutoff wait for the next refresh. Monetary results remain separated by currency, and missing chart buckets are returned as zero.
 5. Home refreshes after a preference change, foreground activation, and payment-notification routing. Payments continues to use `/v1/sales` for its list and detail navigation.
 
 A connected provider's `is_active` flag is checked before sale insertion. Pausing preserves authorization and history while new provider events receive a durable `ignored` disposition, so replaying one after resume cannot turn it into a sale.

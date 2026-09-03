@@ -46,6 +46,16 @@ struct DashboardMoneyTotal: Decodable, Identifiable {
     var id: String { currency }
 }
 
+extension Array where Element == DashboardMoneyTotal {
+    func total(for currency: String) -> DashboardMoneyTotal? {
+        first { $0.currency == currency }
+    }
+
+    func amount(for currency: String) -> Int {
+        total(for: currency)?.grossAmountMinor ?? 0
+    }
+}
+
 struct DashboardReport: Decodable {
     let current: DashboardWindow
     let previous: DashboardWindow?
@@ -110,9 +120,6 @@ struct DashboardBucket: Decodable, Identifiable {
     let amounts: [DashboardMoneyTotal]
     var id: Date { start }
 
-    func amount(for currency: String) -> Int {
-        amounts.first { $0.currency == currency }?.grossAmountMinor ?? 0
-    }
 }
 
 struct DashboardBreakdown: Decodable, Identifiable {
@@ -121,9 +128,6 @@ struct DashboardBreakdown: Decodable, Identifiable {
     let amounts: [DashboardMoneyTotal]
     var id: String { label }
 
-    func amount(for currency: String) -> Int {
-        amounts.first { $0.currency == currency }?.grossAmountMinor ?? 0
-    }
 }
 
 enum DashboardFormatting {
@@ -139,5 +143,17 @@ enum DashboardFormatting {
         if zeroDecimal.contains(currency.uppercased()) { return 0 }
         if threeDecimal.contains(currency.uppercased()) { return 3 }
         return 2
+    }
+}
+
+enum DashboardChartAccessibility {
+    static func grossVolume(current: [Int], previous: [Int], currency: String) -> String {
+        let currentValue = DashboardFormatting.money(minor: current.reduce(0, +), currency: currency)
+        let previousValue = DashboardFormatting.money(minor: previous.reduce(0, +), currency: currency)
+        return "Gross volume chart. Current total \(currentValue); previous total \(previousValue)."
+    }
+
+    static func payments(current: [Int], previous: [Int]) -> String {
+        "Payments chart. Current total \(current.reduce(0, +)); previous total \(previous.reduce(0, +))."
     }
 }

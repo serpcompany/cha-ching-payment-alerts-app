@@ -1,15 +1,5 @@
 import SwiftUI
 
-enum PaymentsSection: CaseIterable {
-    case payments
-}
-
-enum PaymentsPresentation {
-    static func rows(from loadedPayments: [Sale]) -> [Sale] {
-        loadedPayments
-    }
-}
-
 struct PaymentsView: View {
     @EnvironmentObject private var store: SalesStore
     @EnvironmentObject private var notifications: NotificationManager
@@ -64,7 +54,7 @@ struct PaymentsView: View {
                 NoSalesYetView()
             } else {
                 VStack(spacing: 10) {
-                    ForEach(PaymentsPresentation.rows(from: store.sales)) { sale in
+                    ForEach(store.sales) { sale in
                         NavigationLink(value: sale) {
                             SaleRow(sale: sale)
                         }

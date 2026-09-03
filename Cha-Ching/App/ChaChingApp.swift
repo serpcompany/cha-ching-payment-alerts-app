@@ -52,12 +52,7 @@ struct ChaChingApp: App {
                     subscription.startListeningForTransactions()
                     await subscription.refresh()
                     guard subscription.presentation == .fullAccess else { return }
-                    await preferences.initializeIfNeeded()
-                    async let connections: Void = connectStore.refresh()
-                    async let sales: Void = store.refresh()
-                    async let dashboardRefresh: Void = dashboard.refresh()
-                    _ = await (connections, sales, dashboardRefresh)
-                    notifications.registerIfAuthorized()
+                    await refreshFullAccessData()
                 }
             }
             .onChange(of: auth.isSignedIn) { _, isSignedIn in
@@ -72,12 +67,7 @@ struct ChaChingApp: App {
             .onChange(of: subscription.presentation) { _, presentation in
                 guard presentation == .fullAccess else { return }
                 Task {
-                    await preferences.initializeIfNeeded()
-                    async let connections: Void = connectStore.refresh()
-                    async let sales: Void = store.refresh()
-                    async let dashboardRefresh: Void = dashboard.refresh()
-                    _ = await (connections, sales, dashboardRefresh)
-                    notifications.registerIfAuthorized()
+                    await refreshFullAccessData()
                 }
             }
             .onChange(of: scenePhase) { _, phase in
@@ -87,13 +77,19 @@ struct ChaChingApp: App {
                 Task {
                     await subscription.refresh()
                     guard subscription.presentation == .fullAccess else { return }
-                    await preferences.initializeIfNeeded()
-                    async let sales: Void = store.refresh()
-                    async let dashboardRefresh: Void = dashboard.refresh()
-                    _ = await (sales, dashboardRefresh)
-                    notifications.registerIfAuthorized()
+                    await refreshFullAccessData()
                 }
             }
         }
+    }
+
+    @MainActor
+    private func refreshFullAccessData() async {
+        await preferences.initializeIfNeeded()
+        async let connections: Void = connectStore.refresh()
+        async let sales: Void = store.refresh()
+        async let dashboardRefresh: Void = dashboard.refresh()
+        _ = await (connections, sales, dashboardRefresh)
+        notifications.registerIfAuthorized()
     }
 }

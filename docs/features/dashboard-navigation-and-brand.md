@@ -33,7 +33,7 @@ V1 deliberately excludes Customers, MRR, active subscribers, balances, fees, ref
 - All starts at the earliest qualifying payment and has no previous comparison.
 - Other previous periods use the immediately preceding equal-elapsed interval.
 - A positive value over zero displays **New**; zero over zero displays an em dash; zero after a positive value displays `-100%`.
-- Daily, weekly, monthly, and adaptive all-time buckets include explicit zeros.
+- Daily, weekly, monthly, and adaptive all-time buckets include explicit zeros. A timezone that skips midnight uses the first valid instant on that local date.
 
 The phone's current IANA timezone initializes the account preference once. The first device wins atomically. Travel does not silently move report boundaries. A searchable Settings selector explicitly changes it and immediately refreshes Home.
 
@@ -54,7 +54,7 @@ Payment notifications remain an explicit device preference. Settings retains res
 - Tabs are Home, Payments, and Settings in that order.
 - Payment sources is reachable under Settings with all existing setup and management actions.
 - Home derives its Today and reporting boundaries from the saved account timezone.
-- Dashboard totals query all succeeded rows and keep currencies separate.
+- Dashboard totals stream all succeeded rows through snapshot-safe keyset pagination and keep currencies separate.
 - Home supports every approved period, prior comparisons, zero-filled charts, product grouping, and source grouping.
 - Loaded Home data survives refresh failure with Retry and Dismiss actions.
 - Payment and source-health notifications reach their new destinations.

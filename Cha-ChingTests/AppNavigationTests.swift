@@ -11,30 +11,13 @@ struct AppNavigationTests {
         #expect(SettingsRoute.paymentSources != SettingsRoute.reportingTimezone)
     }
 
-    @Test func dashboardPresentsEveryLoadedPaymentInServerOrder() {
-        let loadedPayments = (1...7).map { index in
-            Sale(
-                id: "payment-\(index)",
-                product: "Product \(index)",
-                amountMinor: index * 100,
-                currency: "USD",
-                source: .stripe,
-                date: Date(timeIntervalSince1970: TimeInterval(8 - index)),
-                isSubscription: false,
-                countryCode: nil
-            )
-        }
+    @Test func paymentDeepLinkSelectsPaymentsWithoutASettingsPath() {
+        let target = AppNavigation.target(openedSaleID: "sale", openedSourceID: nil)
+        #expect(target == AppNavigationTarget(tab: .payments, settingsPath: []))
+    }
 
-        let displayedPayments = PaymentsPresentation.rows(from: loadedPayments)
-
-        #expect(displayedPayments.map(\.id) == [
-            "payment-1",
-            "payment-2",
-            "payment-3",
-            "payment-4",
-            "payment-5",
-            "payment-6",
-            "payment-7"
-        ])
+    @Test func sourceHealthDeepLinkSelectsThePaymentSourceDrillDown() {
+        let target = AppNavigation.target(openedSaleID: nil, openedSourceID: "source")
+        #expect(target == AppNavigationTarget(tab: .settings, settingsPath: [.paymentSources]))
     }
 }

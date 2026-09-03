@@ -7,6 +7,7 @@ export const dashboardPeriods = ["1w", "4w", "1y", "mtd", "qtd", "ytd", "all"] a
 export type DashboardPeriod = typeof dashboardPeriods[number];
 
 interface SaleRow {
+  id: string;
   amount_minor: number;
   currency: string;
   product_label: string;
@@ -34,6 +35,13 @@ interface MoneyTotal {
   grossAmountMinor: number;
   averageAmountMinor: number;
 }
+
+interface Aggregate {
+  payments: number;
+  money: Map<string, { amount: number; count: number }>;
+}
+
+interface BucketAggregate extends Aggregate, Window {}
 
 const formatterCache = new Map<string, Intl.DateTimeFormat>();
 
@@ -87,7 +95,37 @@ export function epochForCivil(civil: CivilDate, timeZone: string): number {
     if (next === candidate) break;
     candidate = next;
   }
-  return Math.floor(candidate / 1_000);
+  const candidateSeconds = Math.floor(candidate / 1_000);
+  const resolved = civilAt(candidateSeconds, timeZone);
+  if (
+    resolved.year === civil.year
+    && resolved.month === civil.month
+    && resolved.day === civil.day
+    && resolved.hour === civil.hour
+    && resolved.minute === civil.minute
+    && resolved.second === civil.second
+  ) return candidateSeconds;
+
+  // Some zones advance their clocks at midnight. That wall-clock time does
+  // not exist, so use the first real instant on the requested local date.
+  const searchStart = Math.floor((utcGuess - 18 * 60 * 60 * 1_000) / 1_000);
+  const searchEnd = Math.floor((utcGuess + 18 * 60 * 60 * 1_000) / 1_000);
+  for (let probe = searchStart; probe <= searchEnd; probe += 60) {
+    const value = civilAt(probe, timeZone);
+    if (value.year !== civil.year || value.month !== civil.month || value.day !== civil.day) continue;
+    const requestedClock = civil.hour * 3_600 + civil.minute * 60 + civil.second;
+    const actualClock = value.hour * 3_600 + value.minute * 60 + value.second;
+    if (actualClock < requestedClock) continue;
+    for (let second = Math.max(searchStart, probe - 59); second <= probe; second += 1) {
+      const exact = civilAt(second, timeZone);
+      if (exact.year === civil.year && exact.month === civil.month && exact.day === civil.day) {
+        const exactClock = exact.hour * 3_600 + exact.minute * 60 + exact.second;
+        if (exactClock >= requestedClock) return second;
+      }
+    }
+    return probe;
+  }
+  throw new Error(`Local date does not exist in timezone ${timeZone}`);
 }
 
 function shiftedDate(civil: CivilDate, values: { days?: number; months?: number; years?: number }): CivilDate {
@@ -152,20 +190,25 @@ export function reportWindows(
   };
 }
 
-function rowsIn(rows: SaleRow[], window: Window): SaleRow[] {
-  return rows.filter((row) => row.occurred_at >= window.start && row.occurred_at < window.end);
+function contains(window: Window, occurredAt: number): boolean {
+  return occurredAt >= window.start && occurredAt < window.end;
 }
 
-function moneyTotals(rows: SaleRow[]): MoneyTotal[] {
-  const totals = new Map<string, { amount: number; count: number }>();
-  for (const row of rows) {
-    const currency = row.currency.toUpperCase();
-    const prior = totals.get(currency) ?? { amount: 0, count: 0 };
-    prior.amount += row.amount_minor;
-    prior.count += 1;
-    totals.set(currency, prior);
-  }
-  return [...totals.entries()].sort(([left], [right]) => left.localeCompare(right)).map(
+function aggregate(): Aggregate {
+  return { payments: 0, money: new Map() };
+}
+
+function add(aggregateValue: Aggregate, row: SaleRow): void {
+  aggregateValue.payments += 1;
+  const currency = row.currency.toUpperCase();
+  const prior = aggregateValue.money.get(currency) ?? { amount: 0, count: 0 };
+  prior.amount += row.amount_minor;
+  prior.count += 1;
+  aggregateValue.money.set(currency, prior);
+}
+
+function moneyTotals(value: Aggregate): MoneyTotal[] {
+  return [...value.money.entries()].sort(([left], [right]) => left.localeCompare(right)).map(
     ([currency, value]) => ({
       currency,
       grossAmountMinor: value.amount,
@@ -179,16 +222,17 @@ export function comparison(current: number, previous: number) {
   return { state: "percent", percent: ((current - previous) / previous) * 100 };
 }
 
-function breakdown(rows: SaleRow[], label: (row: SaleRow) => string) {
-  const grouped = new Map<string, SaleRow[]>();
-  for (const row of rows) {
-    const key = label(row);
-    grouped.set(key, [...(grouped.get(key) ?? []), row]);
-  }
-  return [...grouped.entries()].map(([name, values]) => ({
+function addBreakdown(grouped: Map<string, Aggregate>, name: string, row: SaleRow): void {
+  const value = grouped.get(name) ?? aggregate();
+  add(value, row);
+  grouped.set(name, value);
+}
+
+function breakdown(grouped: Map<string, Aggregate>) {
+  return [...grouped.entries()].map(([name, value]) => ({
     label: name,
-    payments: values.length,
-    amounts: moneyTotals(values),
+    payments: value.payments,
+    amounts: moneyTotals(value),
   })).sort((left, right) => right.payments - left.payments || left.label.localeCompare(right.label));
 }
 
@@ -211,43 +255,49 @@ function nextBoundary(start: number, unit: BucketUnit, timeZone: string): number
   return epochForCivil(shiftedDate(midnight, { years: 1 }), timeZone);
 }
 
-function buckets(
-  rows: SaleRow[],
+function bucketAggregates(
   window: Window,
   unit: BucketUnit,
   timeZone: string,
-  currencies: string[],
-) {
-  const result: Array<{ start: string; end: string; payments: number; amounts: MoneyTotal[] }> = [];
+): BucketAggregate[] {
+  const result: BucketAggregate[] = [];
   let cursor = window.start;
   while (cursor < window.end) {
     const end = Math.min(nextBoundary(cursor, unit, timeZone), window.end);
-    const values = rowsIn(rows, { start: cursor, end });
-    result.push({
-      start: new Date(cursor * 1_000).toISOString(),
-      end: new Date(end * 1_000).toISOString(),
-      payments: values.length,
-      amounts: currencies.map((currency) => moneyTotals(values).find((value) => value.currency === currency) ?? ({
-        currency,
-        grossAmountMinor: 0,
-        averageAmountMinor: 0,
-      })),
-    });
+    result.push({ start: cursor, end, ...aggregate() });
     if (end <= cursor) break;
     cursor = end;
   }
   return result;
 }
 
-function reportTotals(current: SaleRow[], previous: SaleRow[]) {
+function addToBucket(buckets: BucketAggregate[], row: SaleRow): void {
+  const bucket = buckets.find((value) => contains(value, row.occurred_at));
+  if (bucket) add(bucket, row);
+}
+
+function bucketsResponse(buckets: BucketAggregate[], currencies: string[]) {
+  return buckets.map((bucket) => ({
+      start: new Date(bucket.start * 1_000).toISOString(),
+      end: new Date(bucket.end * 1_000).toISOString(),
+      payments: bucket.payments,
+      amounts: currencies.map((currency) => moneyTotals(bucket).find((value) => value.currency === currency) ?? ({
+        currency,
+        grossAmountMinor: 0,
+        averageAmountMinor: 0,
+      })),
+  }));
+}
+
+function reportTotals(current: Aggregate, previous: Aggregate) {
   const currentMoney = moneyTotals(current);
   const previousMoney = moneyTotals(previous);
   const currencyCodes = new Set([...currentMoney, ...previousMoney].map((value) => value.currency));
   return {
     payments: {
-      current: current.length,
-      previous: previous.length,
-      comparison: comparison(current.length, previous.length),
+      current: current.payments,
+      previous: previous.payments,
+      comparison: comparison(current.payments, previous.payments),
     },
     currencies: [...currencyCodes].sort().map((currency) => {
       const currentAmount = currentMoney.find((value) => value.currency === currency)?.grossAmountMinor ?? 0;
@@ -267,6 +317,7 @@ export async function getDashboard(
   auth: Auth,
   request: Request,
   now: number = Math.floor(Date.now() / 1_000),
+  readOptions: { pageSize?: number; onPage?: (page: number) => Promise<void> } = {},
 ): Promise<Response> {
   const user = await requireUser(auth, request);
   const url = new URL(request.url);
@@ -281,11 +332,40 @@ export async function getDashboard(
     return Response.json({ error: "Reporting timezone is not configured" }, { status: 409 });
   }
 
-  const rows: SaleRow[] = [];
-  const pageSize = 1_000;
+  const snapshot = await env.DB.prepare(
+    `SELECT COALESCE(MAX(rowid), 0) AS rowid, MIN(occurred_at) AS earliest
+     FROM sales
+     WHERE user_id = ?1 AND status = 'succeeded' AND occurred_at < ?2`,
+  ).bind(user.id, now).first<{ rowid: number; earliest: number | null }>();
+  const period = periodValue as DashboardPeriod;
+  const windows = reportWindows(
+    period,
+    preference.reporting_timezone,
+    now,
+    snapshot?.earliest ?? undefined,
+  );
+  const todayWindow = { start: localMidnight(now, preference.reporting_timezone), end: now };
+  const unit = bucketUnit(period, windows.current);
+  const today = aggregate();
+  const current = aggregate();
+  const previous = aggregate();
+  const currentBuckets = bucketAggregates(windows.current, unit, preference.reporting_timezone);
+  const previousBuckets = windows.previous
+    ? bucketAggregates(windows.previous, unit, preference.reporting_timezone)
+    : [];
+  const products = new Map<string, Aggregate>();
+  const sources = new Map<string, Aggregate>();
+  const sourceLabel = (row: SaleRow) => row.provider === "custom"
+    ? (row.source_name ?? "Custom webhook")
+    : row.provider === "stripe" ? "Stripe" : "PayPal";
+  const pageSize = readOptions.pageSize ?? 1_000;
+  let page = 0;
+  const scanStart = windows.previous?.start ?? windows.current.start;
+  let cursorOccurredAt = scanStart - 1;
+  let cursorID = "";
   while (true) {
     const result = await env.DB.prepare(
-      `SELECT sales.amount_minor, sales.currency, sales.product_label, sales.provider,
+      `SELECT sales.id, sales.amount_minor, sales.currency, sales.product_label, sales.provider,
               sales.occurred_at, custom_payment_sources.name AS source_name
        FROM sales
        LEFT JOIN custom_payment_sources
@@ -293,22 +373,40 @@ export async function getDashboard(
         AND custom_payment_sources.id = sales.provider_account_id
         AND custom_payment_sources.user_id = sales.user_id
        WHERE sales.user_id = ?1 AND sales.status = 'succeeded' AND sales.occurred_at < ?2
+         AND sales.rowid <= ?3
+         AND sales.occurred_at >= ?4
+         AND (sales.occurred_at > ?5 OR (sales.occurred_at = ?5 AND sales.id > ?6))
        ORDER BY sales.occurred_at, sales.id
-       LIMIT ?3 OFFSET ?4`,
-    ).bind(user.id, now, pageSize, rows.length).all<SaleRow>();
-    rows.push(...result.results);
+       LIMIT ?7`,
+    ).bind(
+      user.id,
+      now,
+      snapshot?.rowid ?? 0,
+      scanStart,
+      cursorOccurredAt,
+      cursorID,
+      pageSize,
+    ).all<SaleRow>();
+    for (const row of result.results) {
+      if (contains(todayWindow, row.occurred_at)) add(today, row);
+      if (contains(windows.current, row.occurred_at)) {
+        add(current, row);
+        addToBucket(currentBuckets, row);
+        addBreakdown(products, row.product_label, row);
+        addBreakdown(sources, sourceLabel(row), row);
+      } else if (windows.previous && contains(windows.previous, row.occurred_at)) {
+        add(previous, row);
+        addToBucket(previousBuckets, row);
+      }
+    }
+    await readOptions.onPage?.(page);
+    page += 1;
     if (result.results.length < pageSize) break;
+    const last = result.results[result.results.length - 1];
+    cursorOccurredAt = last.occurred_at;
+    cursorID = last.id;
   }
-  const period = periodValue as DashboardPeriod;
-  const windows = reportWindows(period, preference.reporting_timezone, now, rows[0]?.occurred_at);
-  const todayWindow = { start: localMidnight(now, preference.reporting_timezone), end: now };
-  const currentRows = rowsIn(rows, windows.current);
-  const previousRows = windows.previous ? rowsIn(rows, windows.previous) : [];
-  const unit = bucketUnit(period, windows.current);
-  const reportCurrencies = [...new Set([...currentRows, ...previousRows].map((row) => row.currency.toUpperCase()))].sort();
-  const sourceLabel = (row: SaleRow) => row.provider === "custom"
-    ? (row.source_name ?? "Custom webhook")
-    : row.provider === "stripe" ? "Stripe" : "PayPal";
+  const reportCurrencies = [...new Set([...current.money.keys(), ...previous.money.keys()])].sort();
 
   return Response.json({
     reportingTimezone: preference.reporting_timezone,
@@ -317,8 +415,8 @@ export async function getDashboard(
     today: {
       start: new Date(todayWindow.start * 1_000).toISOString(),
       end: new Date(todayWindow.end * 1_000).toISOString(),
-      payments: rowsIn(rows, todayWindow).length,
-      currencies: moneyTotals(rowsIn(rows, todayWindow)),
+      payments: today.payments,
+      currencies: moneyTotals(today),
     },
     report: {
       current: {
@@ -329,13 +427,11 @@ export async function getDashboard(
         start: new Date(windows.previous.start * 1_000).toISOString(),
         end: new Date(windows.previous.end * 1_000).toISOString(),
       } : null,
-      totals: reportTotals(currentRows, previousRows),
-      currentSeries: buckets(currentRows, windows.current, unit, preference.reporting_timezone, reportCurrencies),
-      previousSeries: windows.previous
-        ? buckets(previousRows, windows.previous, unit, preference.reporting_timezone, reportCurrencies)
-        : [],
-      products: breakdown(currentRows, (row) => row.product_label),
-      sources: breakdown(currentRows, sourceLabel),
+      totals: reportTotals(current, previous),
+      currentSeries: bucketsResponse(currentBuckets, reportCurrencies),
+      previousSeries: bucketsResponse(previousBuckets, reportCurrencies),
+      products: breakdown(products),
+      sources: breakdown(sources),
     },
   });
 }

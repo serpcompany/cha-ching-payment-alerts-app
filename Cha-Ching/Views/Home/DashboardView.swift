@@ -8,12 +8,13 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if store.isLoading, store.dashboard == nil {
+                switch store.loadState {
+                case .loading:
                     ProgressView("Loading dashboard…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let dashboard = store.dashboard {
-                    dashboardContent(dashboard)
-                } else {
+                case .loaded:
+                    if let dashboard = store.dashboard { dashboardContent(dashboard) }
+                case .unavailable:
                     ContentUnavailableView {
                         Label("Dashboard unavailable", systemImage: "chart.xyaxis.line")
                     } description: {
@@ -47,7 +48,7 @@ struct DashboardView: View {
 
     private func todayCard(_ today: DashboardToday) -> some View {
         GroupBox("Today") {
-            let money = today.currencies.first { $0.currency == selectedCurrency }
+            let money = today.currencies.total(for: selectedCurrency)
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 24) {
                     metric("Gross volume", money.map { DashboardFormatting.money(minor: $0.grossAmountMinor, currency: $0.currency) } ?? "—")
@@ -91,21 +92,23 @@ struct DashboardView: View {
             }
             .pickerStyle(.menu)
             }
-            let currencies = dashboard.report.totals.currencies.map(\.currency)
+            let currencies = store.availableCurrencies
             if currencies.count > 1 {
                 Picker("Currency", selection: Binding(
                     get: { selectedCurrency },
-                    set: { store.selectedCurrency = $0 }
+                    set: { store.selectCurrency($0) }
                 )) {
                     ForEach(currencies, id: \.self) { Text($0).tag($0) }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
             }
         }
     }
 
     private func grossVolumeCard(_ dashboard: DashboardResponse) -> some View {
         let total = dashboard.report.totals.currencies.first { $0.currency == selectedCurrency }
+        let currentAmounts = dashboard.report.currentSeries.map { $0.amounts.amount(for: selectedCurrency) }
+        let previousAmounts = dashboard.report.previousSeries.map { $0.amounts.amount(for: selectedCurrency) }
         return GroupBox {
             VStack(alignment: .leading, spacing: 12) {
                 reportValues(
@@ -114,9 +117,14 @@ struct DashboardView: View {
                     comparison: dashboard.report.previous == nil ? nil : total?.comparison
                 )
                 reportChart(
-                    current: dashboard.report.currentSeries.map { $0.amount(for: selectedCurrency) },
-                    previous: dashboard.report.previousSeries.map { $0.amount(for: selectedCurrency) },
-                    label: "Gross volume"
+                    current: currentAmounts,
+                    previous: previousAmounts,
+                    label: "Gross volume",
+                    accessibilityLabel: DashboardChartAccessibility.grossVolume(
+                        current: currentAmounts,
+                        previous: previousAmounts,
+                        currency: selectedCurrency
+                    )
                 )
             }
         } label: {
@@ -135,7 +143,11 @@ struct DashboardView: View {
                 reportChart(
                     current: dashboard.report.currentSeries.map(\.payments),
                     previous: dashboard.report.previousSeries.map(\.payments),
-                    label: "Payments"
+                    label: "Payments",
+                    accessibilityLabel: DashboardChartAccessibility.payments(
+                        current: dashboard.report.currentSeries.map(\.payments),
+                        previous: dashboard.report.previousSeries.map(\.payments)
+                    )
                 )
             }
         } label: {
@@ -172,7 +184,12 @@ struct DashboardView: View {
         return (comparison.percent ?? 1) < 0 ? .red : Theme.accent
     }
 
-    private func reportChart(current: [Int], previous: [Int], label: String) -> some View {
+    private func reportChart(
+        current: [Int],
+        previous: [Int],
+        label: String,
+        accessibilityLabel: String
+    ) -> some View {
         Chart {
             ForEach(Array(previous.enumerated()), id: \.offset) { index, value in
                 LineMark(x: .value("Bucket", index), y: .value(label, value))
@@ -188,7 +205,7 @@ struct DashboardView: View {
         .chartXAxis(.hidden)
         .frame(height: 180)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(label) chart. Current total \(current.reduce(0, +)); previous total \(previous.reduce(0, +)).")
+        .accessibilityLabel(accessibilityLabel)
     }
 
     private func breakdownCard(title: String, rows: [DashboardBreakdown]) -> some View {
@@ -202,7 +219,7 @@ struct DashboardView: View {
                         LabeledContent {
                             VStack(alignment: .trailing) {
                                 Text("\(row.payments) payments")
-                                Text(DashboardFormatting.money(minor: row.amount(for: selectedCurrency), currency: selectedCurrency))
+                                Text(DashboardFormatting.money(minor: row.amounts.amount(for: selectedCurrency), currency: selectedCurrency))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

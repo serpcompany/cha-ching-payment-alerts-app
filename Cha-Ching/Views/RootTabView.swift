@@ -28,6 +28,23 @@ enum SettingsRoute: Hashable {
     case reportingTimezone
 }
 
+struct AppNavigationTarget: Equatable {
+    let tab: AppTab
+    let settingsPath: [SettingsRoute]
+}
+
+enum AppNavigation {
+    static func target(openedSaleID: String?, openedSourceID: String?) -> AppNavigationTarget? {
+        if openedSourceID != nil {
+            return AppNavigationTarget(tab: .settings, settingsPath: [.paymentSources])
+        }
+        if openedSaleID != nil {
+            return AppNavigationTarget(tab: .payments, settingsPath: [])
+        }
+        return nil
+    }
+}
+
 struct RootTabView: View {
     @EnvironmentObject private var dashboard: DashboardStore
     @EnvironmentObject private var notifications: NotificationManager
@@ -48,21 +65,15 @@ struct RootTabView: View {
         }
         .onChange(of: notifications.openedSaleID) { _, saleID in
             if saleID != nil {
-                selectedTab = .payments
+                applyNotificationRoute()
                 Task { await dashboard.refresh() }
             }
         }
         .onChange(of: notifications.openedCustomSourceID) { _, sourceID in
-            if sourceID != nil {
-                selectedTab = .settings
-                settingsPath = [.paymentSources]
-            }
+            if sourceID != nil { applyNotificationRoute() }
         }
         .task(id: notifications.openedCustomSourceID) {
-            if notifications.openedCustomSourceID != nil {
-                selectedTab = .settings
-                settingsPath = [.paymentSources]
-            }
+            if notifications.openedCustomSourceID != nil { applyNotificationRoute() }
         }
         .sheet(item: foregroundNotificationBinding) { notification in
             ForegroundPaymentNotificationView(notification: notification)
@@ -76,6 +87,15 @@ struct RootTabView: View {
                 if value == nil { notifications.dismissForegroundNotification() }
             }
         )
+    }
+
+    private func applyNotificationRoute() {
+        guard let target = AppNavigation.target(
+            openedSaleID: notifications.openedSaleID,
+            openedSourceID: notifications.openedCustomSourceID
+        ) else { return }
+        selectedTab = target.tab
+        settingsPath = target.settingsPath
     }
 }
 
@@ -209,7 +229,7 @@ private struct ReportingTimezoneView: View {
             Button {
                 Task {
                     guard await preferences.updateReportingTimezone(identifier) else { return }
-                    await dashboard.refresh()
+                    await dashboard.reloadForReportingTimezoneChange()
                     dismiss()
                 }
             } label: {

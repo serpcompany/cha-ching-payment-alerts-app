@@ -35,6 +35,15 @@ describe("dashboard date windows", () => {
     expect(new Date(tokyo.current.start * 1_000).toISOString()).toBe("2026-08-31T15:00:00.000Z");
   });
 
+  it("uses the first valid instant when a timezone skips midnight", () => {
+    const now = epoch("2019-09-08T12:00:00Z");
+    const window = reportWindows("mtd", "America/Santiago", now);
+    expect(new Date(window.current.start * 1_000).toISOString()).toBe("2019-09-01T04:00:00.000Z");
+
+    const skippedMidnightDay = reportWindows("1w", "America/Santiago", epoch("2019-09-14T12:00:00Z"));
+    expect(new Date(skippedMidnightDay.current.start * 1_000).toISOString()).toBe("2019-09-08T04:00:00.000Z");
+  });
+
   it("clamps leap day and finds quarter and year boundaries", () => {
     const leapDay = epoch("2024-02-29T12:00:00Z");
     expect(new Date(reportWindows("1y", "UTC", leapDay).current.start * 1_000).toISOString())
@@ -140,7 +149,7 @@ describe("dashboard preferences and aggregation", () => {
     ).run();
     const now = epoch("2026-09-03T12:00:00Z");
     const statements = [];
-    for (let index = 0; index < 125; index += 1) {
+    for (let index = 0; index < 1_005; index += 1) {
       statements.push(env.DB.prepare(
         `INSERT INTO sales
          (id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
@@ -152,10 +161,10 @@ describe("dashboard preferences and aggregation", () => {
         index % 2 === 0 ? "acct" : "custom-one",
         `event-${index}`,
         `payment-${index}`,
-        index === 124 ? 500 : 100,
-        index === 124 ? "JPY" : "USD",
+        index === 1_004 ? 500 : 100,
+        index === 1_004 ? "JPY" : "USD",
         index % 2 === 0 ? "Stripe payment" : "Widget",
-        now - index * 60 - 1,
+        now - index - 1,
       ));
     }
     statements.push(env.DB.prepare(
@@ -174,21 +183,33 @@ describe("dashboard preferences and aggregation", () => {
       authFor("one"),
       new Request("https://api.test/v1/dashboard?period=1w"),
       now,
+      {
+        onPage: async (page) => {
+          if (page !== 0) return;
+          await env.DB.prepare(
+            `INSERT INTO sales
+             (id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
+              amount_minor, currency, status, product_label, occurred_at)
+             VALUES ('late-backfill', 'one', 'stripe', 'acct', 'late-event', 'late-payment',
+                     777, 'USD', 'succeeded', 'Late', ?1)`,
+          ).bind(now - 500).run();
+        },
+      },
     );
     const body = await response.json<any>();
-    expect(body.today.payments).toBe(125);
-    expect(body.report.totals.payments.current).toBe(125);
+    expect(body.today.payments).toBe(1_005);
+    expect(body.report.totals.payments.current).toBe(1_005);
     expect(body.report.totals.currencies).toEqual(expect.arrayContaining([
-      expect.objectContaining({ currency: "USD", currentAmountMinor: 12_400 }),
+      expect.objectContaining({ currency: "USD", currentAmountMinor: 100_400 }),
       expect.objectContaining({ currency: "JPY", currentAmountMinor: 500 }),
     ]));
     expect(body.report.products).toEqual(expect.arrayContaining([
-      expect.objectContaining({ label: "Stripe payment", payments: 63 }),
-      expect.objectContaining({ label: "Widget", payments: 62 }),
+      expect.objectContaining({ label: "Stripe payment", payments: 503 }),
+      expect.objectContaining({ label: "Widget", payments: 502 }),
     ]));
     expect(body.report.sources).toEqual(expect.arrayContaining([
-      expect.objectContaining({ label: "Stripe", payments: 63 }),
-      expect.objectContaining({ label: "SERP Store", payments: 62 }),
+      expect.objectContaining({ label: "Stripe", payments: 503 }),
+      expect.objectContaining({ label: "SERP Store", payments: 502 }),
     ]));
     expect(body.report.currentSeries).toHaveLength(7);
     expect(body.report.currentSeries[0]).toEqual(expect.objectContaining({ payments: 0 }));
@@ -196,5 +217,8 @@ describe("dashboard preferences and aggregation", () => {
       expect.objectContaining({ currency: "JPY", grossAmountMinor: 0 }),
       expect.objectContaining({ currency: "USD", grossAmountMinor: 0 }),
     ]);
-  });
+    expect(body.report.products).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: "Late" }),
+    ]));
+  }, 15_000);
 });
