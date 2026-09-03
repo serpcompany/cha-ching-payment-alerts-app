@@ -28,6 +28,7 @@ struct DashboardResponse: Decodable {
     let reportingTimezone: String
     let generatedAt: Date
     let period: DashboardPeriod
+    let dayOffset: Int
     let today: DashboardToday
     let report: DashboardReport
 }

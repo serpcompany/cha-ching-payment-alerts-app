@@ -9,12 +9,18 @@ struct APIClientURLTests {
             let url = try APIClient.requestURL(
                 baseURL: baseURL,
                 path: "/v1/dashboard",
-                queryItems: [URLQueryItem(name: "period", value: period.rawValue)]
+                queryItems: [
+                    URLQueryItem(name: "period", value: period.rawValue),
+                    URLQueryItem(name: "dayOffset", value: "2")
+                ]
             )
             let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
 
             #expect(components.path == "/v1/dashboard")
-            #expect(components.queryItems == [URLQueryItem(name: "period", value: period.rawValue)])
+            #expect(components.queryItems == [
+                URLQueryItem(name: "period", value: period.rawValue),
+                URLQueryItem(name: "dayOffset", value: "2")
+            ])
             #expect(!components.percentEncodedPath.contains("%3F"))
         }
     }

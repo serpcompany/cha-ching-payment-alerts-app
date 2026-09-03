@@ -16,7 +16,7 @@ Settings → **Payment sources** contains the existing Stripe, PayPal, and custo
 
 ## Home dashboard
 
-The fixed **Today** summary uses the saved reporting timezone and shows Gross volume, Payments, and Average payment. Counts may span currencies; monetary totals and averages never do.
+The top daily-summary card uses the saved reporting timezone and shows Gross volume, Payments, and Average payment. It opens on **Today**. Swiping left (or choosing Previous day) walks backward one complete local calendar day at a time; swiping right (or choosing Next day) walks forward and stops at Today. Historical days use their full timezone-local midnight-to-midnight window, including daylight-saving transitions, while Today ends at generation time. Counts may span currencies; monetary totals and averages never do.
 
 Reports default to **4 weeks**. A native menu offers 1 week, 4 weeks, 1 year, month to date, quarter to date, year to date, and all time. Gross volume and Payments include current and previous values, percentage-change state, and current/previous Swift Charts line series. Product and payment-source sections show both payment count and gross amount for the selected currency; neither value mixes currencies.
 
@@ -56,6 +56,7 @@ Payment notifications remain an explicit device preference. Settings retains res
 - Tabs are Home, Payments, and Settings in that order.
 - Payment sources is reachable under Settings with all existing setup and management actions.
 - Home derives its Today and reporting boundaries from the saved account timezone.
+- Home's daily summary swipes backward through prior local days and forward only as far as Today.
 - Dashboard totals come from one transactional D1 aggregate batch and keep currencies separate.
 - Home supports every approved period, prior comparisons, zero-filled charts, product grouping, and source grouping.
 - Loaded Home data survives refresh failure with Retry and Dismiss actions.

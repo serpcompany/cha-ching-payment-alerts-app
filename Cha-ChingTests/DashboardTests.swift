@@ -11,6 +11,7 @@ struct DashboardTests {
             let response = try decoder.decode(DashboardResponse.self, from: data)
 
             #expect(response.period == period)
+            #expect(response.dayOffset == 0)
             #expect(response.reportingTimezone == "Asia/Tokyo")
             #expect(response.today.payments == 2)
             #expect(response.today.currencies.first?.grossAmountMinor == 2700)
@@ -42,7 +43,7 @@ struct DashboardTests {
     @Test func refreshFailurePreservesTheLoadedDashboard() async throws {
         let response = try decodedResponse()
         let failure = DashboardFailureSwitch()
-        let store = DashboardStore { _ in
+        let store = DashboardStore { _, _ in
             if failure.shouldFail { throw URLError(.notConnectedToInternet) }
             return response
         }
@@ -61,7 +62,7 @@ struct DashboardTests {
     @Test func periodAndCurrencySelectionsRefreshAndStayValid() async throws {
         let response = try decodedResponse()
         var requestedPeriods: [DashboardPeriod] = []
-        let store = DashboardStore { period in
+        let store = DashboardStore { period, _ in
             requestedPeriods.append(period)
             return response
         }
@@ -77,11 +78,48 @@ struct DashboardTests {
     }
 
     @MainActor
+    @Test func dailySummaryMovesBackwardAndForwardButNeverPastToday() async throws {
+        var requests: [(period: DashboardPeriod, dayOffset: Int)] = []
+        let responses = try (0...2).map { try decodedResponse(dayOffset: $0) }
+        let store = DashboardStore { period, dayOffset in
+            requests.append((period, dayOffset))
+            return responses[dayOffset]
+        }
+
+        await store.refresh()
+        await store.selectPreviousDay()
+        await store.selectPreviousDay()
+        await store.selectNextDay()
+        await store.selectNextDay()
+        await store.selectNextDay()
+
+        #expect(requests.map(\.dayOffset) == [0, 1, 2, 1, 0])
+        #expect(store.dayOffset == 0)
+        #expect(store.dashboard?.dayOffset == 0)
+    }
+
+    @MainActor
+    @Test func failedDailySummaryNavigationKeepsTheDisplayedDaySelected() async throws {
+        let today = try decodedResponse()
+        let store = DashboardStore { _, dayOffset in
+            if dayOffset > 0 { throw URLError(.notConnectedToInternet) }
+            return today
+        }
+
+        await store.refresh()
+        await store.selectPreviousDay()
+
+        #expect(store.dayOffset == 0)
+        #expect(store.dashboard?.dayOffset == 0)
+        #expect(store.errorMessage == "Dashboard couldn't refresh.")
+    }
+
+    @MainActor
     @Test func timezoneChangeInvalidatesAnOlderInFlightDashboard() async throws {
         let old = try decodedResponse(timezone: "America/New_York")
         let new = try decodedResponse(timezone: "Asia/Tokyo")
         let loader = ControlledDashboardLoader(first: old, second: new)
-        let store = DashboardStore { period in try await loader.load(period) }
+        let store = DashboardStore { period, dayOffset in try await loader.load(period, dayOffset) }
 
         let oldRefresh = Task { await store.refresh() }
         while loader.callCount == 0 { await Task.yield() }
@@ -99,7 +137,7 @@ struct DashboardTests {
         let center = NotificationCenter()
         let loader = ControlledDashboardLoader(first: response, second: response)
         let store = DashboardStore(
-            loader: { period in try await loader.load(period) },
+            loader: { period, dayOffset in try await loader.load(period, dayOffset) },
             notificationCenter: center
         )
 
@@ -121,7 +159,7 @@ struct DashboardTests {
         let center = NotificationCenter()
         let loader = ControlledDashboardLoader(first: populated, second: empty)
         let store = DashboardStore(
-            loader: { period in try await loader.load(period) },
+            loader: { period, dayOffset in try await loader.load(period, dayOffset) },
             notificationCenter: center
         )
         let initial = Task { await store.refresh() }
@@ -138,7 +176,7 @@ struct DashboardTests {
     @Test func loadingEmptyAndInitialErrorStatesAreExplicit() async throws {
         let response = try decodedResponse(isEmpty: true)
         let loader = ControlledDashboardLoader(first: response, second: response)
-        let loadingStore = DashboardStore { period in try await loader.load(period) }
+        let loadingStore = DashboardStore { period, dayOffset in try await loader.load(period, dayOffset) }
         #expect(loadingStore.loadState == .unavailable)
         let refresh = Task { await loadingStore.refresh() }
         while loader.callCount == 0 { await Task.yield() }
@@ -147,7 +185,7 @@ struct DashboardTests {
         await refresh.value
         #expect(loadingStore.loadState == .loaded(isEmpty: true))
 
-        let failingStore = DashboardStore { _ in throw URLError(.notConnectedToInternet) }
+        let failingStore = DashboardStore { _, _ in throw URLError(.notConnectedToInternet) }
         await failingStore.refresh()
         #expect(failingStore.loadState == .unavailable)
         #expect(failingStore.errorMessage == "Dashboard couldn't load.")
@@ -177,20 +215,27 @@ struct DashboardTests {
 
     private func decodedResponse(
         timezone: String = "Asia/Tokyo",
-        isEmpty: Bool = false
+        isEmpty: Bool = false,
+        dayOffset: Int = 0
     ) throws -> DashboardResponse {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(
             DashboardResponse.self,
-            from: Data(responseJSON(period: "4w", timezone: timezone, isEmpty: isEmpty).utf8)
+            from: Data(responseJSON(
+                period: "4w",
+                timezone: timezone,
+                isEmpty: isEmpty,
+                dayOffset: dayOffset
+            ).utf8)
         )
     }
 
     private func responseJSON(
         period: String,
         timezone: String = "Asia/Tokyo",
-        isEmpty: Bool = false
+        isEmpty: Bool = false,
+        dayOffset: Int = 0
     ) -> String {
         let currentPayments = isEmpty ? 0 : 2
         let currencies = isEmpty
@@ -213,6 +258,7 @@ struct DashboardTests {
           "reportingTimezone": "\(timezone)",
           "generatedAt": "2026-09-03T12:00:00Z",
           "period": "\(period)",
+          "dayOffset": \(dayOffset),
           "today": {
             "start": "2026-09-02T15:00:00Z",
             "end": "2026-09-03T12:00:00Z",
@@ -248,7 +294,7 @@ private final class ControlledDashboardLoader {
         self.second = second
     }
 
-    func load(_ period: DashboardPeriod) async throws -> DashboardResponse {
+    func load(_ period: DashboardPeriod, _ dayOffset: Int) async throws -> DashboardResponse {
         callCount += 1
         if callCount == 1 {
             return try await withCheckedThrowingContinuation { continuation in
