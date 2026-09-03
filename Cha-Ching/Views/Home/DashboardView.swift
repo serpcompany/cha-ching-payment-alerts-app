@@ -16,7 +16,29 @@ struct DashboardView: View {
             }
             .refreshable { await load() }
             .background(Theme.canvas.ignoresSafeArea())
-            .navigationTitle("Home")
+            .navigationTitle(dailySummaryTitle)
+            .toolbar {
+                if store.dashboard != nil {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        if store.isRefreshing {
+                            ProgressView()
+                                .controlSize(.small)
+                                .accessibilityLabel("Loading daily summary")
+                        }
+                        Button("Previous day", systemImage: "chevron.left") {
+                            Task { await store.selectPreviousDay() }
+                        }
+                        .labelStyle(.iconOnly)
+                        .disabled(store.isRefreshing)
+
+                        Button("Next day", systemImage: "chevron.right") {
+                            Task { await store.selectNextDay() }
+                        }
+                        .labelStyle(.iconOnly)
+                        .disabled(store.dayOffset == 0 || store.isRefreshing)
+                    }
+                }
+            }
             .task { await load() }
         }
     }
@@ -32,12 +54,7 @@ struct DashboardView: View {
                 if let error = store.errorMessage { refreshError(error) }
                 DailySummaryCard(
                     summary: dashboard.dailySummary,
-                    dayOffset: dashboard.dayOffset,
-                    reportingTimezone: dashboard.reportingTimezone,
-                    selectedCurrency: selectedCurrency,
-                    isRefreshing: store.isRefreshing,
-                    onPreviousDay: { Task { await store.selectPreviousDay() } },
-                    onNextDay: { Task { await store.selectNextDay() } }
+                    selectedCurrency: selectedCurrency
                 )
                 reportsHeader(dashboard)
                 grossVolumeCard(dashboard)
@@ -233,6 +250,17 @@ struct DashboardView: View {
 
     private var selectedCurrency: String { store.selectedCurrency ?? "USD" }
 
+    private var dailySummaryTitle: String {
+        guard let dashboard = store.dashboard else { return "Dashboard" }
+        guard dashboard.dayOffset > 0 else { return "Today" }
+        guard let timeZone = TimeZone(identifier: dashboard.reportingTimezone) else {
+            return dashboard.dailySummary.start.formatted(date: .abbreviated, time: .omitted)
+        }
+        var style = Date.FormatStyle.dateTime.weekday(.abbreviated).month(.abbreviated).day()
+        style.timeZone = timeZone
+        return dashboard.dailySummary.start.formatted(style)
+    }
+
     private func load() async {
         await preferences.initializeIfNeeded()
         guard preferences.reportingTimezone != nil else { return }
@@ -248,12 +276,7 @@ private struct DailySummaryMetric: Identifiable {
 
 private struct DailySummaryCard: View {
     let summary: DashboardDailySummary
-    let dayOffset: Int
-    let reportingTimezone: String
     let selectedCurrency: String
-    let isRefreshing: Bool
-    let onPreviousDay: () -> Void
-    let onNextDay: () -> Void
 
     var body: some View {
         GroupBox {
@@ -273,58 +296,21 @@ private struct DailySummaryCard: View {
                     } ?? "—"
                 )
             ]
-            VStack(alignment: .leading, spacing: 12) {
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 24) {
-                        ForEach(metrics) { metric($0) }
-                    }
-                    VStack(alignment: .leading, spacing: 14) {
-                        ForEach(metrics) { metric($0) }
-                    }
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    metric(metrics[0])
+                    Spacer(minLength: 0)
+                    metric(metrics[1])
+                    Spacer(minLength: 0)
+                    metric(metrics[2])
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Text(dayOffset == 0 ? "Choose Previous for earlier days" : "Choose Previous for earlier days or Next toward Today")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 14) {
+                    ForEach(metrics) { compactMetric($0) }
+                }
             }
-        } label: {
-            HStack(spacing: 10) {
-                Button(action: onPreviousDay) {
-                    Image(systemName: "chevron.left")
-                }
-                .accessibilityLabel("Previous day")
-                .disabled(isRefreshing)
-
-                Text(title)
-                    .contentTransition(.numericText())
-
-                Spacer()
-
-                if isRefreshing {
-                    ProgressView()
-                        .controlSize(.small)
-                        .accessibilityLabel("Loading daily summary")
-                }
-
-                Button(action: onNextDay) {
-                    Image(systemName: "chevron.right")
-                }
-                .accessibilityLabel("Next day")
-                .disabled(dayOffset == 0 || isRefreshing)
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
         }
-    }
-
-    private var title: String {
-        guard dayOffset > 0 else { return "Today" }
-        guard let timeZone = TimeZone(identifier: reportingTimezone) else {
-            return summary.start.formatted(date: .abbreviated, time: .omitted)
-        }
-        var style = Date.FormatStyle.dateTime.weekday(.abbreviated).month(.abbreviated).day()
-        style.timeZone = timeZone
-        return summary.start.formatted(style)
     }
 
     private func metric(_ metric: DailySummaryMetric) -> some View {
@@ -332,8 +318,14 @@ private struct DailySummaryCard: View {
             Text(metric.title).font(.caption).foregroundStyle(.secondary)
             Text(metric.value).font(.title3.bold()).foregroundStyle(Theme.ink)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .lineLimit(1)
+        .fixedSize(horizontal: true, vertical: false)
         .accessibilityElement(children: .combine)
+    }
+
+    private func compactMetric(_ metric: DailySummaryMetric) -> some View {
+        LabeledContent(metric.title, value: metric.value)
+            .accessibilityElement(children: .combine)
     }
 }
 
