@@ -42,7 +42,6 @@ describe("authenticated account deletion", () => {
       "0011_retain_custom_payment_field_values.sql", "0012_custom_source_health.sql",
       "0013_product_entitlements.sql", "0014_apple_account_deletion_credentials.sql",
       "0015_user_preferences.sql",
-      "0016_sales_ingestion_order.sql",
     ]) {
       await applyMigration(db, migration);
     }
@@ -112,7 +111,6 @@ describe("authenticated account deletion", () => {
       "provider_events", "custom_payment_sources", "product_entitlements", "device_tokens",
       "sales", "notification_deliveries", "apple_account_credentials",
       "user_preferences",
-      "sales_ingestion_order",
     ]) {
       const row = await env.DB.prepare(`SELECT COUNT(*) AS count FROM ${table}`).first<{ count: number }>();
       expect(row?.count, table).toBe(0);

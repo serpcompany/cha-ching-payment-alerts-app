@@ -39,7 +39,7 @@ The phone's current IANA timezone initializes the account preference once. The f
 
 ## Payments
 
-Payments presents exactly the latest-100 response from `/v1/sales` in server order and opens the existing detail screen. A notification for a payment outside that page uses the exact, user-scoped `/v1/sales/:id` response only as navigation detail; it does not insert that payment into, resize, or reorder the feed. A confirmed missing payment ends the route; a temporary request failure retains it for retry. Pull-to-refresh keeps loaded rows on failure, provides Retry and Dismiss, and shares an in-flight request across concurrent callers.
+Payments presents exactly the latest-100 response from `/v1/sales` in server order and opens the existing detail screen. A notification for a payment outside that page uses the exact, user-scoped `/v1/sales/:id` response only as navigation detail; it does not insert that payment into, resize, or reorder the feed. A confirmed missing payment ends the route. A temporary request failure keeps the notification route and presents native Retry and Dismiss actions: Retry repeats exact resolution, while only explicit Dismiss consumes the unresolved route. Pull-to-refresh keeps loaded rows on failure, provides Retry and Dismiss, and shares an in-flight request across concurrent callers.
 
 Foreground payment delivery and successful source-history clearing publish the same neutral payment-history-changed event. Payments and Home independently coalesce bursts and mark an in-flight snapshot dirty so one trailing refresh follows it, ensuring a stale pre-event response cannot win and removed rows leave totals and charts as well as the list.
 
@@ -56,7 +56,7 @@ Payment notifications remain an explicit device preference. Settings retains res
 - Tabs are Home, Payments, and Settings in that order.
 - Payment sources is reachable under Settings with all existing setup and management actions.
 - Home derives its Today and reporting boundaries from the saved account timezone.
-- Dashboard totals stream all succeeded rows through snapshot-safe keyset pagination and keep currencies separate.
+- Dashboard totals come from one transactional D1 aggregate batch and keep currencies separate.
 - Home supports every approved period, prior comparisons, zero-filled charts, product grouping, and source grouping.
 - Loaded Home data survives refresh failure with Retry and Dismiss actions.
 - Payment and source-health notifications reach their new destinations.

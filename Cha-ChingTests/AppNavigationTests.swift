@@ -21,6 +21,19 @@ struct AppNavigationTests {
         #expect(target == AppNavigationTarget(tab: .settings, settingsPath: [.paymentSources]))
     }
 
+    @Test func notificationLifecycleRoutesOncePerColdOrSubsequentEvent() {
+        var lifecycle = NotificationRouteLifecycle()
+        #expect(lifecycle.paymentTarget(for: "cold")?.tab == .payments)
+        #expect(lifecycle.paymentTarget(for: "cold") == nil)
+        #expect(lifecycle.paymentTarget(for: nil) == nil)
+        #expect(lifecycle.paymentTarget(for: "cold")?.tab == .payments)
+
+        #expect(lifecycle.sourceTarget(for: "source")?.settingsPath == [.paymentSources])
+        #expect(lifecycle.sourceTarget(for: "source") == nil)
+        #expect(lifecycle.sourceTarget(for: nil) == nil)
+        #expect(lifecycle.sourceTarget(for: "next")?.settingsPath == [.paymentSources])
+    }
+
     @Test func coldLaunchPaymentRouteFindsTheMatchingPaymentDetail() throws {
         let payments = [
             Sale(
@@ -49,6 +62,10 @@ struct AppNavigationTests {
         #expect(path?.map(\.id) == ["opened"])
         #expect(PaymentsNavigation.path(for: .missing)?.isEmpty == true)
         #expect(PaymentsNavigation.path(for: .failed) == nil)
+        let failure = PaymentNotificationFailure(saleID: "opened")
+        #expect(failure.title == "Payment couldn't open")
+        #expect(failure.message.contains("try loading this payment again"))
+        #expect(failure.id == "opened")
     }
 
     @Test func paymentSourceControlsRemainReachableForEachConnectionState() {

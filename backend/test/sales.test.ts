@@ -36,7 +36,6 @@ describe("payment history API", () => {
       "0010_reconcile_custom_payment_history_presentation.sql", "0011_retain_custom_payment_field_values.sql",
       "0012_custom_source_health.sql", "0013_product_entitlements.sql",
       "0014_apple_account_deletion_credentials.sql", "0015_user_preferences.sql",
-      "0016_sales_ingestion_order.sql",
     ];
     for (const migration of migrations) {
       await applyMigration(db, migration);

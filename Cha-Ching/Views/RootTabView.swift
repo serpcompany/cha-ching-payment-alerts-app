@@ -45,11 +45,29 @@ enum AppNavigation {
     }
 }
 
+struct NotificationRouteLifecycle {
+    private var activeSaleID: String?
+    private var activeSourceID: String?
+
+    mutating func paymentTarget(for saleID: String?) -> AppNavigationTarget? {
+        defer { activeSaleID = saleID }
+        guard let saleID, saleID != activeSaleID else { return nil }
+        return AppNavigation.target(openedSaleID: saleID, openedSourceID: nil)
+    }
+
+    mutating func sourceTarget(for sourceID: String?) -> AppNavigationTarget? {
+        defer { activeSourceID = sourceID }
+        guard let sourceID, sourceID != activeSourceID else { return nil }
+        return AppNavigation.target(openedSaleID: nil, openedSourceID: sourceID)
+    }
+}
+
 struct RootTabView: View {
     @EnvironmentObject private var dashboard: DashboardStore
     @EnvironmentObject private var notifications: NotificationManager
     @State private var selectedTab = AppTab.home
     @State private var settingsPath: [SettingsRoute] = []
+    @State private var routeLifecycle = NotificationRouteLifecycle()
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -63,14 +81,8 @@ struct RootTabView: View {
                 .tabItem { Label(AppTab.settings.title, systemImage: AppTab.settings.systemImage) }
                 .tag(AppTab.settings)
         }
-        .onChange(of: notifications.openedSaleID) { _, _ in
-            Task { await routeOpenedPayment() }
-        }
         .task(id: notifications.openedSaleID) {
             await routeOpenedPayment()
-        }
-        .onChange(of: notifications.openedCustomSourceID) { _, _ in
-            routeOpenedSource()
         }
         .task(id: notifications.openedCustomSourceID) {
             routeOpenedSource()
@@ -89,24 +101,20 @@ struct RootTabView: View {
         )
     }
 
-    private func applyNotificationRoute() {
-        guard let target = AppNavigation.target(
-            openedSaleID: notifications.openedSaleID,
-            openedSourceID: notifications.openedCustomSourceID
-        ) else { return }
+    private func applyNotificationRoute(_ target: AppNavigationTarget) {
         selectedTab = target.tab
         settingsPath = target.settingsPath
     }
 
     private func routeOpenedPayment() async {
-        guard notifications.openedSaleID != nil else { return }
-        applyNotificationRoute()
+        guard let target = routeLifecycle.paymentTarget(for: notifications.openedSaleID) else { return }
+        applyNotificationRoute(target)
         await dashboard.refresh()
     }
 
     private func routeOpenedSource() {
-        guard notifications.openedCustomSourceID != nil else { return }
-        applyNotificationRoute()
+        guard let target = routeLifecycle.sourceTarget(for: notifications.openedCustomSourceID) else { return }
+        applyNotificationRoute(target)
     }
 }
 

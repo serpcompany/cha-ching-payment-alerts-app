@@ -47,7 +47,6 @@ describe("connected provider activity", () => {
       "0013_product_entitlements.sql",
       "0014_apple_account_deletion_credentials.sql",
       "0015_user_preferences.sql",
-      "0016_sales_ingestion_order.sql",
     ]) {
       await applyMigration(db, migration);
     }
@@ -282,10 +281,6 @@ describe("connected provider activity", () => {
       "SELECT COUNT(*) AS count FROM notification_deliveries WHERE sale_id = 'existing'",
     ).first<{ count: number }>();
     expect(deliveries?.count).toBe(0);
-    const ingestionOrder = await env.DB.prepare(
-      "SELECT sale_id FROM sales_ingestion_order ORDER BY sequence",
-    ).all<{ sale_id: string }>();
-    expect(ingestionOrder.results).toEqual([{ sale_id: "custom-existing" }]);
     const eventAudit = await env.DB.prepare(
       "SELECT COUNT(*) AS count FROM provider_events WHERE id = 'event-audit'",
     ).first<{ count: number }>();

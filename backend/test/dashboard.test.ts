@@ -94,7 +94,6 @@ describe("dashboard preferences and aggregation", () => {
       "0010_reconcile_custom_payment_history_presentation.sql", "0011_retain_custom_payment_field_values.sql",
       "0012_custom_source_health.sql", "0013_product_entitlements.sql",
       "0014_apple_account_deletion_credentials.sql", "0015_user_preferences.sql",
-      "0016_sales_ingestion_order.sql",
     ];
     for (const migration of migrations) {
       await applyMigration(db, migration);
@@ -171,35 +170,11 @@ describe("dashboard preferences and aggregation", () => {
     for (let index = 0; index < statements.length; index += 75) {
       await env.DB.batch(statements.slice(index, index + 75));
     }
-    await env.DB.prepare(
-      `INSERT INTO sales
-       (id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
-        amount_minor, currency, status, product_label, occurred_at)
-       VALUES ('deleted-high-water', 'one', 'stripe', 'acct', 'high-event', 'high-payment',
-               1, 'USD', 'succeeded', 'Outside report', 1)`,
-    ).run();
-    const highWater = await env.DB.prepare(
-      "SELECT sequence FROM sales_ingestion_order WHERE sale_id = 'deleted-high-water'",
-    ).first<{ sequence: number }>();
-
     const response = await getDashboard(
       env,
       authFor("one"),
       new Request("https://api.test/v1/dashboard?period=1w"),
       now,
-      {
-        onPage: async (page) => {
-          if (page !== 0) return;
-          await env.DB.prepare("DELETE FROM sales WHERE id = 'deleted-high-water'").run();
-          await env.DB.prepare(
-            `INSERT INTO sales
-             (id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
-              amount_minor, currency, status, product_label, occurred_at)
-             VALUES ('late-backfill', 'one', 'stripe', 'acct', 'late-event', 'late-payment',
-                     777, 'USD', 'succeeded', 'Late', ?1)`,
-          ).bind(now - 500).run();
-        },
-      },
     );
     const body = await response.json<any>();
     expect(body.today.payments).toBe(1_005);
@@ -240,17 +215,6 @@ describe("dashboard preferences and aggregation", () => {
       expect.objectContaining({ currency: "JPY", grossAmountMinor: 0 }),
       expect.objectContaining({ currency: "USD", grossAmountMinor: 0 }),
     ]);
-    expect(body.report.products).not.toEqual(expect.arrayContaining([
-      expect.objectContaining({ label: "Late" }),
-    ]));
-    const lateOrder = await env.DB.prepare(
-      "SELECT sequence FROM sales_ingestion_order WHERE sale_id = 'late-backfill'",
-    ).first<{ sequence: number }>();
-    expect(lateOrder!.sequence).toBeGreaterThan(highWater!.sequence);
-    expect(await env.DB.prepare(
-      "SELECT sequence FROM sales_ingestion_order WHERE sale_id = 'deleted-high-water'",
-    ).first()).toBeNull();
-
     const allResponse = await getDashboard(
       env,
       authFor("one"),
@@ -264,6 +228,134 @@ describe("dashboard preferences and aggregation", () => {
       (value: { comparison: unknown }) => value.comparison === null,
     )).toBe(true);
   }, 15_000);
+
+  it("aggregates one transactional D1 batch across mutation boundaries", async () => {
+    const now = epoch("2026-09-03T12:00:00Z");
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO user_preferences (user_id, reporting_timezone) VALUES ('one', 'UTC')"),
+      env.DB.prepare(
+        `INSERT INTO sales
+         (id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
+          amount_minor, currency, product_label, occurred_at)
+         VALUES ('before', 'one', 'stripe', 'acct', 'before-event', 'before-payment',
+                 100, 'USD', 'Before', ?1)`,
+      ).bind(now - 2),
+    ]);
+    const db = env.DB;
+    let dashboardBatchCalls = 0;
+    const transactionalDB = {
+      prepare: db.prepare.bind(db),
+      batch: async (statements: D1PreparedStatement[]) => {
+        dashboardBatchCalls += 1;
+        expect(statements).toHaveLength(11);
+        await db.prepare(
+          `INSERT INTO sales
+           (id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
+            amount_minor, currency, product_label, occurred_at)
+           VALUES ('at-boundary', 'one', 'stripe', 'acct', 'boundary-event', 'boundary-payment',
+                   200, 'USD', 'Boundary', ?1)`,
+        ).bind(now - 1).run();
+        const result = await db.batch(statements);
+        await db.prepare("DELETE FROM sales WHERE user_id = 'one'").run();
+        return result;
+      },
+    } as unknown as D1Database;
+    const response = await getDashboard(
+      { ...env, DB: transactionalDB },
+      authFor("one"),
+      new Request("https://api.test/v1/dashboard?period=1w"),
+      now,
+    );
+    const body = await response.json<any>();
+
+    expect(dashboardBatchCalls).toBe(1);
+    expect(body.today.payments).toBe(2);
+    expect(body.report.totals.payments.current).toBe(2);
+    expect(body.report.totals.currencies).toEqual([
+      expect.objectContaining({ currency: "USD", currentAmountMinor: 300 }),
+    ]);
+    expect(body.report.currentSeries.reduce(
+      (total: number, bucket: { payments: number }) => total + bucket.payments,
+      0,
+    )).toBe(2);
+    expect(body.report.products.map((value: { label: string }) => value.label).sort())
+      .toEqual(["Before", "Boundary"]);
+    expect(await db.prepare("SELECT COUNT(*) AS count FROM sales WHERE user_id = 'one'")
+      .first<{ count: number }>()).toEqual({ count: 0 });
+  });
+
+  it("rebuilds All boundaries when the transactional earliest row changes", async () => {
+    const now = epoch("2026-09-03T12:00:00Z");
+    const original = now - 10 * 86_400;
+    const earlier = now - 400 * 86_400;
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO user_preferences (user_id, reporting_timezone) VALUES ('one', 'UTC')"),
+      env.DB.prepare(
+        `INSERT INTO sales
+         (id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
+          amount_minor, currency, product_label, occurred_at)
+         VALUES ('original', 'one', 'stripe', 'acct', 'original-event', 'original-payment',
+                 100, 'USD', 'Original', ?1)`,
+      ).bind(original),
+    ]);
+    const db = env.DB;
+    let batchCalls = 0;
+    const changingDB = {
+      prepare: db.prepare.bind(db),
+      batch: async (statements: D1PreparedStatement[]) => {
+        batchCalls += 1;
+        if (batchCalls === 1) {
+          await db.prepare(
+            `INSERT INTO sales
+             (id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
+              amount_minor, currency, product_label, occurred_at)
+             VALUES ('earlier', 'one', 'stripe', 'acct', 'earlier-event', 'earlier-payment',
+                     200, 'USD', 'Earlier', ?1)`,
+          ).bind(earlier).run();
+        }
+        return db.batch(statements);
+      },
+    } as unknown as D1Database;
+
+    const response = await getDashboard(
+      { ...env, DB: changingDB },
+      authFor("one"),
+      new Request("https://api.test/v1/dashboard?period=all"),
+      now,
+    );
+    const body = await response.json<any>();
+    expect(batchCalls).toBe(2);
+    expect(body.report.current.start).toBe(new Date(earlier * 1_000).toISOString());
+    expect(body.report.totals.payments.current).toBe(2);
+    expect(body.report.currentSeries.reduce(
+      (total: number, bucket: { payments: number }) => total + bucket.payments,
+      0,
+    )).toBe(2);
+  });
+
+  it("uses an honest fallback for a custom payment whose source was deleted", async () => {
+    const now = epoch("2026-09-03T12:00:00Z");
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO user_preferences (user_id, reporting_timezone) VALUES ('two', 'UTC')"),
+      env.DB.prepare(
+        `INSERT INTO sales
+         (id, user_id, provider, provider_account_id, provider_event_id, provider_payment_id,
+          amount_minor, currency, product_label, occurred_at)
+         VALUES ('orphaned-source', 'two', 'custom', 'deleted-source', 'orphan-event',
+                 'orphan-payment', 500, 'USD', 'Widget', ?1)`,
+      ).bind(now - 1),
+    ]);
+
+    const response = await getDashboard(
+      env,
+      authFor("two"),
+      new Request("https://api.test/v1/dashboard?period=1w"),
+      now,
+    );
+    const body = await response.json<any>();
+    expect(body.report.sources).toEqual([expect.objectContaining({ label: "Custom webhook" })]);
+    expect(body.report.products).toEqual([expect.objectContaining({ label: "Widget" })]);
+  });
 
   it("returns adaptive day, month, and year bucket shapes for All", async () => {
     const now = epoch("2026-09-03T12:00:00Z");
