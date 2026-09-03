@@ -40,17 +40,57 @@ final class DailySummaryCarouselUITests: XCTestCase {
         let recognizedText = try recognizeText(in: croppedImage)
         let normalizedText = recognizedText.filter { !$0.isWhitespace }
 
-        for literal in ["$1,234,567.89", "1,234,567", "$987,654.32"] {
+        for literal in ["$1,234,567.89", "1,234,567"] {
             XCTAssertTrue(
                 normalizedText.contains(literal),
                 "Expected fully rendered literal \(literal) in Vision output: \(recognizedText)"
             )
         }
+        XCTAssertFalse(
+            recognizedText.contains("Avg. $"),
+            "Average payment must not appear in the two-metric summary: \(recognizedText)"
+        )
+        XCTAssertFalse(
+            recognizedText.contains("$987,654.32"),
+            "Average payment value must not appear in the two-metric summary: \(recognizedText)"
+        )
         XCTAssertFalse(recognizedText.contains("…"), "Unexpected ellipsis in Vision output: \(recognizedText)")
         XCTAssertNil(
             recognizedText.range(of: #"\.{3,}"#, options: .regularExpression),
             "Unexpected dot truncation in Vision output: \(recognizedText)"
         )
+
+        let grossMetric = app.descendants(matching: .any)
+            .matching(identifier: "daily-summary-metric.2.gross-volume")
+            .firstMatch
+        let paymentsMetric = app.descendants(matching: .any)
+            .matching(identifier: "daily-summary-metric.2.payments")
+            .firstMatch
+        XCTAssertTrue(grossMetric.waitForExistence(timeout: 2))
+        XCTAssertTrue(paymentsMetric.waitForExistence(timeout: 2))
+        XCTAssertEqual(grossMetric.frame.width, paymentsMetric.frame.width, accuracy: 1)
+        XCTAssertEqual(
+            (grossMetric.frame.midX + paymentsMetric.frame.midX) / 2,
+            longCard.frame.midX,
+            accuracy: 1
+        )
+        XCTAssertEqual(
+            longCard.frame.midX - grossMetric.frame.midX,
+            paymentsMetric.frame.midX - longCard.frame.midX,
+            accuracy: 1
+        )
+
+        let accessibilityText = [
+            grossMetric.label,
+            grossMetric.value as? String ?? "",
+            paymentsMetric.label,
+            paymentsMetric.value as? String ?? "",
+        ]
+            .joined(separator: " ")
+        XCTAssertTrue(accessibilityText.contains("Gross volume"))
+        XCTAssertTrue(accessibilityText.contains("Payments"))
+        XCTAssertFalse(accessibilityText.contains("Avg."))
+        XCTAssertFalse(accessibilityText.contains("$987,654.32"))
     }
 
     @MainActor

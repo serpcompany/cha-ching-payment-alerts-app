@@ -14,7 +14,11 @@ struct DailySummaryCarousel: View {
         ScrollView(.horizontal) {
             LazyHStack(spacing: 12) {
                 ForEach(pages) { page in
-                    DailySummaryCard(summary: page.summary, selectedCurrency: selectedCurrency)
+                    DailySummaryCard(
+                        pageID: page.id,
+                        summary: page.summary,
+                        selectedCurrency: selectedCurrency
+                    )
                         .containerRelativeFrame(.horizontal)
                         .accessibilityIdentifier("daily-summary-card.\(page.id)")
                         .id(page.id)
@@ -39,6 +43,7 @@ private struct DailySummaryCard: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .title3) private var contentHeight = 68.0
     @ScaledMetric(relativeTo: .title3) private var accessibilityContentHeight = 200.0
+    let pageID: Int
     let summary: DashboardDailySummary?
     let selectedCurrency: String
 
@@ -53,12 +58,6 @@ private struct DailySummaryCard: View {
                     } ?? "—"
                 ),
                 DailySummaryMetric(title: "Payments", value: summary?.payments.formatted() ?? "—"),
-                DailySummaryMetric(
-                    title: "Avg. $",
-                    value: money.map {
-                        DashboardFormatting.money(minor: $0.averageAmountMinor, currency: $0.currency)
-                    } ?? "—"
-                ),
             ]
             Group {
                 if dynamicTypeSize.isAccessibilitySize {
@@ -69,20 +68,13 @@ private struct DailySummaryCard: View {
                                 metricValue(metric.value)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("\(metric.title), \(metric.value)")
+                            .accessibilityIdentifier(metricIdentifier(metric))
                         }
                     }
                 } else {
-                    ViewThatFits(in: .horizontal) {
-                        DailySummaryCompactMetrics(metrics: metrics, valueFont: .title3.bold())
-                        DailySummaryCompactMetrics(metrics: metrics, valueFont: .body.bold())
-                        DailySummaryCompactMetrics(metrics: metrics, valueFont: .subheadline.bold())
-                        DailySummaryCompactMetrics(metrics: metrics, valueFont: .caption.bold())
-                        DailySummaryCompactMetrics(
-                            metrics: metrics,
-                            valueFont: .caption2.bold(),
-                            usesIntrinsicWidth: false
-                        )
-                    }
+                    DailySummaryCompactMetrics(metrics: metrics, pageID: pageID)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -92,8 +84,7 @@ private struct DailySummaryCard: View {
                     : contentHeight,
                 alignment: .center
             )
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(metrics.map { "\($0.title), \($0.value)" }.joined(separator: ". "))
+            .accessibilityElement(children: .contain)
         }
         .accessibilityValue(summary == nil ? "Loading" : "Loaded")
     }
@@ -110,34 +101,62 @@ private struct DailySummaryCard: View {
             .monospacedDigit()
             .foregroundStyle(Theme.ink)
     }
+
+    private func metricIdentifier(_ metric: DailySummaryMetric) -> String {
+        "daily-summary-metric.\(pageID).\(metric.title == "Payments" ? "payments" : "gross-volume")"
+    }
 }
 
 private struct DailySummaryCompactMetrics: View {
     let metrics: [DailySummaryMetric]
-    let valueFont: Font
-    var usesIntrinsicWidth = true
+    let pageID: Int
 
     var body: some View {
-        Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 5) {
-            GridRow {
-                ForEach(metrics) { metric in
+        HStack(alignment: .top, spacing: 0) {
+            ForEach(metrics) { metric in
+                VStack(alignment: .center, spacing: 5) {
                     Text(metric.title)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: usesIntrinsicWidth, vertical: true)
+
+                    ViewThatFits(in: .horizontal) {
+                        fittedValue(metric.value, font: .title3.bold())
+                        fittedValue(metric.value, font: .body.bold())
+                        fittedValue(metric.value, font: .subheadline.bold())
+                        fittedValue(metric.value, font: .caption.bold())
+                        minimumScaleValue(metric.value)
+                    }
                 }
-            }
-            GridRow(alignment: .firstTextBaseline) {
-                ForEach(metrics) { metric in
-                    Text(metric.value)
-                        .font(valueFont)
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.ink)
-                        .fixedSize(horizontal: usesIntrinsicWidth, vertical: true)
-                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .contentShape(Rectangle())
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(metric.title), \(metric.value)")
+                .accessibilityIdentifier(metricIdentifier(metric))
             }
         }
-        .fixedSize(horizontal: usesIntrinsicWidth, vertical: false)
+    }
+
+    private func fittedValue(_ value: String, font: Font) -> some View {
+        Text(value)
+            .font(font)
+            .monospacedDigit()
+            .foregroundStyle(Theme.ink)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private func minimumScaleValue(_ value: String) -> some View {
+        Text(value)
+            .font(.caption2.bold())
+            .monospacedDigit()
+            .foregroundStyle(Theme.ink)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .frame(maxWidth: .infinity)
+    }
+
+    private func metricIdentifier(_ metric: DailySummaryMetric) -> String {
+        "daily-summary-metric.\(pageID).\(metric.title == "Payments" ? "payments" : "gross-volume")"
     }
 }
 
