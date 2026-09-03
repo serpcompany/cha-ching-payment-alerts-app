@@ -19,15 +19,6 @@ struct DashboardView: View {
             .refreshable { await load() }
             .background(Theme.canvas.ignoresSafeArea())
             .navigationTitle(dailySummaryTitle)
-            .toolbar {
-                if store.isRefreshing {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        ProgressView()
-                            .controlSize(.small)
-                            .accessibilityLabel("Loading daily summary")
-                    }
-                }
-            }
             .task { await load() }
         }
     }
@@ -412,3 +403,37 @@ struct DashboardView: View {
         .environmentObject(DashboardStore())
         .environmentObject(PreferencesStore())
 }
+
+#if DEBUG
+struct DashboardRefreshUITestFixture: View {
+    @State private var completedRefreshCount = 0
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 18) {
+                    Text("Dashboard content")
+                        .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
+                        .padding()
+                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 16))
+                        .accessibilityIdentifier("dashboard-refresh-marker")
+                        .accessibilityValue("Completed refreshes: \(completedRefreshCount)")
+
+                    ForEach(0..<8) { row in
+                        Text("Report row \(row)")
+                            .frame(maxWidth: .infinity, minHeight: 80, alignment: .leading)
+                    }
+                }
+                .padding()
+            }
+            .accessibilityIdentifier("dashboard-refresh-scroll")
+            .refreshable {
+                defer { completedRefreshCount += 1 }
+                try? await Task.sleep(for: .seconds(3))
+            }
+            .background(Theme.canvas.ignoresSafeArea())
+            .navigationTitle("Today")
+        }
+    }
+}
+#endif
