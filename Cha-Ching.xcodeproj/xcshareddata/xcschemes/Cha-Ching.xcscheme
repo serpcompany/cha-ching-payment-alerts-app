@@ -50,6 +50,17 @@
                ReferencedContainer = "container:Cha-Ching.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "683A3783AEDEFA77955250EA"
+               BuildableName = "Cha-ChingUITests.xctest"
+               BlueprintName = "Cha-ChingUITests"
+               ReferencedContainer = "container:Cha-Ching.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

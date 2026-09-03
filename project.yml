@@ -98,6 +98,20 @@ targets:
         PRODUCT_MODULE_NAME: Cha_ChingTests
         PRODUCT_NAME: Cha-ChingTests
 
+  Cha-ChingUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: '17.0'
+    sources:
+      - path: Cha-ChingUITests
+    dependencies:
+      - target: Cha-Ching
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_MODULE_NAME: Cha_ChingUITests
+        PRODUCT_NAME: Cha-ChingUITests
+
 schemes:
   Cha-Ching:
     build:
@@ -112,6 +126,7 @@ schemes:
       config: Debug
       targets:
         - Cha-ChingTests
+        - Cha-ChingUITests
 
   Cha-Ching Local StoreKit E2E:
     build:

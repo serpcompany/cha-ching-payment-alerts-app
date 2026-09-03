@@ -180,24 +180,6 @@ struct DashboardTests {
         #expect(store.dailySummary(for: 2)?.payments == twoDaysAgo.dailySummary.payments)
     }
 
-    @Test func dashboardSourceKeepsNativeCarouselAndForbidsDayCardGesturesAndArrows() throws {
-        let source = try dashboardViewSource()
-
-        #expect(source.contains("ScrollView(.horizontal)"))
-        #expect(source.contains(".scrollTargetLayout()"))
-        #expect(source.contains(".scrollTargetBehavior(.viewAligned"))
-        #expect(source.contains(".scrollPosition(id:"))
-        #expect(source.contains(".contentMargins(.horizontal"))
-        #expect(!source.contains("DragGesture"))
-        #expect(!source.contains("simultaneousGesture"))
-        #expect(!source.contains("highPriorityGesture"))
-        #expect(!source.contains("Button(\"Previous day\""))
-        #expect(!source.contains("Button(\"Next day\""))
-        #expect(!source.contains("Choose Previous"))
-        #expect(!source.contains("Average payment"))
-        #expect(source.contains("title: \"Avg. $\""))
-    }
-
     @MainActor
     @Test func timezoneChangeInvalidatesAnOlderInFlightDashboard() async throws {
         let old = try decodedResponse(timezone: "America/New_York")
@@ -365,13 +347,6 @@ struct DashboardTests {
         """
     }
 
-    private func dashboardViewSource() throws -> String {
-        let testsDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-        let sourceURL = testsDirectory
-            .deletingLastPathComponent()
-            .appending(path: "Cha-Ching/Views/Home/DashboardView.swift")
-        return try String(contentsOf: sourceURL, encoding: .utf8)
-    }
 }
 
 @MainActor
