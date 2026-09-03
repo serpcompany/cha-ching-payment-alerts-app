@@ -237,35 +237,108 @@ private struct ReportingTimezoneView: View {
     @EnvironmentObject private var dashboard: DashboardStore
     @EnvironmentObject private var preferences: PreferencesStore
     @State private var query = ""
+    @FocusState private var searchFocused: Bool
+
+    private var suggestedIdentifiers: [String] {
+        unique([
+            preferences.reportingTimezone,
+            TimeZone.current.identifier,
+            "UTC",
+            "America/Los_Angeles",
+            "America/Denver",
+            "America/Chicago",
+            "America/New_York",
+            "Europe/London",
+            "Europe/Berlin",
+            "Asia/Tokyo",
+            "Australia/Sydney",
+        ].compactMap { $0 })
+    }
 
     private var identifiers: [String] {
         let all = TimeZone.knownTimeZoneIdentifiers
-        guard !query.isEmpty else { return all }
-        return all.filter { $0.localizedCaseInsensitiveContains(query) }
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else { return all }
+        return all.filter { identifier in
+            identifier.localizedCaseInsensitiveContains(trimmedQuery)
+                || displayName(for: identifier).localizedCaseInsensitiveContains(trimmedQuery)
+        }
     }
 
     var body: some View {
-        List(identifiers, id: \.self) { identifier in
-            Button {
-                Task {
-                    guard await preferences.updateReportingTimezone(identifier) else { return }
-                    await dashboard.reloadForReportingTimezoneChange()
-                    dismiss()
-                }
-            } label: {
+        List {
+            Section {
                 HStack {
-                    Text(identifier.replacingOccurrences(of: "_", with: " "))
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    if preferences.reportingTimezone == identifier {
-                        Image(systemName: "checkmark").foregroundStyle(Theme.accent)
-                    }
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Search by city or timezone", text: $query)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .focused($searchFocused)
                 }
             }
-            .disabled(preferences.isSaving)
+
+            if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Section("Suggested") {
+                    ForEach(suggestedIdentifiers, id: \.self) { identifier in
+                        timezoneButton(identifier)
+                    }
+                }
+                Section("All timezones") {
+                    ForEach(identifiers, id: \.self) { identifier in
+                        timezoneButton(identifier)
+                    }
+                }
+            } else {
+                Section {
+                    ForEach(identifiers, id: \.self) { identifier in
+                        timezoneButton(identifier)
+                    }
+                }
+                if identifiers.isEmpty {
+                    ContentUnavailableView.search(text: query)
+                }
+            }
         }
         .navigationTitle("Reporting timezone")
         .searchable(text: $query, prompt: "Search timezones")
+        .task { searchFocused = true }
+    }
+
+    private func timezoneButton(_ identifier: String) -> some View {
+        Button {
+            Task {
+                guard await preferences.updateReportingTimezone(identifier) else { return }
+                await dashboard.reloadForReportingTimezoneChange()
+                dismiss()
+            }
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(displayName(for: identifier))
+                        .foregroundStyle(.primary)
+                    Text(identifier)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if preferences.reportingTimezone == identifier {
+                    Image(systemName: "checkmark").foregroundStyle(Theme.accent)
+                }
+            }
+        }
+        .disabled(preferences.isSaving)
+    }
+
+    private func displayName(for identifier: String) -> String {
+        identifier
+            .replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "/", with: " / ")
+    }
+
+    private func unique(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        return values.filter { seen.insert($0).inserted }
     }
 }
 

@@ -69,6 +69,10 @@ The shared Debug scheme also selects the local StoreKit catalog. Follow
 [`storekit-testing.md`](storekit-testing.md) to test subscription purchase and
 restore without a TestFlight upload.
 
+For dashboard visual QA, seed realistic local payment data with the local-only
+workflow in [`local-dashboard-seeds.md`](local-dashboard-seeds.md). Seeds are
+separate from migrations and must never be run against remote D1.
+
 The native API client uses Better Auth's bearer token and deliberately does not
 persist auth cookies. This prevents an old local Worker cookie from blocking a
 fresh Simulator session after local state changes.

@@ -300,6 +300,9 @@ private struct StoredAppleCredentialResponse: Decodable {
 private enum KeychainToken {
     private static let service = "com.serpcompany.chaching.auth"
     private static let account = "better-auth-session"
+    #if DEBUG && targetEnvironment(simulator)
+    private static let simulatorDefaultsKey = "debugSimulatorBetterAuthSession"
+    #endif
 
     static func load() -> String? {
         let query: [String: Any] = [
@@ -311,7 +314,13 @@ private enum KeychainToken {
         ]
         var result: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data else { return nil }
+              let data = result as? Data else {
+            #if DEBUG && targetEnvironment(simulator)
+            return UserDefaults.standard.string(forKey: simulatorDefaultsKey)
+            #else
+            return nil
+            #endif
+        }
         return String(data: data, encoding: .utf8)
     }
 
@@ -324,8 +333,14 @@ private enum KeychainToken {
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
             kSecValueData as String: Data(token.utf8)
         ]
-        guard SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess else {
+        let status = SecItemAdd(attributes as CFDictionary, nil)
+        guard status == errSecSuccess else {
+            #if DEBUG && targetEnvironment(simulator)
+            UserDefaults.standard.set(token, forKey: simulatorDefaultsKey)
+            return
+            #else
             throw APIError.server("Couldn't securely save your session.")
+            #endif
         }
     }
 
@@ -336,5 +351,8 @@ private enum KeychainToken {
             kSecAttrAccount as String: account
         ]
         SecItemDelete(query as CFDictionary)
+        #if DEBUG && targetEnvironment(simulator)
+        UserDefaults.standard.removeObject(forKey: simulatorDefaultsKey)
+        #endif
     }
 }
