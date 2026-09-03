@@ -74,12 +74,9 @@ final class DashboardStore: ObservableObject {
                requestedPeriod == period,
                requestedDayOffset == dayOffset {
                 dashboard = response
-                let reportCurrencies = response.report.totals.currencies.map(\.currency)
-                let available = reportCurrencies + response.today.currencies.map(\.currency).filter {
-                    !reportCurrencies.contains($0)
-                }
+                let available = availableCurrencies(in: response)
                 if selectedCurrency == nil || !available.contains(selectedCurrency ?? "") {
-                    selectedCurrency = available.first ?? response.today.currencies.first?.currency
+                    selectedCurrency = available.first ?? response.dailySummary.currencies.first?.currency
                 }
             }
         } catch is CancellationError {
@@ -146,7 +143,7 @@ final class DashboardStore: ObservableObject {
     var loadState: DashboardLoadState {
         if isLoading, dashboard == nil { return .loading }
         guard let dashboard else { return .unavailable }
-        let isEmpty = dashboard.today.payments == 0
+        let isEmpty = dashboard.dailySummary.payments == 0
             && dashboard.report.totals.payments.current == 0
             && dashboard.report.products.isEmpty
             && dashboard.report.sources.isEmpty
@@ -155,8 +152,12 @@ final class DashboardStore: ObservableObject {
 
     var availableCurrencies: [String] {
         guard let dashboard else { return [] }
+        return availableCurrencies(in: dashboard)
+    }
+
+    private func availableCurrencies(in dashboard: DashboardResponse) -> [String] {
         let reportCurrencies = dashboard.report.totals.currencies.map(\.currency)
-        return reportCurrencies + dashboard.today.currencies.map(\.currency).filter {
+        return reportCurrencies + dashboard.dailySummary.currencies.map(\.currency).filter {
             !reportCurrencies.contains($0)
         }
     }

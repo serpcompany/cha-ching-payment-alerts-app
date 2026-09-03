@@ -13,9 +13,9 @@ struct DashboardTests {
             #expect(response.period == period)
             #expect(response.dayOffset == 0)
             #expect(response.reportingTimezone == "Asia/Tokyo")
-            #expect(response.today.payments == 2)
-            #expect(response.today.currencies.first?.grossAmountMinor == 2700)
-            #expect(response.today.currencies.first?.payments == 2)
+            #expect(response.dailySummary.payments == 2)
+            #expect(response.dailySummary.currencies.first?.grossAmountMinor == 2700)
+            #expect(response.dailySummary.currencies.first?.payments == 2)
             #expect(response.report.currentSeries.first?.amounts.amount(for: "USD") == 2700)
             #expect(response.report.products.first?.label == "Widget")
         }
@@ -148,7 +148,7 @@ struct DashboardTests {
         loader.finishFirst()
         while loader.callCount < 2 { await Task.yield() }
 
-        #expect(store.dashboard?.today.payments == 2)
+        #expect(store.dashboard?.dailySummary.payments == 2)
         #expect(loader.callCount == 2)
     }
 
@@ -167,9 +167,9 @@ struct DashboardTests {
         PaymentHistoryEvents.changed(notificationCenter: center)
         loader.finishFirst()
         await initial.value
-        while loader.callCount < 2 || store.dashboard?.today.payments != 0 { await Task.yield() }
+        while loader.callCount < 2 || store.dashboard?.dailySummary.payments != 0 { await Task.yield() }
 
-        #expect(store.dashboard?.today.payments == 0)
+        #expect(store.dashboard?.dailySummary.payments == 0)
     }
 
     @MainActor

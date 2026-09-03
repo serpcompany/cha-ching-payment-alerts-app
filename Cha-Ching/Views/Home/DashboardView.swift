@@ -31,7 +31,7 @@ struct DashboardView: View {
             if let dashboard = store.dashboard {
                 if let error = store.errorMessage { refreshError(error) }
                 DailySummaryCard(
-                    summary: dashboard.today,
+                    summary: dashboard.dailySummary,
                     dayOffset: dashboard.dayOffset,
                     reportingTimezone: dashboard.reportingTimezone,
                     selectedCurrency: selectedCurrency,
@@ -247,7 +247,7 @@ private struct TodayMetric: Identifiable {
 }
 
 private struct DailySummaryCard: View {
-    let summary: DashboardToday
+    let summary: DashboardDailySummary
     let dayOffset: Int
     let reportingTimezone: String
     let selectedCurrency: String
