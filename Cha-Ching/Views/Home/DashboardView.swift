@@ -240,7 +240,7 @@ struct DashboardView: View {
     }
 }
 
-private struct TodayMetric: Identifiable {
+private struct DailySummaryMetric: Identifiable {
     let title: String
     let value: String
     var id: String { title }
@@ -261,14 +261,14 @@ private struct DailySummaryCard: View {
         GroupBox {
             let money = summary.currencies.total(for: selectedCurrency)
             let metrics = [
-                TodayMetric(
+                DailySummaryMetric(
                     title: "Gross volume",
                     value: money.map {
                         DashboardFormatting.money(minor: $0.grossAmountMinor, currency: $0.currency)
                     } ?? "—"
                 ),
-                TodayMetric(title: "Payments", value: summary.payments.formatted()),
-                TodayMetric(
+                DailySummaryMetric(title: "Payments", value: summary.payments.formatted()),
+                DailySummaryMetric(
                     title: "Average payment",
                     value: money.map {
                         DashboardFormatting.money(minor: $0.averageAmountMinor, currency: $0.currency)
@@ -362,7 +362,7 @@ private struct DailySummaryCard: View {
             }
     }
 
-    private func metric(_ metric: TodayMetric) -> some View {
+    private func metric(_ metric: DailySummaryMetric) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(metric.title).font(.caption).foregroundStyle(.secondary)
             Text(metric.value).font(.title3.bold()).foregroundStyle(Theme.ink)
