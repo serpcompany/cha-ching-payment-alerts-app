@@ -78,7 +78,7 @@ struct DashboardTests {
     }
 
     @MainActor
-    @Test func dailySummaryMovesBackwardAndForwardButNeverPastToday() async throws {
+    @Test func carouselScrollPositionSynchronizesWithDayOffset() async throws {
         var requests: [(period: DashboardPeriod, dayOffset: Int)] = []
         let responses = try (0...2).map { try decodedResponse(dayOffset: $0) }
         let store = DashboardStore { period, dayOffset in
@@ -87,15 +87,53 @@ struct DashboardTests {
         }
 
         await store.refresh()
-        await store.selectPreviousDay()
-        await store.selectPreviousDay()
-        await store.selectNextDay()
-        await store.selectNextDay()
-        await store.selectNextDay()
+        #expect(store.carouselDayOffsets == [1, 0])
+        await store.selectDayOffset(1)
+        #expect(store.carouselDayOffsets == [2, 1, 0])
+        await store.selectDayOffset(2)
+        await store.selectDayOffset(1)
+        await store.selectDayOffset(0)
 
         #expect(requests.map(\.dayOffset) == [0, 1, 2, 1, 0])
         #expect(store.dayOffset == 0)
         #expect(store.dashboard?.dayOffset == 0)
+    }
+
+    @MainActor
+    @Test func carouselRejectsFutureDayPositionsWithoutLoading() async throws {
+        let today = try decodedResponse()
+        var requests: [Int] = []
+        let store = DashboardStore { _, dayOffset in
+            requests.append(dayOffset)
+            return today
+        }
+
+        await store.refresh()
+        await store.selectDayOffset(-1)
+        await store.selectDayOffset(0)
+
+        #expect(requests == [0])
+        #expect(store.dayOffset == 0)
+        #expect(store.carouselDayOffsets == [1, 0])
+    }
+
+    @MainActor
+    @Test func carouselPrefetchCachesRealNeighborSummary() async throws {
+        let today = try decodedResponse()
+        let priorDay = try decodedResponse(dayOffset: 1)
+        let store = DashboardStore(
+            loader: { _, _ in today },
+            prefetchLoader: { _, dayOffset in
+                #expect(dayOffset == 1)
+                return priorDay
+            }
+        )
+
+        await store.refresh()
+        while store.dailySummary(for: 1) == nil { await Task.yield() }
+
+        #expect(store.dailySummary(for: 0)?.payments == today.dailySummary.payments)
+        #expect(store.dailySummary(for: 1)?.start == priorDay.dailySummary.start)
     }
 
     @MainActor
@@ -107,11 +145,57 @@ struct DashboardTests {
         }
 
         await store.refresh()
-        await store.selectPreviousDay()
+        await store.selectDayOffset(1)
 
         #expect(store.dayOffset == 0)
         #expect(store.dashboard?.dayOffset == 0)
         #expect(store.errorMessage == "Dashboard couldn't refresh.")
+    }
+
+    @MainActor
+    @Test func staleCarouselRequestCannotReplaceNewerSelectedDay() async throws {
+        let today = try decodedResponse()
+        let oneDayAgo = try decodedResponse(dayOffset: 1)
+        let twoDaysAgo = try decodedResponse(dayOffset: 2)
+        let loader = DayOffsetControlledLoader()
+        let store = DashboardStore { _, dayOffset in
+            if dayOffset == 0 { return today }
+            return try await loader.load(dayOffset)
+        }
+
+        await store.refresh()
+        let firstSelection = Task { await store.selectDayOffset(1) }
+        while !loader.hasPending(offset: 1) { await Task.yield() }
+        let secondSelection = Task { await store.selectDayOffset(2) }
+        while !loader.hasPending(offset: 2) { await Task.yield() }
+
+        loader.finish(offset: 2, with: twoDaysAgo)
+        await secondSelection.value
+        loader.finish(offset: 1, with: oneDayAgo)
+        await firstSelection.value
+
+        #expect(store.dayOffset == 2)
+        #expect(store.dashboard?.dayOffset == 2)
+        #expect(store.dailySummary(for: 1) == nil)
+        #expect(store.dailySummary(for: 2)?.payments == twoDaysAgo.dailySummary.payments)
+    }
+
+    @Test func dashboardSourceKeepsNativeCarouselAndForbidsDayCardGesturesAndArrows() throws {
+        let source = try dashboardViewSource()
+
+        #expect(source.contains("ScrollView(.horizontal)"))
+        #expect(source.contains(".scrollTargetLayout()"))
+        #expect(source.contains(".scrollTargetBehavior(.viewAligned"))
+        #expect(source.contains(".scrollPosition(id:"))
+        #expect(source.contains(".contentMargins(.horizontal"))
+        #expect(!source.contains("DragGesture"))
+        #expect(!source.contains("simultaneousGesture"))
+        #expect(!source.contains("highPriorityGesture"))
+        #expect(!source.contains("Button(\"Previous day\""))
+        #expect(!source.contains("Button(\"Next day\""))
+        #expect(!source.contains("Choose Previous"))
+        #expect(!source.contains("Average payment"))
+        #expect(source.contains("title: \"Avg. $\""))
     }
 
     @MainActor
@@ -280,6 +364,14 @@ struct DashboardTests {
         }
         """
     }
+
+    private func dashboardViewSource() throws -> String {
+        let testsDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        let sourceURL = testsDirectory
+            .deletingLastPathComponent()
+            .appending(path: "Cha-Ching/Views/Home/DashboardView.swift")
+        return try String(contentsOf: sourceURL, encoding: .utf8)
+    }
 }
 
 @MainActor
@@ -313,4 +405,23 @@ private final class ControlledDashboardLoader {
 @MainActor
 private final class DashboardFailureSwitch {
     var shouldFail = false
+}
+
+@MainActor
+private final class DayOffsetControlledLoader {
+    private var continuations: [Int: CheckedContinuation<DashboardResponse, Error>] = [:]
+
+    func load(_ dayOffset: Int) async throws -> DashboardResponse {
+        try await withCheckedThrowingContinuation { continuation in
+            continuations[dayOffset] = continuation
+        }
+    }
+
+    func hasPending(offset: Int) -> Bool {
+        continuations[offset] != nil
+    }
+
+    func finish(offset: Int, with response: DashboardResponse) {
+        continuations.removeValue(forKey: offset)?.resume(returning: response)
+    }
 }

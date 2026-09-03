@@ -4,6 +4,8 @@ import SwiftUI
 struct DashboardView: View {
     @EnvironmentObject private var store: DashboardStore
     @EnvironmentObject private var preferences: PreferencesStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var carouselPosition: Int?
 
     var body: some View {
         NavigationStack {
@@ -18,24 +20,11 @@ struct DashboardView: View {
             .background(Theme.canvas.ignoresSafeArea())
             .navigationTitle(dailySummaryTitle)
             .toolbar {
-                if store.dashboard != nil {
-                    ToolbarItemGroup(placement: .topBarTrailing) {
-                        if store.isRefreshing {
-                            ProgressView()
-                                .controlSize(.small)
-                                .accessibilityLabel("Loading daily summary")
-                        }
-                        Button("Previous day", systemImage: "chevron.left") {
-                            Task { await store.selectPreviousDay() }
-                        }
-                        .labelStyle(.iconOnly)
-                        .disabled(store.isRefreshing)
-
-                        Button("Next day", systemImage: "chevron.right") {
-                            Task { await store.selectNextDay() }
-                        }
-                        .labelStyle(.iconOnly)
-                        .disabled(store.dayOffset == 0 || store.isRefreshing)
+                if store.isRefreshing {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        ProgressView()
+                            .controlSize(.small)
+                            .accessibilityLabel("Loading daily summary")
                     }
                 }
             }
@@ -52,10 +41,7 @@ struct DashboardView: View {
         case .loaded:
             if let dashboard = store.dashboard {
                 if let error = store.errorMessage { refreshError(error) }
-                DailySummaryCard(
-                    summary: dashboard.dailySummary,
-                    selectedCurrency: selectedCurrency
-                )
+                dailySummaryCarousel
                 reportsHeader(dashboard)
                 grossVolumeCard(dashboard)
                 paymentsCard(dashboard)
@@ -71,6 +57,40 @@ struct DashboardView: View {
                 Button("Retry") { Task { await load() } }
             }
             .frame(maxWidth: .infinity, minHeight: 520)
+        }
+    }
+
+    private var dailySummaryCarousel: some View {
+        ScrollView(.horizontal) {
+            LazyHStack(spacing: 12) {
+                ForEach(store.carouselDayOffsets, id: \.self) { dayOffset in
+                    DailySummaryCard(
+                        summary: store.dailySummary(for: dayOffset),
+                        selectedCurrency: selectedCurrency
+                    )
+                    .containerRelativeFrame(.horizontal, count: 10, span: 9, spacing: 12)
+                    .id(dayOffset)
+                }
+            }
+            .scrollTargetLayout()
+        }
+        .scrollIndicators(.hidden)
+        .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+        .scrollPosition(id: $carouselPosition, anchor: .center)
+        .contentMargins(.horizontal, 16, for: .scrollContent)
+        .accessibilityLabel("Daily payment summaries")
+        .onAppear { carouselPosition = store.dayOffset }
+        .onChange(of: store.dayOffset) { _, newOffset in
+            guard carouselPosition != newOffset else { return }
+            updateCarouselPosition(newOffset)
+        }
+        .task(id: carouselPosition) {
+            guard let requestedOffset = carouselPosition,
+                  requestedOffset != store.dayOffset
+            else { return }
+            await store.selectDayOffset(requestedOffset)
+            guard !Task.isCancelled, carouselPosition != store.dayOffset else { return }
+            updateCarouselPosition(store.dayOffset)
         }
     }
 
@@ -114,12 +134,17 @@ struct DashboardView: View {
                 reportValues(
                     current: total.map { DashboardFormatting.money(minor: $0.currentAmountMinor, currency: $0.currency) } ?? "—",
                     previous: dashboard.report.previous == nil ? nil : total.map { DashboardFormatting.money(minor: $0.previousAmountMinor, currency: $0.currency) },
-                    comparison: dashboard.report.previous == nil ? nil : total?.comparison
+                    comparison: dashboard.report.previous == nil ? nil : total?.comparison,
+                    currentWindow: dashboard.report.current,
+                    previousWindow: dashboard.report.previous,
+                    reportingTimezone: dashboard.reportingTimezone
                 )
                 reportChart(
-                    current: currentAmounts,
-                    previous: previousAmounts,
+                    current: dashboard.report.currentSeries.map { ($0, $0.amounts.amount(for: selectedCurrency)) },
+                    previous: dashboard.report.previousSeries.map { ($0, $0.amounts.amount(for: selectedCurrency)) },
                     label: "Gross volume",
+                    reportingTimezone: dashboard.reportingTimezone,
+                    valueLabel: { DashboardFormatting.money(minor: $0, currency: selectedCurrency) },
                     accessibilityLabel: DashboardChartAccessibility.grossVolume(
                         current: currentAmounts,
                         previous: dashboard.report.previous == nil ? nil : previousAmounts,
@@ -138,12 +163,17 @@ struct DashboardView: View {
                 reportValues(
                     current: dashboard.report.totals.payments.current.formatted(),
                     previous: dashboard.report.previous == nil ? nil : dashboard.report.totals.payments.previous.formatted(),
-                    comparison: dashboard.report.previous == nil ? nil : dashboard.report.totals.payments.comparison
+                    comparison: dashboard.report.previous == nil ? nil : dashboard.report.totals.payments.comparison,
+                    currentWindow: dashboard.report.current,
+                    previousWindow: dashboard.report.previous,
+                    reportingTimezone: dashboard.reportingTimezone
                 )
                 reportChart(
-                    current: dashboard.report.currentSeries.map(\.payments),
-                    previous: dashboard.report.previousSeries.map(\.payments),
+                    current: dashboard.report.currentSeries.map { ($0, $0.payments) },
+                    previous: dashboard.report.previousSeries.map { ($0, $0.payments) },
                     label: "Payments",
+                    reportingTimezone: dashboard.reportingTimezone,
+                    valueLabel: { $0.formatted() },
                     accessibilityLabel: DashboardChartAccessibility.payments(
                         current: dashboard.report.currentSeries.map(\.payments),
                         previous: dashboard.report.previous == nil
@@ -157,28 +187,72 @@ struct DashboardView: View {
         }
     }
 
-    private func reportValues(current: String, previous: String?, comparison: DashboardComparison?) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading) {
-                Text("Current").font(.caption).foregroundStyle(.secondary)
-                Text(current).font(.title2.bold())
+    private func reportValues(
+        current: String,
+        previous: String?,
+        comparison: DashboardComparison?,
+        currentWindow: DashboardWindow,
+        previousWindow: DashboardWindow?,
+        reportingTimezone: String
+    ) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline) {
+                currentReportValue(current, window: currentWindow, timezone: reportingTimezone)
+                Spacer()
+                if let previous, let previousWindow {
+                    previousReportValue(previous, window: previousWindow, timezone: reportingTimezone)
+                }
+                if let comparison { comparisonBadge(comparison) }
             }
-            Spacer()
-            if let previous {
-                VStack(alignment: .trailing) {
-                    Text("Previous").font(.caption).foregroundStyle(.secondary)
-                    Text(previous).font(.headline).foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 12) {
+                currentReportValue(current, window: currentWindow, timezone: reportingTimezone)
+                if let previous, let previousWindow {
+                    HStack(alignment: .firstTextBaseline) {
+                        previousReportValue(previous, window: previousWindow, timezone: reportingTimezone)
+                        Spacer()
+                        if let comparison { comparisonBadge(comparison) }
+                    }
                 }
             }
-            if let comparison {
-                Text(comparison.text)
-                    .font(.caption.bold())
-                    .foregroundStyle(comparisonColor(comparison))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(comparisonColor(comparison).opacity(0.12), in: Capsule())
-            }
         }
+    }
+
+    private func currentReportValue(
+        _ value: String,
+        window: DashboardWindow,
+        timezone: String
+    ) -> some View {
+        VStack(alignment: .leading) {
+            Text("Current").font(.caption).foregroundStyle(.secondary)
+            Text(value).font(.title2.bold())
+            Text(windowLabel(window, timezone: timezone))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func previousReportValue(
+        _ value: String,
+        window: DashboardWindow,
+        timezone: String
+    ) -> some View {
+        VStack(alignment: .trailing) {
+            Text("Previous").font(.caption).foregroundStyle(.secondary)
+            Text(value).font(.headline).foregroundStyle(.secondary)
+            Text(windowLabel(window, timezone: timezone))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func comparisonBadge(_ comparison: DashboardComparison) -> some View {
+        Text(comparison.text)
+            .font(.caption.bold())
+            .foregroundStyle(comparisonColor(comparison))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(comparisonColor(comparison).opacity(0.12), in: Capsule())
     }
 
     private func comparisonColor(_ comparison: DashboardComparison) -> Color {
@@ -187,26 +261,64 @@ struct DashboardView: View {
     }
 
     private func reportChart(
-        current: [Int],
-        previous: [Int],
+        current: [(bucket: DashboardBucket, value: Int)],
+        previous: [(bucket: DashboardBucket, value: Int)],
         label: String,
+        reportingTimezone: String,
+        valueLabel: @escaping (Int) -> String,
         accessibilityLabel: String
     ) -> some View {
         Chart {
-            ForEach(Array(previous.enumerated()), id: \.offset) { index, value in
-                LineMark(x: .value("Bucket", index), y: .value(label, value))
-                    .foregroundStyle(.secondary.opacity(0.45))
-                    .lineStyle(StrokeStyle(lineWidth: 2))
+            ForEach(Array(previous.enumerated()), id: \.element.bucket.id) { index, point in
+                LineMark(
+                    x: .value("Period position", index),
+                    y: .value(label, point.value),
+                    series: .value("Series", "Previous")
+                )
+                .foregroundStyle(by: .value("Series", "Previous"))
+                .lineStyle(StrokeStyle(lineWidth: 2, dash: [6, 5]))
             }
-            ForEach(Array(current.enumerated()), id: \.offset) { index, value in
-                LineMark(x: .value("Bucket", index), y: .value(label, value))
-                    .foregroundStyle(Theme.accent)
-                    .lineStyle(StrokeStyle(lineWidth: 3))
+            ForEach(Array(current.enumerated()), id: \.element.bucket.id) { index, point in
+                LineMark(
+                    x: .value("Period position", index),
+                    y: .value(label, point.value),
+                    series: .value("Series", "Current")
+                )
+                .foregroundStyle(by: .value("Series", "Current"))
+                .lineStyle(StrokeStyle(lineWidth: 3))
+
+                PointMark(
+                    x: .value("Period position", index),
+                    y: .value(label, point.value)
+                )
+                .foregroundStyle(by: .value("Series", "Current"))
+                .symbolSize(18)
             }
         }
-        .chartXAxis(.hidden)
+        .chartForegroundStyleScale(["Current": Theme.accent, "Previous": Color.secondary.opacity(0.55)])
+        .chartLegend(position: .bottom, alignment: .leading, spacing: 12)
+        .chartXAxis {
+            AxisMarks(values: chartAxisIndices(count: current.count)) { value in
+                AxisGridLine().foregroundStyle(.secondary.opacity(0.16))
+                AxisTick()
+                AxisValueLabel {
+                    if let index = value.as(Int.self), current.indices.contains(index) {
+                        Text(chartDate(current[index].bucket.start, timezone: reportingTimezone))
+                    }
+                }
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                AxisGridLine().foregroundStyle(.secondary.opacity(0.16))
+                AxisValueLabel {
+                    if let amount = value.as(Int.self) { Text(valueLabel(amount)) }
+                }
+            }
+        }
+        .chartXAxisLabel("Reporting date")
+        .frame(maxWidth: .infinity)
         .frame(height: 180)
-        .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
     }
 
@@ -252,13 +364,49 @@ struct DashboardView: View {
 
     private var dailySummaryTitle: String {
         guard let dashboard = store.dashboard else { return "Dashboard" }
-        guard dashboard.dayOffset > 0 else { return "Today" }
+        guard store.dayOffset > 0 else { return "Today" }
+        let date = store.dailySummary(for: store.dayOffset)?.start
+            ?? dateForRequestedOffset(store.dayOffset, from: dashboard)
         guard let timeZone = TimeZone(identifier: dashboard.reportingTimezone) else {
-            return dashboard.dailySummary.start.formatted(date: .abbreviated, time: .omitted)
+            return date.formatted(date: .abbreviated, time: .omitted)
         }
         var style = Date.FormatStyle.dateTime.weekday(.abbreviated).month(.abbreviated).day()
         style.timeZone = timeZone
-        return dashboard.dailySummary.start.formatted(style)
+        return date.formatted(style)
+    }
+
+    private func dateForRequestedOffset(_ requestedOffset: Int, from dashboard: DashboardResponse) -> Date {
+        guard let timeZone = TimeZone(identifier: dashboard.reportingTimezone) else {
+            return dashboard.dailySummary.start
+        }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let offsetDifference = requestedOffset - dashboard.dayOffset
+        return calendar.date(byAdding: .day, value: -offsetDifference, to: dashboard.dailySummary.start)
+            ?? dashboard.dailySummary.start
+    }
+
+    private func updateCarouselPosition(_ offset: Int) {
+        if reduceMotion {
+            carouselPosition = offset
+        } else {
+            withAnimation(.snappy) { carouselPosition = offset }
+        }
+    }
+
+    private func chartAxisIndices(count: Int) -> [Int] {
+        guard count > 1 else { return count == 1 ? [0] : [] }
+        return Array(Set([0, count / 2, count - 1])).sorted()
+    }
+
+    private func chartDate(_ date: Date, timezone: String) -> String {
+        var style = Date.FormatStyle.dateTime.month(.abbreviated).day()
+        style.timeZone = TimeZone(identifier: timezone) ?? .current
+        return date.formatted(style)
+    }
+
+    private func windowLabel(_ window: DashboardWindow, timezone: String) -> String {
+        "\(chartDate(window.start, timezone: timezone)) – \(chartDate(window.end, timezone: timezone))"
     }
 
     private func load() async {
@@ -275,12 +423,12 @@ private struct DailySummaryMetric: Identifiable {
 }
 
 private struct DailySummaryCard: View {
-    let summary: DashboardDailySummary
+    let summary: DashboardDailySummary?
     let selectedCurrency: String
 
     var body: some View {
         GroupBox {
-            let money = summary.currencies.total(for: selectedCurrency)
+            let money = summary?.currencies.total(for: selectedCurrency)
             let metrics = [
                 DailySummaryMetric(
                     title: "Gross volume",
@@ -288,44 +436,39 @@ private struct DailySummaryCard: View {
                         DashboardFormatting.money(minor: $0.grossAmountMinor, currency: $0.currency)
                     } ?? "—"
                 ),
-                DailySummaryMetric(title: "Payments", value: summary.payments.formatted()),
+                DailySummaryMetric(title: "Payments", value: summary?.payments.formatted() ?? "—"),
                 DailySummaryMetric(
-                    title: "Average payment",
+                    title: "Avg. $",
                     value: money.map {
                         DashboardFormatting.money(minor: $0.averageAmountMinor, currency: $0.currency)
                     } ?? "—"
                 )
             ]
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 12) {
-                    metric(metrics[0])
-                    Spacer(minLength: 0)
-                    metric(metrics[1])
-                    Spacer(minLength: 0)
-                    metric(metrics[2])
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    ForEach(metrics) { metric in
+                        Text(metric.title)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
-                VStack(alignment: .leading, spacing: 14) {
-                    ForEach(metrics) { compactMetric($0) }
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    ForEach(metrics) { metric in
+                        Text(metric.value)
+                            .font(.title3.bold())
+                            .foregroundStyle(Theme.ink)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 4)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(metrics.map { "\($0.title), \($0.value)" }.joined(separator: ". "))
         }
-    }
-
-    private func metric(_ metric: DailySummaryMetric) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(metric.title).font(.caption).foregroundStyle(.secondary)
-            Text(metric.value).font(.title3.bold()).foregroundStyle(Theme.ink)
-        }
-        .lineLimit(1)
-        .fixedSize(horizontal: true, vertical: false)
-        .accessibilityElement(children: .combine)
-    }
-
-    private func compactMetric(_ metric: DailySummaryMetric) -> some View {
-        LabeledContent(metric.title, value: metric.value)
-            .accessibilityElement(children: .combine)
+        .accessibilityValue(summary == nil ? "Loading" : "Loaded")
     }
 }
 
