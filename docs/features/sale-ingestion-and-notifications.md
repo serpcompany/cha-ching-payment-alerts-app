@@ -23,7 +23,7 @@ Custom notifications have a fixed `Cha-ching!` title. Their body is deterministi
 ## History and device registration
 
 - `GET /v1/sales` returns at most the signed-in user's 100 newest sales. Stripe entries are provider-verified; custom entries are sender-reported.
-- The Payments screen reads this API. Each custom sale includes its immutable ordered snapshot of enabled notification label/value fields for drill-down; sample revenue is not part of production behavior.
+- The Payments screen reads the latest-100 list API. If notification routing names a succeeded payment outside that page, an authenticated exact-payment endpoint returns it only to its owner. Each custom sale includes its immutable ordered snapshot of enabled notification label/value fields for drill-down; sample revenue is not part of production behavior.
 - iOS asks for notification permission after a provider is connected, registers its APNs token through `POST /v1/devices`, refreshes it on launch only while the user's Payment notifications preference is on, and removes the device on sign-out or when that preference is turned off.
 - The UI reports payment notifications as on only after both notification permission and backend device registration succeed. Simulator permission alone is not presented as a working push channel; production push acceptance uses a signed iPhone build.
 - Device tokens are never returned by a read API.

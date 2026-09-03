@@ -45,9 +45,10 @@ struct AppNavigationTests {
             )
         ]
 
-        let path = PaymentsNavigation.path(openedSaleID: "opened", sales: payments)
-        #expect(path.map(\.id) == ["opened"])
-        #expect(PaymentsNavigation.path(openedSaleID: "missing", sales: payments).isEmpty)
+        let path = PaymentsNavigation.path(for: .found(payments[1]))
+        #expect(path?.map(\.id) == ["opened"])
+        #expect(PaymentsNavigation.path(for: .missing)?.isEmpty == true)
+        #expect(PaymentsNavigation.path(for: .failed) == nil)
     }
 
     @Test func paymentSourceControlsRemainReachableForEachConnectionState() {

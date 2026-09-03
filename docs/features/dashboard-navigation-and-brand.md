@@ -39,7 +39,9 @@ The phone's current IANA timezone initializes the account preference once. The f
 
 ## Payments
 
-Payments presents every payment returned by `/v1/sales` in server order and opens the existing detail screen. Its API remains capped independently from dashboard aggregation. Pull-to-refresh keeps loaded rows on failure, provides Retry and Dismiss, and shares an in-flight request across concurrent callers.
+Payments presents every payment returned by `/v1/sales` in server order and opens the existing detail screen. Its list API remains capped independently from dashboard aggregation. A notification for a payment outside that latest-100 page uses the exact, user-scoped `/v1/sales/:id` endpoint before the route is consumed. A confirmed missing payment ends the route; a temporary request failure retains it for retry. Pull-to-refresh keeps loaded rows on failure, provides Retry and Dismiss, and shares an in-flight request across concurrent callers.
+
+Foreground payment delivery and successful source-history clearing publish the same neutral payment-history-changed event. Payments and Home independently coalesce their refreshes, ensuring removed rows leave totals and charts as well as the list.
 
 ## Native design
 

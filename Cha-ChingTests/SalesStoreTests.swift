@@ -79,6 +79,49 @@ struct SalesStoreTests {
         #expect(payment.cardSubtitle == "Buyer Email: buyer@example.com")
     }
 
+    @Test @MainActor func notificationResolutionUsesLoadedPaymentWithoutAnotherRequest() async {
+        let payment = testPayment(id: "loaded")
+        var exactRequests = 0
+        let store = SalesStore(client: SalesClient(
+            load: { [payment] },
+            loadByID: { _ in
+                exactRequests += 1
+                return nil
+            }
+        ))
+        await store.refresh()
+
+        #expect(await store.resolveNotificationSale(id: "loaded") == .found(payment))
+        #expect(exactRequests == 0)
+    }
+
+    @Test @MainActor func notificationResolutionFetchesAnExactPaymentOutsideTheLoadedPage() async {
+        let payment = testPayment(id: "older-than-100")
+        var requestedID: String?
+        let store = SalesStore(client: SalesClient(
+            load: { [] },
+            loadByID: { id in
+                requestedID = id
+                return payment
+            }
+        ))
+
+        #expect(await store.resolveNotificationSale(id: payment.id) == .found(payment))
+        #expect(requestedID == payment.id)
+        #expect(store.sale(id: payment.id) == payment)
+    }
+
+    @Test @MainActor func notificationResolutionDistinguishesMissingFromTemporaryFailure() async {
+        let missing = SalesStore(client: SalesClient(load: { [] }, loadByID: { _ in nil }))
+        let failing = SalesStore(client: SalesClient(
+            load: { [] },
+            loadByID: { _ in throw URLError(.notConnectedToInternet) }
+        ))
+
+        #expect(await missing.resolveNotificationSale(id: "missing") == .missing)
+        #expect(await failing.resolveNotificationSale(id: "retry-later") == .failed)
+    }
+
     @Test @MainActor func aPaymentRefreshFailurePreservesPaymentsAndIsDismissible() async {
         let payment = Sale(
             id: "sale",
@@ -163,4 +206,18 @@ struct SalesStoreTests {
         await store.refresh()
         #expect(try #require(store.sale(id: "sale")).details == updated.details)
     }
+}
+
+@MainActor
+private func testPayment(id: String) -> Sale {
+    Sale(
+        id: id,
+        product: "Product",
+        amountMinor: 1_000,
+        currency: "USD",
+        source: .stripe,
+        date: .now,
+        isSubscription: false,
+        countryCode: nil
+    )
 }

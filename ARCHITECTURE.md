@@ -46,7 +46,8 @@ Every authenticated product API except identity bootstrap (`/v1/me`), subscripti
 2. The user can explicitly replace that IANA timezone under Settings. Invalid identifiers are rejected by the Worker.
 3. `GET /v1/dashboard` computes local calendar boundaries from the saved timezone while keeping every stored payment timestamp in UTC.
 4. The Worker takes a stable `sales.rowid` cutoff, reads matching succeeded rows with keyset pagination, and folds each page into report aggregates rather than retaining full history in Worker memory or using the 100-row Payments feed. Backfilled rows inserted after the cutoff wait for the next refresh. Monetary results remain separated by currency, and missing chart buckets are returned as zero.
-5. Home refreshes after a preference change, foreground activation, and payment-notification routing. Payments continues to use `/v1/sales` for its list and detail navigation.
+5. Home and Payments observe one neutral payment-history-changed signal after foreground delivery or a successful clear-history action, so both views refresh without treating deletion as a newly received sale.
+6. Payments uses `/v1/sales` for the latest-100 list. A notification whose payment is not in that page requests the authenticated, product-gated `/v1/sales/:id` resource before consuming the route; the user-scoped endpoint never reveals another user's or a non-succeeded payment.
 
 A connected provider's `is_active` flag is checked before sale insertion. Pausing preserves authorization and history while new provider events receive a durable `ignored` disposition, so replaying one after resume cannot turn it into a sale.
 

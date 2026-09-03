@@ -1,11 +1,12 @@
 import SwiftUI
 
 enum PaymentsNavigation {
-    static func path(openedSaleID: String?, sales: [Sale]) -> [Sale] {
-        guard let openedSaleID, let sale = sales.first(where: { $0.id == openedSaleID }) else {
-            return []
+    static func path(for resolution: NotificationSaleResolution) -> [Sale]? {
+        switch resolution {
+        case .found(let sale): [sale]
+        case .missing: []
+        case .failed: nil
         }
-        return [sale]
     }
 }
 
@@ -35,7 +36,9 @@ struct PaymentsView: View {
             .task(id: notifications.openedSaleID) {
                 guard let saleID = notifications.openedSaleID else { return }
                 await store.refresh()
-                path = PaymentsNavigation.path(openedSaleID: saleID, sales: store.sales)
+                let resolution = await store.resolveNotificationSale(id: saleID)
+                guard let resolvedPath = PaymentsNavigation.path(for: resolution) else { return }
+                path = resolvedPath
                 notifications.consumeOpenedSale(saleID)
             }
             .navigationTitle("Payments")

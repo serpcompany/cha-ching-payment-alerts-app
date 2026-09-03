@@ -49,26 +49,33 @@ struct DashboardView: View {
     private func todayCard(_ today: DashboardToday) -> some View {
         GroupBox("Today") {
             let money = today.currencies.total(for: selectedCurrency)
+            let metrics = [
+                TodayMetric(
+                    title: "Gross volume",
+                    value: money.map { DashboardFormatting.money(minor: $0.grossAmountMinor, currency: $0.currency) } ?? "—"
+                ),
+                TodayMetric(title: "Payments", value: today.payments.formatted()),
+                TodayMetric(
+                    title: "Average payment",
+                    value: money.map { DashboardFormatting.money(minor: $0.averageAmountMinor, currency: $0.currency) } ?? "—"
+                )
+            ]
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 24) {
-                    metric("Gross volume", money.map { DashboardFormatting.money(minor: $0.grossAmountMinor, currency: $0.currency) } ?? "—")
-                    metric("Payments", today.payments.formatted())
-                    metric("Average payment", money.map { DashboardFormatting.money(minor: $0.averageAmountMinor, currency: $0.currency) } ?? "—")
+                    ForEach(metrics) { metric($0) }
                 }
                 VStack(alignment: .leading, spacing: 14) {
-                    metric("Gross volume", money.map { DashboardFormatting.money(minor: $0.grossAmountMinor, currency: $0.currency) } ?? "—")
-                    metric("Payments", today.payments.formatted())
-                    metric("Average payment", money.map { DashboardFormatting.money(minor: $0.averageAmountMinor, currency: $0.currency) } ?? "—")
+                    ForEach(metrics) { metric($0) }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private func metric(_ title: String, _ value: String) -> some View {
+    private func metric(_ metric: TodayMetric) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(value).font(.title3.bold()).foregroundStyle(Theme.ink)
+            Text(metric.title).font(.caption).foregroundStyle(.secondary)
+            Text(metric.value).font(.title3.bold()).foregroundStyle(Theme.ink)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -122,7 +129,7 @@ struct DashboardView: View {
                     label: "Gross volume",
                     accessibilityLabel: DashboardChartAccessibility.grossVolume(
                         current: currentAmounts,
-                        previous: previousAmounts,
+                        previous: dashboard.report.previous == nil ? nil : previousAmounts,
                         currency: selectedCurrency
                     )
                 )
@@ -146,7 +153,9 @@ struct DashboardView: View {
                     label: "Payments",
                     accessibilityLabel: DashboardChartAccessibility.payments(
                         current: dashboard.report.currentSeries.map(\.payments),
-                        previous: dashboard.report.previousSeries.map(\.payments)
+                        previous: dashboard.report.previous == nil
+                            ? nil
+                            : dashboard.report.previousSeries.map(\.payments)
                     )
                 )
             }
@@ -253,6 +262,12 @@ struct DashboardView: View {
         guard preferences.reportingTimezone != nil else { return }
         await store.refresh()
     }
+}
+
+private struct TodayMetric: Identifiable {
+    let title: String
+    let value: String
+    var id: String { title }
 }
 
 #Preview {

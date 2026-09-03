@@ -21,7 +21,7 @@ final class DashboardStore: ObservableObject {
     ) {
         self.loader = loader
         notificationObserver = notificationCenter.addObserver(
-            forName: .chaChingSaleReceived,
+            forName: .chaChingPaymentsChanged,
             object: nil,
             queue: .main
         ) { [weak self] _ in

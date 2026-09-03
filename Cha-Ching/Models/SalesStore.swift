@@ -5,6 +5,10 @@ private struct SalesResponse: Decodable {
     let sales: [SaleResponse]
 }
 
+private struct SaleResponseEnvelope: Decodable {
+    let sale: SaleResponse
+}
+
 private struct SaleResponse: Decodable {
     let id: String
     let provider: SaleSource
@@ -19,34 +23,58 @@ private struct SaleResponse: Decodable {
 
 struct SalesClient: Sendable {
     let load: @MainActor @Sendable () async throws -> [Sale]
+    let loadByID: @MainActor @Sendable (String) async throws -> Sale?
 
-    static let live = SalesClient(load: {
-        guard APIClient.shared.hasAuthToken else { return [] }
-        let response: SalesResponse = try await APIClient.shared.get("/v1/sales")
-        return payments(from: response)
-    })
+    init(
+        load: @escaping @MainActor @Sendable () async throws -> [Sale],
+        loadByID: @escaping @MainActor @Sendable (String) async throws -> Sale? = { _ in nil }
+    ) {
+        self.load = load
+        self.loadByID = loadByID
+    }
+
+    static let live = SalesClient(
+        load: {
+            guard APIClient.shared.hasAuthToken else { return [] }
+            let response: SalesResponse = try await APIClient.shared.get("/v1/sales")
+            return payments(from: response)
+        },
+        loadByID: { id in
+            guard APIClient.shared.hasAuthToken else { return nil }
+            do {
+                let response: SaleResponseEnvelope = try await APIClient.shared.get(
+                    "/v1/sales/\(id.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? id)"
+                )
+                return payment(from: response.sale)
+            } catch APIError.notFound {
+                return nil
+            }
+        }
+    )
 
     static func decode(_ data: Data) throws -> [Sale] {
         payments(from: try JSONDecoder().decode(SalesResponse.self, from: data))
     }
 
     private static func payments(from response: SalesResponse) -> [Sale] {
+        return response.sales.compactMap(payment(from:))
+    }
+
+    private static func payment(from row: SaleResponse) -> Sale? {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return response.sales.compactMap { row in
-            guard let date = formatter.date(from: row.occurredAt) else { return nil }
-            return Sale(
-                id: row.id,
-                product: row.productLabel,
-                amountMinor: row.amountMinor,
-                currency: row.currency,
-                source: row.provider,
-                date: date,
-                isSubscription: row.isSubscription,
-                countryCode: row.countryCode,
-                details: row.notificationFields ?? []
-            )
-        }
+        guard let date = formatter.date(from: row.occurredAt) else { return nil }
+        return Sale(
+            id: row.id,
+            product: row.productLabel,
+            amountMinor: row.amountMinor,
+            currency: row.currency,
+            source: row.provider,
+            date: date,
+            isSubscription: row.isSubscription,
+            countryCode: row.countryCode,
+            details: row.notificationFields ?? []
+        )
     }
 }
 
@@ -77,7 +105,7 @@ final class SalesStore: ObservableObject {
     init(client: SalesClient) {
         self.client = client
         notificationObserver = NotificationCenter.default.addObserver(
-            forName: .chaChingSaleReceived,
+            forName: .chaChingPaymentsChanged,
             object: nil,
             queue: .main
         ) { [weak self] _ in
@@ -135,4 +163,21 @@ final class SalesStore: ObservableObject {
     func sale(id: String) -> Sale? {
         sales.first { $0.id == id }
     }
+
+    func resolveNotificationSale(id: String) async -> NotificationSaleResolution {
+        if let loaded = sale(id: id) { return .found(loaded) }
+        do {
+            guard let exact = try await client.loadByID(id) else { return .missing }
+            if !sales.contains(where: { $0.id == exact.id }) { sales.insert(exact, at: 0) }
+            return .found(exact)
+        } catch {
+            return .failed
+        }
+    }
+}
+
+enum NotificationSaleResolution: Equatable {
+    case found(Sale)
+    case missing
+    case failed
 }

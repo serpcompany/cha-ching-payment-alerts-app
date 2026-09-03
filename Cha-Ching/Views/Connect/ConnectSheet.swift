@@ -6,7 +6,6 @@ struct ConnectSheet: View {
     let isActive: Bool
 
     @EnvironmentObject private var connectStore: ConnectStore
-    @EnvironmentObject private var salesStore: SalesStore
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingClearHistory = false
     @State private var clearResultMessage: String?
@@ -147,7 +146,7 @@ struct ConnectSheet: View {
 
     private func clearPaymentHistory() async {
         guard let cleared = await connectStore.clearPayments(provider: provider) else { return }
-        await salesStore.refresh()
+        PaymentHistoryEvents.changed()
         clearResultMessage = cleared == 1 ? "1 payment removed." : "\(cleared) payments removed."
     }
 

@@ -137,13 +137,16 @@ enum DashboardFormatting {
 }
 
 enum DashboardChartAccessibility {
-    static func grossVolume(current: [Int], previous: [Int], currency: String) -> String {
+    static func grossVolume(current: [Int], previous: [Int]?, currency: String) -> String {
         let currentValue = DashboardFormatting.money(minor: current.reduce(0, +), currency: currency)
+        guard let previous else { return "Gross volume chart. Current total \(currentValue)." }
         let previousValue = DashboardFormatting.money(minor: previous.reduce(0, +), currency: currency)
         return "Gross volume chart. Current total \(currentValue); previous total \(previousValue)."
     }
 
-    static func payments(current: [Int], previous: [Int]) -> String {
-        "Payments chart. Current total \(current.reduce(0, +)); previous total \(previous.reduce(0, +))."
+    static func payments(current: [Int], previous: [Int]?) -> String {
+        let currentText = "Payments chart. Current total \(current.reduce(0, +))"
+        guard let previous else { return "\(currentText)." }
+        return "\(currentText); previous total \(previous.reduce(0, +))."
     }
 }

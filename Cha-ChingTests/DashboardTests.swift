@@ -103,8 +103,8 @@ struct DashboardTests {
             notificationCenter: center
         )
 
-        center.post(name: .chaChingSaleReceived, object: nil)
-        center.post(name: .chaChingSaleReceived, object: nil)
+        PaymentHistoryEvents.changed(notificationCenter: center)
+        PaymentHistoryEvents.changed(notificationCenter: center)
         while loader.callCount == 0 { await Task.yield() }
         #expect(loader.callCount == 1)
         loader.finishFirst()
@@ -112,6 +112,28 @@ struct DashboardTests {
 
         #expect(store.dashboard?.today.payments == 2)
         #expect(loader.callCount == 1)
+    }
+
+    @MainActor
+    @Test func paymentHistoryChangesRefreshDashboardAfterClear() async throws {
+        let populated = try decodedResponse()
+        let empty = try decodedResponse(isEmpty: true)
+        let center = NotificationCenter()
+        let loader = ControlledDashboardLoader(first: populated, second: empty)
+        let store = DashboardStore(
+            loader: { period in try await loader.load(period) },
+            notificationCenter: center
+        )
+        let initial = Task { await store.refresh() }
+        while loader.callCount == 0 { await Task.yield() }
+        loader.finishFirst()
+        await initial.value
+        #expect(store.dashboard?.today.payments == 2)
+
+        PaymentHistoryEvents.changed(notificationCenter: center)
+        while loader.callCount < 2 || store.dashboard?.today.payments != 0 { await Task.yield() }
+
+        #expect(store.dashboard?.today.payments == 0)
     }
 
     @MainActor
@@ -145,6 +167,14 @@ struct DashboardTests {
         #expect(!label.contains("21350"))
         #expect(DashboardChartAccessibility.payments(current: [3, 4], previous: [2])
             == "Payments chart. Current total 7; previous total 2.")
+        let allGross = DashboardChartAccessibility.grossVolume(
+            current: [21_350], previous: nil, currency: "USD"
+        )
+        let allPayments = DashboardChartAccessibility.payments(current: [3, 4], previous: nil)
+        #expect(allGross.contains("213.50"))
+        #expect(!allGross.localizedCaseInsensitiveContains("previous"))
+        #expect(allPayments == "Payments chart. Current total 7.")
+        #expect(!allPayments.localizedCaseInsensitiveContains("previous"))
     }
 
     private func decodedResponse(

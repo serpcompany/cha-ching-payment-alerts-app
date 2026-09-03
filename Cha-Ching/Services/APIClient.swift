@@ -5,6 +5,7 @@ enum APIError: LocalizedError {
     case invalidConfiguration
     case invalidResponse
     case unauthorized
+    case notFound
     case server(String)
 
     var errorDescription: String? {
@@ -12,6 +13,7 @@ enum APIError: LocalizedError {
         case .invalidConfiguration: "The API URL isn't configured."
         case .invalidResponse: "The server returned an invalid response."
         case .unauthorized: "Your session expired. Please sign in again."
+        case .notFound: "The requested item was not found."
         case .server(let message): message
         }
     }
@@ -212,6 +214,7 @@ actor APIClient {
         guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
         guard (200..<300).contains(http.statusCode) else {
             if http.statusCode == 401 { throw APIError.unauthorized }
+            if http.statusCode == 404 { throw APIError.notFound }
             try throwServerError(data: data, status: http.statusCode)
         }
         return (data, http)

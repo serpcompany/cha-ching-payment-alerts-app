@@ -3,7 +3,13 @@ import UIKit
 @preconcurrency import UserNotifications
 
 extension Notification.Name {
-    static let chaChingSaleReceived = Notification.Name("com.serpcompany.chaching.sale-received")
+    static let chaChingPaymentsChanged = Notification.Name("com.serpcompany.chaching.payments-changed")
+}
+
+enum PaymentHistoryEvents {
+    static func changed(notificationCenter: NotificationCenter = .default) {
+        notificationCenter.post(name: .chaChingPaymentsChanged, object: nil)
+    }
 }
 
 private struct DeviceRegistrationRequest: Encodable {
@@ -296,7 +302,7 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     ) async -> UNNotificationPresentationOptions {
         await MainActor.run {
             clearAppBadge()
-            NotificationCenter.default.post(name: .chaChingSaleReceived, object: nil)
+            PaymentHistoryEvents.changed()
         }
         return PaymentNotificationPresentation.foregroundOptions
     }
@@ -314,7 +320,7 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
             clearBadge: { [weak self] in self?.clearAppBadge() },
             onOpen: { [weak self] destination in
                 guard let self else { return }
-                NotificationCenter.default.post(name: .chaChingSaleReceived, object: nil)
+                PaymentHistoryEvents.changed()
                 switch destination {
                 case let .payment(id):
                     openedSaleID = id
