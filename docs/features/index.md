@@ -7,7 +7,7 @@
 | Stripe account connection | Read-only live Stripe App installed; production sandbox guard verified | `provider-account-connections.md` |
 | PayPal account connection | Implemented for sandbox, live approval pending | `provider-account-connections.md` |
 | Subscription and entitlements | Implemented; annual App Store product ready to submit; backend-owned product-access enforcement enabled after signed-device reconciliation | `entitlements.md` |
-| Home dashboard, navigation, and notification brand | Implemented in repository: timezone-aware Home reports, separate Payments, Payment sources under Settings, actionable refresh errors, native charts, notification routing, device toggle, and dollar icon; release verification pending | `dashboard-navigation-and-brand.md` |
+| Home dashboard, navigation, and notification brand | Implemented and available in internal TestFlight build 38; automated paging, loading/failure, layout, and release verification passed; physical acceptance pending | `dashboard-navigation-and-brand.md` |
 | Stripe payment ingestion and notifications | Real live Charge persisted and visibly notified on a signed iPhone | `sale-ingestion-and-notifications.md` |
 | Custom webhook payment sources | Active in production with separate request-health evidence, adaptive quiet-source warnings, and source-routed UI/push alerts; matching UI is in internal TestFlight build 21 | `custom-webhook-payment-sources.md` |
 | PayPal payment ingestion and notifications | Not implemented | `sale-ingestion-and-notifications.md` |
