@@ -1,27 +1,60 @@
 import SwiftUI
 
-struct DailySummaryPage: Identifiable {
-    let id: Int
-    let summary: DashboardDailySummary?
-}
-
 struct DailySummaryCarousel: View {
-    let pages: [DailySummaryPage]
+    let selectedDayOffset: Int
     let selectedCurrency: String
-    @Binding var selection: Int?
+    let summary: (Int) -> DashboardDailySummary?
+    let selectDayOffset: (Int) async -> Int
+    var forceDebouncedCommit = false
+    @State private var selection: PageSlot?
+    @State private var displayedDayOffset = 0
+    @State private var pendingSelection: PageSlot?
+    @State private var isScrollIdle = true
+    @State private var isPaging = false
+    @State private var isScrollLocked = false
+    @State private var fallbackCommitTask: Task<Void, Never>?
 
+    private enum PageSlot: Int, Identifiable {
+        case older
+        case selected
+        case newer
+
+        var id: Self { self }
+    }
+
+    private var pageSlots: [PageSlot] {
+        displayedDayOffset == 0 ? [.older, .selected] : [.older, .selected, .newer]
+    }
+
+    @ViewBuilder
     var body: some View {
+        if #available(iOS 18.0, *), !forceDebouncedCommit {
+            carousel
+                .onScrollPhaseChange { _, newPhase in
+                    isScrollIdle = newPhase == .idle
+                    if isScrollIdle { commitPendingSelection() }
+                }
+        } else {
+            carousel
+        }
+    }
+
+    private var carousel: some View {
         ScrollView(.horizontal) {
             LazyHStack(spacing: 12) {
-                ForEach(pages) { page in
+                // These semantic IDs never change while a gesture is active. The
+                // represented dates change only after scrolling becomes idle and
+                // the carousel recenters without animation.
+                ForEach(pageSlots) { slot in
+                    let dayOffset = dayOffset(for: slot)
                     DailySummaryCard(
-                        pageID: page.id,
-                        summary: page.summary,
+                        pageID: dayOffset,
+                        summary: summary(dayOffset),
                         selectedCurrency: selectedCurrency
                     )
                         .containerRelativeFrame(.horizontal)
-                        .accessibilityIdentifier("daily-summary-card.\(page.id)")
-                        .id(page.id)
+                        .accessibilityIdentifier("daily-summary-card.\(dayOffset)")
+                        .id(slot)
                 }
             }
             .scrollTargetLayout()
@@ -30,6 +63,89 @@ struct DailySummaryCarousel: View {
         .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
         .scrollPosition(id: $selection, anchor: .center)
         .contentMargins(.horizontal, 16, for: .scrollContent)
+        .scrollDisabled(isScrollLocked)
+        .onAppear {
+            displayedDayOffset = selectedDayOffset
+            selection = .selected
+        }
+        .onChange(of: selectedDayOffset) { _, newOffset in
+            guard !isPaging, !isScrollLocked else { return }
+            displayedDayOffset = newOffset
+        }
+        .onChange(of: selection) { _, requestedSlot in
+            guard !isPaging,
+                  let requestedSlot,
+                  requestedSlot != .selected
+            else { return }
+            pendingSelection = requestedSlot
+            if #available(iOS 18.0, *), !forceDebouncedCommit {
+                if isScrollIdle { commitPendingSelection() }
+            } else {
+                // iOS 17 cannot report scroll phase. Lock as soon as the first
+                // semantic target is selected so residual momentum cannot
+                // select that slot again after its represented date changes.
+                isScrollLocked = true
+                scheduleFallbackCommit(for: requestedSlot)
+            }
+        }
+        .onDisappear { fallbackCommitTask?.cancel() }
+    }
+
+    private func dayOffset(for slot: PageSlot) -> Int {
+        switch slot {
+        case .older: displayedDayOffset + 1
+        case .selected: displayedDayOffset
+        case .newer: displayedDayOffset - 1
+        }
+    }
+
+    private func commitPendingSelection(fallbackSettleDelay: Duration? = nil) {
+        guard !isPaging,
+              let requestedSlot = pendingSelection,
+              requestedSlot != .selected
+        else { return }
+        pendingSelection = nil
+        fallbackCommitTask?.cancel()
+        let requestedOffset = dayOffset(for: requestedSlot)
+        guard requestedOffset >= 0 else {
+            recenter(on: displayedDayOffset)
+            isScrollLocked = false
+            return
+        }
+        isPaging = true
+        isScrollLocked = true
+        Task { @MainActor in
+            let resolvedOffset = await selectDayOffset(requestedOffset)
+            recenter(on: resolvedOffset)
+            if let fallbackSettleDelay {
+                // iOS 17 does not expose scroll phase. Keep scrolling disabled
+                // while queued position updates drain, then reassert the center
+                // slot before accepting another gesture.
+                try? await Task.sleep(for: fallbackSettleDelay)
+                recenter(on: resolvedOffset)
+            }
+            await Task.yield()
+            isPaging = false
+            isScrollLocked = false
+        }
+    }
+
+    private func scheduleFallbackCommit(for requestedSlot: PageSlot) {
+        fallbackCommitTask?.cancel()
+        fallbackCommitTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled, pendingSelection == requestedSlot else { return }
+            commitPendingSelection(fallbackSettleDelay: .milliseconds(750))
+        }
+    }
+
+    private func recenter(on dayOffset: Int) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            displayedDayOffset = dayOffset
+            selection = .selected
+        }
     }
 }
 
@@ -162,19 +278,25 @@ private struct DailySummaryCompactMetrics: View {
 
 #if DEBUG
 struct SummaryCardUITestFixture: View {
-    @State private var carouselPosition: Int?
+    @State private var selectedDayOffset: Int
 
-    private var pages: [DailySummaryPage] {
-        let allPages = [
-            DailySummaryPage(id: 1, summary: DashboardDailySummary(
+    init() {
+        let initialPage = ProcessInfo.processInfo.environment["SUMMARY_CARD_INITIAL_PAGE"]
+            .flatMap(Int.init) ?? 1
+        _selectedDayOffset = State(initialValue: initialPage)
+    }
+
+    private var summaries: [Int: DashboardDailySummary?] {
+        [
+            1: DashboardDailySummary(
                 start: Date(timeIntervalSince1970: 0),
                 end: Date(timeIntervalSince1970: 1),
                 payments: 2,
                 currencies: [DashboardMoneyTotal(
                     currency: "USD", payments: 2, grossAmountMinor: 2_700, averageAmountMinor: 1_350
                 )]
-            )),
-            DailySummaryPage(id: 2, summary: DashboardDailySummary(
+            ),
+            2: DashboardDailySummary(
                 start: Date(timeIntervalSince1970: 0),
                 end: Date(timeIntervalSince1970: 1),
                 payments: 1_234_567,
@@ -184,29 +306,88 @@ struct SummaryCardUITestFixture: View {
                     grossAmountMinor: 123_456_789,
                     averageAmountMinor: 98_765_432
                 )]
-            )),
-            DailySummaryPage(id: 0, summary: nil),
+            ),
+            0: nil,
         ]
-        guard let requestedID = ProcessInfo.processInfo.environment["SUMMARY_CARD_INITIAL_PAGE"]
-            .flatMap(Int.init),
-              let requestedIndex = allPages.firstIndex(where: { $0.id == requestedID })
-        else { return allPages }
-        return Array(allPages[requestedIndex...]) + Array(allPages[..<requestedIndex])
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 DailySummaryCarousel(
-                    pages: pages,
+                    selectedDayOffset: selectedDayOffset,
                     selectedCurrency: "USD",
-                    selection: $carouselPosition
+                    summary: { summaries[$0] ?? nil },
+                    selectDayOffset: {
+                        selectedDayOffset = $0
+                        return $0
+                    }
                 )
                 .padding(.horizontal, -16)
             }
             .padding()
             .background(Theme.canvas.ignoresSafeArea())
             .navigationTitle("Summary cards")
+        }
+    }
+}
+
+struct SummaryPagingUITestFixture: View {
+    @State private var selectedDayOffset = 0
+    @State private var selectionHistory = [0]
+
+    private var forceDebouncedCommit: Bool {
+        ProcessInfo.processInfo.arguments.contains("-ui-testing-summary-paging-debounced")
+    }
+
+    private func summary(for offset: Int) -> DashboardDailySummary {
+        DashboardDailySummary(
+            start: Date(timeIntervalSince1970: TimeInterval(-offset * 86_400)),
+            end: Date(timeIntervalSince1970: TimeInterval((1 - offset) * 86_400)),
+            payments: offset,
+            currencies: [DashboardMoneyTotal(
+                currency: "USD",
+                payments: offset,
+                grossAmountMinor: offset * 100,
+                averageAmountMinor: 100
+            )]
+        )
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 12) {
+                Text("Day offset: \(selectedDayOffset)")
+                    .accessibilityIdentifier("summary-paging-selected-offset")
+                Text(selectionHistory.map(String.init).joined(separator: ","))
+                    .accessibilityIdentifier("summary-paging-selection-history")
+                ScrollView {
+                    VStack(spacing: 24) {
+                        DailySummaryCarousel(
+                            selectedDayOffset: selectedDayOffset,
+                            selectedCurrency: "USD",
+                            summary: { summary(for: $0) },
+                            selectDayOffset: { requestedOffset in
+                                try? await Task.sleep(for: .milliseconds(20))
+                                selectedDayOffset = requestedOffset
+                                if selectionHistory.last != requestedOffset {
+                                    selectionHistory.append(requestedOffset)
+                                }
+                                return requestedOffset
+                            },
+                            forceDebouncedCommit: forceDebouncedCommit
+                        )
+                        .padding(.horizontal, -16)
+
+                        ForEach(0..<20, id: \.self) { row in
+                            Text("Vertical row \(row)")
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        }
+                    }
+                    .padding()
+                }
+            }
+            .navigationTitle(selectedDayOffset == 0 ? "Today" : "Day \(selectedDayOffset)")
         }
     }
 }

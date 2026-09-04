@@ -24,6 +24,15 @@ struct ChaChingApp: App {
         if ProcessInfo.processInfo.arguments.contains("-ui-testing-summary-cards") {
             SummaryCardUITestFixture()
                 .tint(Theme.accent)
+        } else if ProcessInfo.processInfo.arguments.contains("-ui-testing-summary-paging") {
+            SummaryPagingUITestFixture()
+                .tint(Theme.accent)
+        } else if ProcessInfo.processInfo.arguments.contains("-ui-testing-subscription-consent") {
+            SubscriptionConsentUITestFixture()
+                .tint(Theme.accent)
+        } else if ProcessInfo.processInfo.arguments.contains("-ui-testing-dashboard-paging") {
+            DashboardPagingUITestFixture()
+                .tint(Theme.accent)
         } else if ProcessInfo.processInfo.arguments.contains("-ui-testing-dashboard-refresh") {
             DashboardRefreshUITestFixture()
                 .tint(Theme.accent)

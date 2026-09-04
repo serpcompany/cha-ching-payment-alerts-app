@@ -4,8 +4,6 @@ import SwiftUI
 struct DashboardView: View {
     @EnvironmentObject private var store: DashboardStore
     @EnvironmentObject private var preferences: PreferencesStore
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var carouselPosition: Int?
 
     var body: some View {
         NavigationStack {
@@ -53,27 +51,16 @@ struct DashboardView: View {
 
     private var dailySummaryCarousel: some View {
         DailySummaryCarousel(
-            pages: store.carouselDayOffsets.map {
-                DailySummaryPage(id: $0, summary: store.dailySummary(for: $0))
-            },
+            selectedDayOffset: store.dayOffset,
             selectedCurrency: selectedCurrency,
-            selection: $carouselPosition
+            summary: { store.dailySummary(for: $0) },
+            selectDayOffset: {
+                await store.selectDayOffset($0)
+                return store.dayOffset
+            }
         )
         .padding(.horizontal, -16)
         .accessibilityLabel("Daily payment summaries")
-        .onAppear { carouselPosition = store.dayOffset }
-        .onChange(of: store.dayOffset) { _, newOffset in
-            guard carouselPosition != newOffset else { return }
-            updateCarouselPosition(newOffset)
-        }
-        .task(id: carouselPosition) {
-            guard let requestedOffset = carouselPosition,
-                  requestedOffset != store.dayOffset
-            else { return }
-            await store.selectDayOffset(requestedOffset)
-            guard !Task.isCancelled, carouselPosition != store.dayOffset else { return }
-            updateCarouselPosition(store.dayOffset)
-        }
     }
 
     private func reportsHeader(_ dashboard: DashboardResponse) -> some View {
@@ -368,14 +355,6 @@ struct DashboardView: View {
             ?? dashboard.dailySummary.start
     }
 
-    private func updateCarouselPosition(_ offset: Int) {
-        if reduceMotion {
-            carouselPosition = offset
-        } else {
-            withAnimation(.snappy) { carouselPosition = offset }
-        }
-    }
-
     private func chartAxisIndices(count: Int) -> [Int] {
         guard count > 1 else { return count == 1 ? [0] : [] }
         return Array(Set([0, count / 2, count - 1])).sorted()
@@ -405,6 +384,81 @@ struct DashboardView: View {
 }
 
 #if DEBUG
+struct DashboardPagingUITestFixture: View {
+    @StateObject private var store: DashboardStore
+    @StateObject private var preferences: PreferencesStore
+
+    @MainActor
+    init() {
+        let preferences = PreferencesStore()
+        preferences.setReportingTimezoneForUITesting("Asia/Tokyo")
+        _preferences = StateObject(wrappedValue: preferences)
+        _store = StateObject(wrappedValue: DashboardStore { _, dayOffset in
+            if dayOffset > 0 {
+                try await Task.sleep(for: .milliseconds(500))
+            }
+            if dayOffset == 2 {
+                throw URLError(.notConnectedToInternet)
+            }
+            return Self.response(dayOffset: dayOffset)
+        })
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("Dashboard day offset: \(store.dayOffset)")
+                .accessibilityIdentifier("dashboard-paging-selected-offset")
+            DashboardView()
+                .environmentObject(store)
+                .environmentObject(preferences)
+        }
+    }
+
+    private static func response(dayOffset: Int) -> DashboardResponse {
+        let day = Date(timeIntervalSince1970: 1_788_427_800 - TimeInterval(dayOffset * 86_400))
+        let money = DashboardMoneyTotal(
+            currency: "USD",
+            payments: dayOffset + 1,
+            grossAmountMinor: 59_110 + dayOffset * 37_230,
+            averageAmountMinor: 59_110
+        )
+        let window = DashboardWindow(start: day.addingTimeInterval(-27 * 86_400), end: day)
+        return DashboardResponse(
+            reportingTimezone: "Asia/Tokyo",
+            generatedAt: day,
+            period: .fourWeeks,
+            dayOffset: dayOffset,
+            dailySummary: DashboardDailySummary(
+                start: day,
+                end: day.addingTimeInterval(86_400),
+                payments: money.payments,
+                currencies: [money]
+            ),
+            report: DashboardReport(
+                current: window,
+                previous: nil,
+                totals: DashboardTotals(
+                    payments: DashboardCountComparison(
+                        current: money.payments,
+                        previous: 0,
+                        comparison: nil
+                    ),
+                    currencies: [DashboardCurrencyComparison(
+                        currency: "USD",
+                        currentAmountMinor: money.grossAmountMinor,
+                        previousAmountMinor: 0,
+                        comparison: nil
+                    )]
+                ),
+                currentSeries: [],
+                previousSeries: [],
+                products: [],
+                sources: []
+            )
+        )
+    }
+}
+
 struct DashboardRefreshUITestFixture: View {
     @State private var completedRefreshCount = 0
 

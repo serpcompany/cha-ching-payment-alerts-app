@@ -16,7 +16,7 @@ Restore remains an explicit fallback. It first checks StoreKit's locally availab
 
 Local Debug runs use the checked-in StoreKit catalog and automated purchase/restore coverage described in [`docs/development/storekit-testing.md`](../development/storekit-testing.md). A dedicated E2E scheme verifies local sign-in, StoreKit purchase, HTTP reconciliation, D1 persistence, and restore. The catalog is excluded from Release; the Worker accepts Xcode transactions only over its loopback-only development boundary, and local StoreKit state never replaces remote Apple signature verification.
 
-Customer-visible states are limited to **Full access** and **Subscription required**. Before a purchase, the primary action is **Start free trial** when StoreKit confirms eligibility and **Subscribe** otherwise. A previously purchased but inactive account receives **Subscribe again**. **Restore Purchases** is always separately available. Billing-retry-specific presentation remains pending renewal-state reconciliation.
+Customer-visible states are limited to **Full access** and **Subscription required**. Before a purchase, the primary action is **Start 7-day free trial** when StoreKit confirms eligibility and **Subscribe** otherwise. The screen states that there is no charge today, the exact localized annual price Apple will charge after the trial, and the automatic-renewal/cancellation boundary. Selecting the primary action opens a separate alert that repeats those terms and presents equally explicit **Continue to Apple** and **Not now** choices before StoreKit can present Apple's protected purchase sheet. A previously purchased but inactive account receives **Subscribe again** with the same explicit annual-price confirmation. **Restore Purchases** is always separately available. Billing-retry-specific presentation remains pending renewal-state reconciliation.
 
 Both Full access and Subscription required surfaces provide **Manage Subscription**, support, privacy, terms, sign-out, and authenticated account deletion. Deleting a Cha-Ching account does not cancel Apple billing. The deletion screen states that boundary before confirmation and links to Apple's subscription management first; deletion then removes the server entitlement without changing the App Store subscription.
 
@@ -42,6 +42,7 @@ All three are enabled by default when first materialized for an MVP user. Effect
 - Refund and revocation notifications remove access; stale notifications cannot overwrite newer state.
 - Stripe and custom-source events received without product access create no payment or notification and are not replayed after recovery.
 - Purchase success on the device does not grant access unless backend reconciliation returns Full access.
+- Starting a purchase requires explicit in-app confirmation of the annual price and renewal terms before Apple's purchase sheet opens.
 - A locally available current entitlement is reconciled automatically after the backend reports Subscription required, without forcing App Store sync.
 - Restore is explicit and available from both Subscription required and Settings.
 - Restore always presents a visible outcome instead of silently retaining the existing access state.
